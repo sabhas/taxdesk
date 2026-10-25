@@ -24,7 +24,7 @@ Deliver configurable service/workflow templates and case execution: assignments,
 
 **User story:** As an administrator, I want configurable services so that the application reflects the firm’s actual offerings without a code change.
 
-- [ ] Create, edit, archive, and list organization-scoped service types.
+- [ ] Create, edit, archive, and list deployment-wide service types.
 - [ ] Store default fee, active state, and default deadline offset.
 - [ ] Preserve historical service values on existing cases.
 

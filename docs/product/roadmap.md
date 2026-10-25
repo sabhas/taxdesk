@@ -29,7 +29,7 @@ This roadmap converts the original nine broad delivery phases into 14 two-week, 
 | Sprint | Goal | Points | Demonstrable increment |
 | --- | --- | ---: | --- |
 | 1 | Foundation and platform proof | 20 | Staging app, migrations, CI, tested OneDrive proof of concept |
-| 2 | Authenticated organization foundation | 20 | Bootstrap, login/logout, secure sessions, membership scope |
+| 2 | Authenticated access foundation | 20 | Bootstrap, login/logout, secure sessions, roles, and permissions |
 | 3 | MFA and authorization hardening | 19 | MFA, user lifecycle, server-enforced permissions |
 | 4 | Client master data | 21 | Protected client CRUD, search, duplicate detection |
 | 5 | Workflow configuration and cases | 20 | Service templates and draft cases |
@@ -38,7 +38,7 @@ This roadmap converts the original nine broad delivery phases into 14 two-week, 
 | 8 | Document workflow | 20 | Resumable upload, protected download, checklist links, reconciliation |
 | 9 | Invoice lifecycle | 20 | Draft/final invoices, invoice PDFs, numbering, audit trail |
 | 10 | Payment lifecycle | 19 | Partial payments, receipts, reversals, balances |
-| 11 | Operations visibility | 20 | Dashboard, reports, audit explorer, organization settings |
+| 11 | Operations visibility | 20 | Dashboard, reports, audit explorer, firm settings |
 | 12 | Controlled data import | 19 | CSV templates, dry-run validation, idempotent commit |
 | 13 | Recovery and release candidate | 18 | Migration rehearsal, backup/restore, security review |
 | 14 | Pilot and production launch | 19 | User acceptance, failure drills, production migration, training |

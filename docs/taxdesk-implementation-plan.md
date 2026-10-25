@@ -2,7 +2,7 @@
 
 ## 1. Product and Architecture Summary
 
-Build a secure, responsive web application for one tax firm initially, while preserving organization boundaries so it can later support larger firms or evolve into multi-firm SaaS without redesigning the domain.
+Build a secure, responsive web application for one tax firm per deployment. Each firm receives an independently deployed application, database, secrets, and storage connection.
 
 ### Initial production journey
 
@@ -45,10 +45,10 @@ A modular monolith is intentional: modules have explicit boundaries, but the tea
 
 ### Scalability model
 
-- Every business record contains an immutable `organization_id`.
-- The server derives the organization from the authenticated membership; clients never submit or override their authorization scope.
-- All unique constraints include `organization_id` where uniqueness belongs to a firm.
-- The initial deployment uses one PostgreSQL database. Repositories hide database access so a future SaaS version can route organizations to separate databases or a dedicated tenant architecture.
+- Business records do not carry an `organization_id`; a deployment represents one firm.
+- Authorization is derived from the authenticated user's roles and permissions; clients never submit or override authorization scope.
+- Business identifiers are unique within the deployment.
+- Every firm has a separate PostgreSQL database, application configuration, and storage connection.
 - The design target is 250 employees, 100,000 clients, and 50 concurrently active users per firm.
 - Storage, PDF rendering, notifications, background work, and audit sinks sit behind interfaces.
 - Application code depends on domain interfaces rather than OneDrive, Graph, or PostgreSQL-specific objects.
@@ -61,7 +61,7 @@ A modular monolith is intentional: modules have explicit boundaries, but the tea
 Use custom application authentication with these fixed rules:
 
 - No public registration.
-- An interactive CLI bootstrap creates the first organization and administrator.
+- An interactive CLI bootstrap creates the firm settings and first administrator.
 - Administrators invite users or issue a single-use account-activation link.
 - Email addresses are unique after lowercase normalization.
 - Passwords require at least 12 characters.
@@ -94,7 +94,7 @@ Use UUIDv7 identifiers, UTC timestamps, integer currency minor units, soft delet
 
 Principal tables:
 
-- Identity: `organizations`, `users`, `memberships`, `roles`, `permissions`, `membership_roles`, `role_permissions`, `sessions`, `mfa_credentials`, `recovery_codes`, `activation_tokens`.
+- Identity: `users`, `roles`, `permissions`, `user_roles`, `role_permissions`, `sessions`, `mfa_credentials`, `recovery_codes`, `activation_tokens`.
 - Clients: `clients`, `client_contacts`, `client_notes`.
 - Workflow: `service_types`, `workflow_templates`, `workflow_statuses`, `workflow_transitions`, `checklist_templates`, `checklist_template_items`.
 - Cases: `tax_cases`, `case_assignments`, `case_checklist_items`, `case_status_history`.
@@ -112,8 +112,8 @@ Important invariants:
 - An unpaid invoice may be voided. A recorded payment must be reversed through a linked reversal entry rather than deleted.
 - All financial mutations are atomic and idempotent.
 - Audit events are append-only and exclude passwords, tokens, document contents, and unmasked national identifiers.
-- Dates display using the organization timezone, initially `Asia/Karachi`.
-- Currency is an organization setting, initially `PKR`.
+- Dates display using the firm timezone, initially `Asia/Karachi`.
+- Currency is a firm setting, initially `PKR`.
 
 ### API conventions
 
@@ -122,7 +122,7 @@ Expose versioned endpoints beneath `/api/v1`.
 Primary resources:
 
 - `/auth/login`, `/auth/logout`, `/auth/mfa`, `/auth/session`, `/auth/password`
-- `/users`, `/memberships`, `/roles`
+- `/users`, `/roles`
 - `/clients`, `/clients/{id}`
 - `/service-types`, `/workflow-templates`
 - `/cases`, `/cases/{id}`, `/cases/{id}/transition`, `/cases/{id}/checklist`
@@ -171,7 +171,7 @@ Implementation rules:
 - Uploads use Graph resumable upload sessions and 5 MiB chunks.
 - The application limit is configurable and initially 250 MiB.
 - Allowed initial file types are PDF, JPEG, PNG, DOCX, XLSX, and CSV.
-- Files are organized using stable organization/client/case identifiers, not mutable client names.
+- Files are organized using stable client/case identifiers, not mutable client names.
 - Download and upload-session creation always pass application authorization first.
 - Deletion moves the provider object to trash and soft-deletes application metadata.
 - A reconciliation job detects missing, moved, or externally deleted provider objects.
@@ -255,17 +255,17 @@ A story is complete only when:
 
 Deliverable: deployed staging skeleton and validated OneDrive proof of concept.
 
-### Sprint 2 — Organization, Authentication, MFA, and Permissions
+### Sprint 2 — Authentication, MFA, and Permissions
 
-**Sprint Goal:** Provide secure user access with organization-scoped authorization.
+**Sprint Goal:** Provide secure user access with role- and permission-based authorization.
 
-1. **TD-101 Organization and identity schema**
-   - Implement organizations, users, memberships, roles, permissions, sessions, and MFA tables.
+1. **TD-101 Firm and identity schema**
+   - Implement firm settings, users, roles, permissions, sessions, and MFA tables.
    - Seed built-in roles and permission mappings.
    - Acceptance: permission seeds are repeatable and never duplicate data.
 
 2. **TD-102 Administrator bootstrap**
-   - Build an interactive CLI command that creates the initial organization and administrator without storing a plaintext credential.
+   - Build an interactive CLI command that creates firm settings and the initial administrator without storing a plaintext credential.
    - Acceptance: bootstrap refuses a second initial administrator and writes an audit event.
 
 3. **TD-103 Login and session lifecycle**
@@ -281,8 +281,8 @@ Deliverable: deployed staging skeleton and validated OneDrive proof of concept.
    - Acceptance: there is no public registration and a deactivated user loses active access immediately.
 
 6. **TD-106 Authorization framework**
-   - Require explicit permissions in route definitions and derive organization scope from membership.
-   - Acceptance: automated tests prove every protected route rejects missing permission and cross-organization access.
+   - Require explicit permissions in route definitions.
+   - Acceptance: automated tests prove every protected route rejects missing permissions and inaccessible nested resources.
 
 7. **TD-107 Authentication defenses**
    - Add account/IP throttling, Turnstile escalation, generic login errors, security headers, CSP, and sanitized logs.
@@ -304,7 +304,7 @@ Deliverable: secure, auditable multi-user staging application.
 
 3. **TD-203 Search and filtering**
    - Search by code, normalized name, phone, email, and exact blind-indexed tax identifier.
-   - Acceptance: paginated results remain organization-scoped and return within the performance target on synthetic data.
+   - Acceptance: paginated results respect permissions and return within the performance target on synthetic data.
 
 4. **TD-204 Duplicate detection**
    - Warn on matching identifier, email, phone, or high-confidence normalized name.
@@ -381,11 +381,11 @@ Deliverable: provider-neutral document module using OneDrive in production confi
 **Sprint Goal:** Produce reliable invoices and track collections without mutable financial history.
 
 1. **TD-501 Invoice drafts**
-   - Create invoice drafts from a case or manually with line items, optional discount, due date, and organization currency.
+   - Create invoice drafts from a case or manually with line items, optional discount, due date, and firm currency.
    - Acceptance: totals are calculated server-side using integer minor units.
 
 2. **TD-502 Invoice finalization**
-   - Allocate a unique organization-scoped invoice number and freeze billable content atomically.
+   - Allocate a unique deployment-wide invoice number and freeze billable content atomically.
    - Acceptance: concurrent finalization never creates duplicate numbers; retries return the original result.
 
 3. **TD-503 Invoice documents**
@@ -426,7 +426,7 @@ Deliverable: reconciliable billing workflow with invoices, payments, receipts, a
    - Filter by actor, date, action, entity, and request ID.
    - Acceptance: only administrators may inspect audit logs and sensitive values remain masked.
 
-4. **TD-604 Saved organization settings**
+4. **TD-604 Saved firm settings**
    - Manage firm identity, timezone, currency, numbering prefix, document-size limit, and dashboard deadline windows.
    - Acceptance: settings are validated and changes are audited.
 
@@ -509,7 +509,7 @@ Deliverable: production release and prioritized post-launch backlog.
 - API integration tests against an isolated managed PostgreSQL test database.
 - Contract tests executed against both fake storage and OneDrive adapter fixtures.
 - Authorization tests for every protected route and every built-in role.
-- Cross-organization isolation tests that attempt identifier guessing, search, export, and nested-resource access.
+- Authorization tests covering identifier guessing, search, export, and nested-resource access.
 - Concurrency tests for client/case updates, invoice numbering, finalization, payment submission, and import commits.
 - Browser end-to-end tests for login/MFA, client creation, case workflow, document upload, invoice/payment, CSV import, and user deactivation.
 - Failure tests for OAuth revocation, Graph throttling/5xx, upload interruption, stale ETags, duplicate idempotency keys, and unavailable database.
@@ -533,16 +533,16 @@ Quality thresholds:
 ### Explicit assumptions and defaults
 
 - The first deployment serves one Pakistani tax firm.
-- The schema is tenant-ready, but self-service multi-firm onboarding is not part of this release.
+- Each firm is deployed independently; multi-firm tenancy and self-service onboarding are out of scope.
 - Initial language is English; localization-ready message keys are used from the beginning.
-- Initial timezone is Asia/Karachi and currency is PKR, both organization-configurable.
+- Initial timezone is Asia/Karachi and currency is PKR, both firm-configurable.
 - OneDrive Personal is the initial file provider and is connected by an administrator-owned account.
 - Users authenticate only to TaxDesk; they do not share the Microsoft account.
 - Production documents stay in OneDrive; PostgreSQL stores metadata only.
 - OneDrive feasibility must pass Sprint 1. If it fails, the storage contract remains unchanged and an R2 adapter replaces OneDrive work in Sprint 5.
 - The first production deployment uses Cloudflare Pages for the React application and Cloudflare Workers for the Hono API. Hyperdrive provides pooled TLS connections to managed PostgreSQL using a least-privilege credential.
 - Development, staging, and production use separate managed PostgreSQL databases with automated backup and point-in-time-recovery capability. Encrypted independent exports are retained outside the database provider. Restore is rehearsed before production migration and at least quarterly thereafter.
-- Repository boundaries preserve a future move to database-per-organization or dedicated database infrastructure if multi-firm scale requires stronger isolation.
+- Deployment automation provisions one dedicated database and storage connection per firm.
 - Email/SMS notification delivery is excluded; deadlines appear in the application dashboard.
 - CSV migration includes clients, active cases, and opening invoice balances—not complete historical accounting.
 - The Product Owner supplies service types, workflow statuses, checklist items, branding, invoice wording, and sanitized migration samples before their respective sprint begins.

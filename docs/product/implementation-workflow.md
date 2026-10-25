@@ -31,7 +31,7 @@ shared schemas/types → domain service → repository/migration → API → web
 
 - Do not place authorization, workflow, or financial rules in React components.
 - Do not let routes calculate invoice balances or directly query OneDrive.
-- Do not let a request choose its own `organization_id`; derive it from the authenticated membership.
+- Do not let a request choose its own authorization scope; enforce access from the authenticated user's roles and permissions.
 - Do not mutate finalized invoices, payments, reversals, or case status history.
 - Use optimistic concurrency for editable records and idempotency for financial, import, and upload-completion commands.
 

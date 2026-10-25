@@ -18,7 +18,7 @@ React web application on Cloudflare Pages
         │ same-origin HTTPS requests
         ▼
 Cloudflare Worker / Hono API
-  ├── auth and organization scope
+  ├── authentication
   ├── permission middleware
   ├── domain services
   ├── repositories ──────────────► Hyperdrive ─────────► Managed PostgreSQL
@@ -39,14 +39,14 @@ Cloudflare Worker / Hono API
 
 ## Non-negotiable boundaries
 
-- Organization scope comes from the authenticated membership, never the request body or route query.
+- Authorization is based on the authenticated user's assigned roles and permissions; requests do not supply an authorization scope.
 - The web client never connects to PostgreSQL or provider integrations directly; it uses only the authenticated Worker API.
 - All money, workflow transitions, and mutable records are committed by the API.
 - Every mutating request carries a request ID; material changes also produce an append-only audit event.
 - Repositories use PostgreSQL, but service interfaces are database-agnostic.
 - Document storage is accessed only through `DocumentStorageProvider`.
 - Provider tokens and encryption keys remain deployment secrets and are never returned by APIs.
-- All timestamps are stored in UTC; presentation uses the organization timezone.
+- All timestamps are stored in UTC; presentation uses the firm timezone configured for this deployment.
 
 ## Deployment topology
 

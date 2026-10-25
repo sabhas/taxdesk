@@ -28,7 +28,7 @@ Follow @docs/product/implementation-workflow.md.
 - Implement in story order and preserve the stated dependencies.
 - Make each story independently testable before continuing.
 - Do not replace a provider-neutral interface with direct OneDrive calls.
-- Do not weaken authentication, organization isolation, immutable financial history, or audit requirements to reduce scope.
+- Do not weaken authentication, authorization, immutable financial history, or audit requirements to reduce scope.
 - If an external dependency fails its documented proof, stop at the safe boundary, report evidence, and do not invent a workaround that changes the approved architecture.
 
 **Deliver**

@@ -17,7 +17,7 @@ Audit the current codebase against **TaxDesk {story ID}: {story title}** in **Ep
 
 1. A table mapping every story acceptance criterion to `met`, `partial`, or `missing`, with evidence file paths and test names.
 2. A table of applicable Definition of Done checks with status and evidence.
-3. A security/integrity check covering organization scope, permissions, sensitive logging, concurrency, idempotency, and audit history where applicable.
+3. A security/integrity check covering authorization, permissions, sensitive logging, concurrency, idempotency, and audit history where applicable.
 4. Ordered gaps: critical, high, normal, and polish.
 5. A recommended PRD checkbox and `status.md` update.
 

@@ -14,22 +14,22 @@ related:
 ## Core relationships
 
 ```text
-Organization ──< Membership >── User
-Organization ──< Client ──< Tax Case ──< Case Checklist Item
-                                  ├──< Document
-                                  ├──< Case Status History
-                                  └──< Invoice ──< Invoice Item
-                                                    └──< Payment ──< Payment Reversal
-Organization ──< Storage Connection
-Organization ──< Audit Event
+User ──< Role Assignment
+Client ──< Tax Case ──< Case Checklist Item
+                         ├──< Document
+                         ├──< Case Status History
+                         └──< Invoice ──< Invoice Item
+                                           └──< Payment ──< Payment Reversal
+Storage Connection
+Audit Event
 ```
 
 ## Shared record rules
 
-- All business tables contain `id`, `organization_id`, `created_at`, `updated_at`, and `version`; archive-capable tables also contain `deleted_at`.
+- All business tables contain `id`, `created_at`, `updated_at`, and `version`; archive-capable tables also contain `deleted_at`.
 - IDs are UUIDv7. Timestamps are UTC ISO-8601 values.
-- Tenant uniqueness is composite, for example `(organization_id, invoice_number)`.
-- A client, case, document, invoice, payment, or audit event is never visible across organization boundaries.
+- Business identifiers such as invoice numbers are unique within the deployment.
+- Each deployment contains one firm only; its data is isolated by its dedicated application, database, secrets, and storage connection.
 
 ## Integrity rules
 

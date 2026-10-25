@@ -24,7 +24,7 @@ Deliver draft and finalized invoices, case-linked billing, provider-stored invoi
 
 **User story:** As the firm, I want consistent invoice data and arithmetic so that balances never depend on browser calculations.
 
-- [ ] Store all amounts as integer minor currency units with organization currency.
+- [ ] Store all amounts as integer minor currency units with the deployment's firm currency.
 - [ ] Represent draft/finalized/void status, issue/due dates, optional case, line items, discount, and calculated totals.
 - [ ] Validate totals server-side and reject negative subtotal or malformed line items.
 
@@ -41,7 +41,7 @@ Deliver draft and finalized invoices, case-linked billing, provider-stored invoi
 
 **User story:** As billing staff, I want to finalize an approved draft so that its amount and number become an accountable financial record.
 
-- [ ] Allocate a unique organization-scoped invoice number within the finalization transaction.
+- [ ] Allocate a unique deployment-wide invoice number within the finalization transaction.
 - [ ] Freeze line items and totals after finalization.
 - [ ] Require idempotency key and return the original outcome on retry.
 - [ ] Emit invoice-finalized audit event with masked safe summary.
@@ -77,7 +77,7 @@ Deliver draft and finalized invoices, case-linked billing, provider-stored invoi
 
 **User story:** As billing staff, I want a receipt for every payment so that a client can confirm what was recorded.
 
-- [ ] Allocate organization-scoped receipt number atomically.
+- [ ] Allocate a deployment-wide receipt number atomically.
 - [ ] Generate a receipt PDF through the storage provider.
 - [ ] Link receipt to payment and invoice without editing the invoice PDF.
 

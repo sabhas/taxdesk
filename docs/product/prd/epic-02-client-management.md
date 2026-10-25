@@ -57,7 +57,7 @@ Deliver the protected client master record: individuals and businesses, contacts
 
 **User story:** As staff, I want duplicate warnings before creation so that the firm avoids split records.
 
-- [ ] Block exact identifier duplicates within the organization.
+- [ ] Block exact identifier duplicates within the deployment.
 - [ ] Warn on matching email, phone, or high-confidence normalized name.
 - [ ] Allow only a manager or administrator to override non-exact warnings with a required reason.
 - [ ] Write override decisions to audit history.

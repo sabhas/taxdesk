@@ -14,7 +14,7 @@ related:
 
 ## Scope
 
-Deliver role-aware dashboards, server-side operational reports, CSV export, audit exploration, and organization settings.
+Deliver role-aware dashboards, server-side operational reports, CSV export, audit exploration, and firm settings.
 
 **Out of scope:** email/SMS/WhatsApp reminders, external BI dashboards, scheduled reports, custom report builder, and advanced accounting analytics.
 
@@ -53,7 +53,7 @@ Deliver role-aware dashboards, server-side operational reports, CSV export, audi
 - [ ] Display masked changes and correlation information only.
 - [ ] Deny audit access to non-administrators.
 
-### TD-605 — Organization settings and accessibility pass — 4 points
+### TD-605 — Firm settings and accessibility pass — 4 points
 
 **User story:** As an administrator, I want firm settings controlled in the app so that deployment configuration is not used for ordinary business choices.
 
@@ -64,5 +64,5 @@ Deliver role-aware dashboards, server-side operational reports, CSV export, audi
 ## Exit criteria
 
 - Every dashboard total can be traced to an authorized report/list query.
-- Reports never return another organization’s data.
+- Reports enforce the requesting user's permissions.
 - Administrators can investigate material actions without seeing secrets or unmasked identifiers.

@@ -15,7 +15,7 @@ related:
 
 ## Scope
 
-Create custom TaxDesk accounts with organization-scoped permissions, secure sessions, mandatory MFA, and administrator-managed user lifecycle.
+Create custom TaxDesk accounts with role- and permission-based access, secure sessions, mandatory MFA, and administrator-managed user lifecycle.
 
 **Out of scope:** public registration, social login, email delivery integration, active-session dashboard, custom role editor, and multi-firm onboarding.
 
@@ -29,19 +29,19 @@ Create custom TaxDesk accounts with organization-scoped permissions, secure sess
 
 ## Sprint 2 backlog — 20 points
 
-### TD-101 — Identity and membership schema — 3 points
+### TD-101 — Firm and identity schema — 3 points
 
-**User story:** As a platform owner, I want organizations, users, memberships, roles, and permissions represented separately so that one-firm deployment is ready for future tenant growth.
+**User story:** As a platform owner, I want firm settings, users, roles, and permissions represented separately so that access is securely managed within a single-firm deployment.
 
-- [ ] Add organizations, users, memberships, roles, permissions, role mappings, sessions, activation tokens, and audit-event tables.
+- [ ] Add firm-settings, users, roles, permissions, role mappings, sessions, activation tokens, and audit-event tables.
 - [ ] Seed the five built-in roles idempotently.
-- [ ] Require `organization_id` in all authorization-relevant data.
+- [ ] Enforce role and permission checks for all authorization-relevant data.
 
 ### TD-102 — Initial administrator bootstrap — 3 points
 
 **User story:** As the firm owner, I want to create the first administrator securely so that no default credential exists in source code.
 
-- [ ] Provide an interactive CLI bootstrap command requiring explicit organization name, email, and password.
+- [ ] Provide an interactive CLI bootstrap command requiring explicit firm name, email, and password.
 - [ ] Store only the versioned password hash and write an audit event.
 - [ ] Refuse to bootstrap another initial administrator after setup completes.
 
@@ -65,19 +65,19 @@ Create custom TaxDesk accounts with organization-scoped permissions, secure sess
 
 ### TD-105 — Current-user context — 3 points
 
-**User story:** As a signed-in user, I want the app to know my role and organization so that navigation accurately reflects what I can do.
+**User story:** As a signed-in user, I want the app to know my role and permissions so that navigation accurately reflects what I can do.
 
-- [ ] Expose a minimal current-session endpoint with user, membership, and permissions.
+- [ ] Expose a minimal current-session endpoint with user, roles, and permissions.
 - [ ] Load it once in the web application and gate navigation affordances.
 - [ ] Treat browser navigation gates as convenience only; API authorization remains authoritative.
 
-### TD-106 — Organization scope middleware — 3 points
+### TD-106 — Authorization middleware — 3 points
 
-**User story:** As a firm, I want every protected request constrained to my organization so that cross-firm data access is impossible.
+**User story:** As a firm, I want every protected request authorized by role and permission so that staff access is appropriately restricted.
 
-- [ ] Attach authenticated user, membership, organization, and permissions to request context.
-- [ ] Reject requests lacking a membership or required permission.
-- [ ] Add tests for cross-organization identifier guessing and nested-resource access.
+- [ ] Attach authenticated user, roles, and permissions to request context.
+- [ ] Reject requests lacking required permissions.
+- [ ] Add tests for identifier guessing and nested-resource access.
 
 ## Sprint 3 backlog — 19 points
 
@@ -95,7 +95,7 @@ Create custom TaxDesk accounts with organization-scoped permissions, secure sess
 **User story:** As an administrator, I want to invite, deactivate, reactivate, and reset users so that staff access stays current.
 
 - [ ] Create one-time 30-minute activation/reset links without sending email automatically.
-- [ ] Allow built-in role assignment and membership deactivation/reactivation.
+- [ ] Allow built-in role assignment and user deactivation/reactivation.
 - [ ] Revoke all active sessions after password, MFA, role, or active-status change.
 - [ ] Preserve audit history when a user is deactivated.
 
@@ -127,6 +127,6 @@ Create custom TaxDesk accounts with organization-scoped permissions, secure sess
 ## Exit criteria
 
 - No public registration route exists.
-- Every protected API route has tested organization and permission enforcement.
+- Every protected API route has tested permission enforcement.
 - MFA is required before normal application access.
 - User deactivation immediately invalidates existing sessions.

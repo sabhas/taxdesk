@@ -53,11 +53,11 @@ Implement a provider-neutral document domain and use Microsoft OneDrive as the f
 - [ ] Mark revoked/expired connection unhealthy and stop new document operations safely.
 - [ ] Provide an administrator-only reconnect call to action.
 
-### TD-405 — Stable storage organization — 3 points
+### TD-405 — Stable storage layout — 3 points
 
 **User story:** As the firm, I want documents organized by stable records so that client renames do not break access.
 
-- [ ] Derive provider paths from organization, stable client code, tax year, case ID, and document ID.
+- [ ] Derive provider paths from stable client code, tax year, case ID, and document ID.
 - [ ] Store external item ID and metadata as the durable reference.
 - [ ] Reject unsafe filenames and unsupported content types before upload starts.
 

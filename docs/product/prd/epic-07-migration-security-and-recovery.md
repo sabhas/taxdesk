@@ -58,7 +58,7 @@ Deliver validated CSV import, reconciliation, backup monitoring, independent rec
 **User story:** As the firm, I want imports treated as a protected write path so that unauthorized or malformed files cannot corrupt data.
 
 - [ ] Restrict templates, dry runs, and commits to administrator permission.
-- [ ] Test cross-organization, malformed CSV, duplicate retry, and large-file limits.
+- [ ] Test unauthorized access, malformed CSV, duplicate retry, and large-file limits.
 - [ ] Sanitize exported errors to avoid leaking confidential data.
 
 ## Sprint 13 backlog — 18 points

@@ -17,7 +17,7 @@ Implement in this order. Story points are relative sizing for one experienced en
 | Sprint | Stories | Points | Dependencies | Unlocks |
 | --- | --- | ---: | --- | --- |
 | 1 | TD-001–TD-006 | 20 | — | All product work; document-provider decision |
-| 2 | TD-101–TD-106 | 20 | TD-001–TD-004 | Organization-scoped secure access |
+| 2 | TD-101–TD-106 | 20 | TD-001–TD-004 | Role- and permission-based secure access |
 | 3 | TD-107–TD-111 | 19 | Sprint 2 | User lifecycle, MFA, permissions, protected routes |
 | 4 | TD-201–TD-206 | 21 | Sprint 3 | Cases, documents, billing, imports |
 | 5 | TD-301–TD-305 | 20 | Sprint 4 | Configurable case workflow |
@@ -41,7 +41,7 @@ Domain services own business rules. Route handlers coordinate request validation
 
 ## Dependency rules
 
-- Do not begin case, document, billing, or import work before organization-scoped authorization is passing automated tests.
+- Do not begin case, document, billing, or import work before authorization is passing automated tests.
 - Do not begin production OneDrive work before TD-005 records a successful Personal-account proof of concept.
 - Do not expose a document upload, invoice finalization, payment, or import commit route without idempotency coverage.
 - Do not load real client data before TD-709 restore rehearsal and TD-710 security review pass.

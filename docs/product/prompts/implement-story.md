@@ -27,14 +27,14 @@ Follow @docs/product/implementation-workflow.md.
 1. Shared Zod contracts and domain types.
 2. Domain service and business rules.
 3. Repository, migration, and indexes only if required.
-4. API route with authentication, organization scope, authorization, validation, and consistent errors.
+4. API route with authentication, authorization, validation, and consistent errors.
 5. Accessible web UI with loading, validation, empty, permission-denied, conflict, and failure states as relevant.
 6. Unit, integration, authorization, and browser tests appropriate to the story.
 7. Documentation and status update.
 
 **TaxDesk non-negotiables**
 
-- Derive organization scope from the server-side authenticated membership; never accept it from request input.
+- Derive authorization from the server-side authenticated user; never accept roles or permissions from request input.
 - Keep financial calculations, workflow transitions, and permissions on the server.
 - Use ETag/`If-Match` for editable resources; use `Idempotency-Key` for invoice finalization, payments, reversals, imports, and upload completion.
 - Never log secrets, provider tokens, document contents, or unmasked CNIC/NTN.

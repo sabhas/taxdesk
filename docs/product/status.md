@@ -16,7 +16,7 @@ Update this file when an epic or sprint starts, becomes blocked, or completes.
 | --- | --- | --- | --- | --- | --- |
 | 0 | Foundation and platform validation | not_started | 1 | — | Begin here |
 | 1 | Identity, MFA, and authorization | not_started | 2–3 | Epic 0 | Requires approved environment and auth decisions |
-| 2 | Client management | not_started | 4 | Epic 1 | Requires organization scope and audit service |
+| 2 | Client management | not_started | 4 | Epic 1 | Requires authorization and audit service |
 | 3 | Tax-case workflow | not_started | 5–6 | Epic 2 | Requires clients and role permissions |
 | 4 | Document storage | not_started | 7–8 | Epic 0, Epic 3 | OneDrive feasibility must pass |
 | 5 | Billing and payments | not_started | 9–10 | Epic 1, Epic 3 | Requires audit and idempotency service |

@@ -13,7 +13,7 @@ A TaxDesk story is done only when all applicable items are true:
 - Every acceptance criterion in its PRD is checked and demonstrated on staging.
 - Business rules are enforced by the API, not only by the user interface.
 - Request, response, and error contracts have shared Zod validation.
-- Authorization, organization scope, and ownership checks have automated coverage.
+- Authorization and ownership checks have automated coverage.
 - Database migrations are forward-only, tested from a clean database, and documented.
 - Money uses integer minor units; status and payment history are never silently overwritten.
 - Required unit, integration, browser, accessibility, and concurrency tests pass.
