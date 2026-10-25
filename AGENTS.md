@@ -39,14 +39,13 @@ implement fixes unless explicitly requested afterwards.
 
 ## Current implementation baseline
 
-- Start with Epic 0 / Sprint 1. Do not assume a frontend, API, workspace tooling,
-  package manager configuration, or test command already exists.
-- The intended application is a pnpm workspace modular monolith: React/Vite web,
-  Hono Worker API, shared TypeScript/Zod contracts, Drizzle/PostgreSQL, and test
-  utilities.
-- Once tooling exists, use the repository-defined install, format, lint,
-  type-check, unit, integration, and browser-test commands. Do not invent commands
-  in documentation; add or update them when TD-001 establishes the workspace.
+- Start with Epic 0 / Sprint 1. TD-001 established the pnpm workspace and quality
+  commands; subsequent stories build on that baseline.
+- The application is a pnpm workspace modular monolith: React/Vite web, Hono Worker
+  API, shared TypeScript/Zod contracts, Drizzle/PostgreSQL, and test utilities.
+- Use the repository-defined commands in `README.md` for install, format, lint,
+  type-check, test, and build. Do not invent commands in documentation; update
+  `README.md` when the workspace changes.
 - Keep changes scoped. Do not begin later epics to satisfy an unlisted idea.
 
 ## Architecture rules (non-negotiable)

@@ -1,0 +1,8 @@
+node_modules
+dist
+coverage
+pnpm-lock.yaml
+docs
+.pi
+Initial Brain Storm
+AGENTS.md
