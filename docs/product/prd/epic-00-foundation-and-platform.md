@@ -32,7 +32,7 @@ Deliver a deployable, observable skeleton and prove that the intended OneDrive P
 
 **User story:** As an operator, I want separate local, staging, and production environments so that experiments cannot affect firm data.
 
-- [ ] Configure local PostgreSQL for development and separate managed PostgreSQL databases, Hyperdrive bindings, and secret sets for staging and production.
+- [ ] Configure separate managed PostgreSQL databases, Hyperdrive bindings, and secret sets for development, staging, and production.
 - [ ] Deploy the React application to Cloudflare Pages and the Hono API to Cloudflare Workers; connect to managed PostgreSQL through Hyperdrive over TLS.
 - [ ] Provide a `/health` response with environment, release version, and request ID only.
 - [ ] Confirm health responses never reveal secrets, database names, connection details, or infrastructure addresses.
@@ -42,7 +42,7 @@ Deliver a deployable, observable skeleton and prove that the intended OneDrive P
 **User story:** As an engineer, I want repeatable migrations so that database changes are safe and traceable.
 
 - [ ] Create a forward-only migration runner and initial migration ledger.
-- [ ] Support clean local database setup and staging migration application.
+- [ ] Support clean managed development-database setup and staging migration application.
 - [ ] Reject edited historical migrations in CI through checksums.
 - [ ] Document rollback as a compensating forward migration or controlled database restore.
 
@@ -76,6 +76,6 @@ Deliver a deployable, observable skeleton and prove that the intended OneDrive P
 ## Exit criteria
 
 - Staging loads a web shell that successfully receives an API health response.
-- A clean local database can migrate to the latest version.
+- A clean managed development database can migrate to the latest version.
 - CI blocks a deliberately failing check.
 - The OneDrive spike has a documented pass/fail outcome.

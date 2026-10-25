@@ -34,11 +34,11 @@ Deferred until after the first production release:
 
 - Frontend: React, TypeScript, Vite, React Router, TanStack Query, React Hook Form, Zod, Tailwind CSS, and shadcn/ui.
 - Backend: TypeScript, Cloudflare Workers with Node.js compatibility, and Hono.
-- Database: local PostgreSQL for development; managed PostgreSQL for staging and production, with Drizzle ORM and versioned SQL migrations.
+- Database: separate managed PostgreSQL databases for development, staging, and production, with Drizzle ORM and versioned SQL migrations.
 - Documents: provider-neutral storage module; Microsoft Graph/OneDrive adapter first.
-- Testing: Vitest, a local Worker/PostgreSQL test runtime, Testing Library, Playwright, and adapter contract tests.
+- Testing: Vitest, a local Worker runtime connected to an isolated managed PostgreSQL test database, Testing Library, Playwright, and adapter contract tests.
 - Repository: pnpm workspace modular monolith containing `web`, `api`, and shared packages.
-- Deployment: Cloudflare Pages for the React frontend and Cloudflare Workers for the Hono API; Hyperdrive connects to managed PostgreSQL in staging and production; separate local development and isolated staging environments.
+- Deployment: Cloudflare Pages for the React frontend and Cloudflare Workers for the Hono API; Hyperdrive connects to managed PostgreSQL in development, staging, and production; separate local code execution and isolated managed database environments.
 - Delivery: trunk-based development, short-lived branches, mandatory CI, and migration checks.
 
 A modular monolith is intentional: modules have explicit boundaries, but the team avoids distributed-system overhead until real scale demands it.
@@ -234,7 +234,7 @@ A story is complete only when:
    - Acceptance: one command installs, builds, type-checks, and tests the complete workspace.
 
 2. **TD-002 Development environments**
-   - Configure local PostgreSQL for development and separate managed PostgreSQL databases, Hyperdrive bindings, and secret sets for staging and production.
+   - Configure separate managed PostgreSQL databases, Hyperdrive bindings, and secret sets for development, staging, and production.
    - Acceptance: local and staging health endpoints identify environment and build version without revealing secrets.
 
 3. **TD-003 Database migration pipeline**
@@ -506,7 +506,7 @@ Deliverable: production release and prioritized post-launch backlog.
 
 - Unit tests for money, invoice state, case transitions, checklist rules, permission evaluation, encryption, password verification, and normalization.
 - Schema and migration tests from empty database and previous release database.
-- API integration tests against a real local PostgreSQL instance.
+- API integration tests against an isolated managed PostgreSQL test database.
 - Contract tests executed against both fake storage and OneDrive adapter fixtures.
 - Authorization tests for every protected route and every built-in role.
 - Cross-organization isolation tests that attempt identifier guessing, search, export, and nested-resource access.
@@ -541,7 +541,7 @@ Quality thresholds:
 - Production documents stay in OneDrive; PostgreSQL stores metadata only.
 - OneDrive feasibility must pass Sprint 1. If it fails, the storage contract remains unchanged and an R2 adapter replaces OneDrive work in Sprint 5.
 - The first production deployment uses Cloudflare Pages for the React application and Cloudflare Workers for the Hono API. Hyperdrive provides pooled TLS connections to managed PostgreSQL using a least-privilege credential.
-- Production and staging use separate managed PostgreSQL databases with automated backup and point-in-time-recovery capability. Encrypted independent exports are retained outside the database provider. Restore is rehearsed before production migration and at least quarterly thereafter.
+- Development, staging, and production use separate managed PostgreSQL databases with automated backup and point-in-time-recovery capability. Encrypted independent exports are retained outside the database provider. Restore is rehearsed before production migration and at least quarterly thereafter.
 - Repository boundaries preserve a future move to database-per-organization or dedicated database infrastructure if multi-firm scale requires stronger isolation.
 - Email/SMS notification delivery is excluded; deadlines appear in the application dashboard.
 - CSV migration includes clients, active cases, and opening invoice balances—not complete historical accounting.

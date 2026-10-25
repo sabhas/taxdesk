@@ -50,7 +50,7 @@ Cloudflare Worker / Hono API
 
 ## Deployment topology
 
-- Local development runs the React application, Worker API, and PostgreSQL on the developer workstation. Local PostgreSQL may run directly or in Docker and contains only synthetic data.
+- Local development runs the React application and Worker API on the developer workstation against a dedicated managed development PostgreSQL database. The development database contains only synthetic data and is separate from staging and production.
 - Production runs the React application on Cloudflare Pages and the Hono API on Cloudflare Workers. PostgreSQL is a separately managed production database.
 - `development`, `staging`, and `production` each have separate configuration, PostgreSQL databases, secrets, and storage connections. Staging is an isolated deployment and uses synthetic data only.
 - Hyperdrive manages pooled Worker-to-database connections. The managed database accepts only TLS connections using its least-privilege application credential; network access is restricted to approved Cloudflare connectivity whenever the provider supports it.
