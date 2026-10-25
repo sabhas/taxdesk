@@ -34,7 +34,7 @@ Implement a provider-neutral document domain and use Microsoft OneDrive as the f
 **User story:** As an administrator, I want the storage connection protected so that staff never handle provider credentials.
 
 - [ ] Store provider type, connection health, external drive/folder IDs, encrypted token payload, and key version.
-- [ ] Encrypt/decrypt tokens using AES-GCM with Worker secrets.
+- [ ] Encrypt/decrypt tokens using AES-GCM with deployment secrets stored outside source control and the database.
 - [ ] Ensure tokens and provider authorization responses never reach browser logs or API responses.
 
 ### TD-403 — OneDrive administrator connection — 4 points

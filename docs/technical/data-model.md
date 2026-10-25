@@ -39,5 +39,5 @@ Organization ──< Audit Event
 - Draft invoices may change; final invoices, payments, and reversals cannot be edited or deleted.
 - A payment reversal references one original payment and may not exceed that payment's unreversed amount.
 - Invoice balance is derived and updated atomically within the transaction that changes financial entries.
-- Documents store provider-neutral external identifiers, metadata, verification state, and linkage to client/case/checklist item; file bytes never enter D1.
+- Documents store provider-neutral external identifiers, metadata, verification state, and linkage to client/case/checklist item; file bytes never enter PostgreSQL.
 - Audit events exclude raw credentials, refresh tokens, and unmasked national identifiers.

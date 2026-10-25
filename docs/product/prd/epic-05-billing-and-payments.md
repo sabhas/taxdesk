@@ -103,7 +103,7 @@ Deliver draft and finalized invoices, case-linked billing, provider-stored invoi
 **User story:** As the firm, I want financial operations tested under retries and concurrency so that totals remain reliable.
 
 - [ ] Test concurrent finalization, duplicate payment submission, partial payment, reversal, void, and stale update paths.
-- [ ] Add browser journey from case to invoice to partial payment to full settlement.
+- [ ] Add a browser journey from case to invoice to partial payment to full settlement.
 - [ ] Verify financial routes require explicit, tested permissions.
 
 ## Exit criteria

@@ -40,7 +40,7 @@ Run a controlled pilot, validate performance and failure behavior, migrate produ
 
 **User story:** As an operator, I want known failures rehearsed so that users receive safe, actionable outcomes.
 
-- [ ] Exercise revoked OneDrive access, expired session, stale case edit, duplicate payment retry, interrupted upload, D1 error, and missed backup alert.
+- [ ] Exercise revoked OneDrive access, expired session, stale case edit, duplicate payment retry, interrupted upload, PostgreSQL unavailability, and missed backup alert.
 - [ ] Verify user-facing error state, audit/log evidence, and operator runbook for each scenario.
 
 ### TD-804 — Production migration and acceptance — 4 points

@@ -24,7 +24,7 @@ Deliver a deployable, observable skeleton and prove that the intended OneDrive P
 
 **User story:** As an engineer, I want a consistent workspace and quality commands so that every contributor builds and validates the same application.
 
-- [ ] Create pnpm workspace packages for web, API, shared contracts, database, and test utilities.
+- [ ] Create pnpm workspace packages for the React web app, API, shared contracts, database, and test utilities.
 - [ ] Enable strict TypeScript, linting, formatting, and import-boundary checks.
 - [ ] Provide one documented command for install, type check, lint, test, and build.
 
@@ -32,9 +32,10 @@ Deliver a deployable, observable skeleton and prove that the intended OneDrive P
 
 **User story:** As an operator, I want separate local, staging, and production environments so that experiments cannot affect firm data.
 
-- [ ] Configure distinct D1 bindings and secret names for all environments.
+- [ ] Configure local PostgreSQL for development and separate managed PostgreSQL databases, Hyperdrive bindings, and secret sets for staging and production.
+- [ ] Deploy the React application to Cloudflare Pages and the Hono API to Cloudflare Workers; connect to managed PostgreSQL through Hyperdrive over TLS.
 - [ ] Provide a `/health` response with environment, release version, and request ID only.
-- [ ] Confirm health responses never reveal secrets, database IDs, or connection details.
+- [ ] Confirm health responses never reveal secrets, database names, connection details, or infrastructure addresses.
 
 ### TD-003 — Migration discipline — 5 points
 
@@ -49,7 +50,7 @@ Deliver a deployable, observable skeleton and prove that the intended OneDrive P
 
 **User story:** As an engineer, I want the browser and API deployed together so that later features inherit a working delivery path.
 
-- [ ] Serve the React shell and Hono API from the staging deployment.
+- [ ] Serve the React shell from Cloudflare Pages and route same-origin API requests to the staged Hono Worker.
 - [ ] Define shared Problem Details error schema and request-ID middleware.
 - [ ] Show a friendly web error state when the API health call fails.
 
@@ -68,12 +69,13 @@ Deliver a deployable, observable skeleton and prove that the intended OneDrive P
 **User story:** As a product owner, I want every change validated before it reaches staging so that defects are found early.
 
 - [ ] Run install, type check, lint, tests, migration validation, build, and secret scanning in CI.
-- [ ] Deploy passing main-branch changes to staging.
+- [ ] Deploy passing main-branch changes to the isolated staging environment.
+- [ ] Confirm Hyperdrive uses TLS and a least-privilege credential, point-in-time recovery is enabled, independent exports leave the provider, and failed backup checks alert an operator.
 - [ ] Ensure pull-request builds cannot read production secrets.
 
 ## Exit criteria
 
-- Staging loads a web shell and API health response.
+- Staging loads a web shell that successfully receives an API health response.
 - A clean local database can migrate to the latest version.
 - CI blocks a deliberately failing check.
 - The OneDrive spike has a documented pass/fail outcome.

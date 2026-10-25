@@ -33,12 +33,12 @@ Deferred until after the first production release:
 ### Chosen technology
 
 - Frontend: React, TypeScript, Vite, React Router, TanStack Query, React Hook Form, Zod, Tailwind CSS, and shadcn/ui.
-- Backend: TypeScript, Cloudflare Workers, and Hono.
-- Database: Cloudflare D1 with Drizzle ORM and versioned SQL migrations.
+- Backend: TypeScript, Cloudflare Workers with Node.js compatibility, and Hono.
+- Database: local PostgreSQL for development; managed PostgreSQL for staging and production, with Drizzle ORM and versioned SQL migrations.
 - Documents: provider-neutral storage module; Microsoft Graph/OneDrive adapter first.
-- Testing: Vitest, Cloudflare local test runtime, Testing Library, Playwright, and adapter contract tests.
+- Testing: Vitest, a local Worker/PostgreSQL test runtime, Testing Library, Playwright, and adapter contract tests.
 - Repository: pnpm workspace modular monolith containing `web`, `api`, and shared packages.
-- Deployment: separate development, staging, and production Cloudflare environments and databases.
+- Deployment: Cloudflare Pages for the React frontend and Cloudflare Workers for the Hono API; Hyperdrive connects to managed PostgreSQL in staging and production; separate local development and isolated staging environments.
 - Delivery: trunk-based development, short-lived branches, mandatory CI, and migration checks.
 
 A modular monolith is intentional: modules have explicit boundaries, but the team avoids distributed-system overhead until real scale demands it.
@@ -48,11 +48,11 @@ A modular monolith is intentional: modules have explicit boundaries, but the tea
 - Every business record contains an immutable `organization_id`.
 - The server derives the organization from the authenticated membership; clients never submit or override their authorization scope.
 - All unique constraints include `organization_id` where uniqueness belongs to a firm.
-- The initial deployment uses one D1 database. Repositories hide database access so a future SaaS version can route organizations to separate D1 databases or PostgreSQL.
+- The initial deployment uses one PostgreSQL database. Repositories hide database access so a future SaaS version can route organizations to separate databases or a dedicated tenant architecture.
 - The design target is 250 employees, 100,000 clients, and 50 concurrently active users per firm.
 - Storage, PDF rendering, notifications, background work, and audit sinks sit behind interfaces.
-- Application code depends on domain interfaces rather than OneDrive, Graph, or D1-specific objects.
-- Production moves to a paid Cloudflare plan before real confidential data is loaded; free tiers remain acceptable for development.
+- Application code depends on domain interfaces rather than OneDrive, Graph, or PostgreSQL-specific objects.
+- Production runs the React frontend on Cloudflare Pages and the Hono API on Cloudflare Workers before real confidential data is loaded. Managed PostgreSQL supplies automated backups and point-in-time recovery; encrypted independent exports are retained outside the database provider.
 
 ## 2. Interfaces, Data Model, and Engineering Rules
 
@@ -234,7 +234,7 @@ A story is complete only when:
    - Acceptance: one command installs, builds, type-checks, and tests the complete workspace.
 
 2. **TD-002 Development environments**
-   - Configure local, staging, and production environment definitions with separate D1 bindings and secrets.
+   - Configure local PostgreSQL for development and separate managed PostgreSQL databases, Hyperdrive bindings, and secret sets for staging and production.
    - Acceptance: local and staging health endpoints identify environment and build version without revealing secrets.
 
 3. **TD-003 Database migration pipeline**
@@ -242,7 +242,7 @@ A story is complete only when:
    - Acceptance: a clean database reaches the latest version automatically; CI detects an edited historical migration.
 
 4. **TD-004 Web/API walking skeleton**
-   - Build the application shell, health endpoint, request IDs, structured logging, Problem Details errors, and a protected placeholder route.
+   - Build the React web shell, health endpoint, request IDs, structured logging, Problem Details errors, and a protected placeholder route.
    - Acceptance: the staging web application loads and successfully calls the Worker API.
 
 5. **TD-005 OneDrive feasibility spike**
@@ -457,12 +457,12 @@ Deliverable: beta release suitable for real-user workflow evaluation.
    - Acceptance: Product Owner signs a migration reconciliation checklist.
 
 5. **TD-705 Backup automation**
-   - Use D1 Time Travel plus daily encrypted independent export with documented retention.
-   - Acceptance: monitoring detects failed exports and no backup contains application secrets.
+   - Verify managed PostgreSQL automated backups and point-in-time recovery, then create a daily encrypted independent export outside the database provider with documented retention.
+   - Acceptance: monitoring detects missed provider backup coverage or failed exports; no backup contains application secrets.
 
 6. **TD-706 Restore rehearsal**
    - Restore a backup into an isolated environment and verify authentication, record counts, case states, and balances.
-   - Acceptance: measured RTO is at most four hours; Time Travel provides an operational RPO of one hour and independent exports an RPO of 24 hours.
+   - Acceptance: measured RTO is at most four hours; documented managed-database point-in-time recovery and a daily independent export provide verified recovery paths.
 
 7. **TD-707 Security review**
    - Review against OWASP ASVS Level 2 principles, dependency findings, authorization matrix, CSP, token handling, logging, and data export behavior.
@@ -483,7 +483,7 @@ Deliverable: production candidate with rehearsed migration and disaster recovery
    - Acceptance: excluding Microsoft transfer time, p95 reads remain below 500 ms, writes below 800 ms, and server error rate below 1%.
 
 3. **TD-803 Failure drills**
-   - Exercise revoked OneDrive access, expired sessions, stale edits, duplicate payment retries, interrupted uploads, D1 errors, and failed backup notification.
+   - Exercise revoked OneDrive access, expired sessions, stale edits, duplicate payment retries, interrupted uploads, PostgreSQL unavailability, and failed backup notification.
    - Acceptance: each scenario has a safe user response and an operator runbook.
 
 4. **TD-804 Production migration**
@@ -506,12 +506,12 @@ Deliverable: production release and prioritized post-launch backlog.
 
 - Unit tests for money, invoice state, case transitions, checklist rules, permission evaluation, encryption, password verification, and normalization.
 - Schema and migration tests from empty database and previous release database.
-- API integration tests against a real local D1-compatible runtime.
+- API integration tests against a real local PostgreSQL instance.
 - Contract tests executed against both fake storage and OneDrive adapter fixtures.
 - Authorization tests for every protected route and every built-in role.
 - Cross-organization isolation tests that attempt identifier guessing, search, export, and nested-resource access.
 - Concurrency tests for client/case updates, invoice numbering, finalization, payment submission, and import commits.
-- Browser tests for login/MFA, client creation, case workflow, document upload, invoice/payment, CSV import, and user deactivation.
+- Browser end-to-end tests for login/MFA, client creation, case workflow, document upload, invoice/payment, CSV import, and user deactivation.
 - Failure tests for OAuth revocation, Graph throttling/5xx, upload interruption, stale ETags, duplicate idempotency keys, and unavailable database.
 - Accessibility tests plus manual keyboard and screen-reader checks.
 - Backup restoration and migration reconciliation tests.
@@ -538,10 +538,11 @@ Quality thresholds:
 - Initial timezone is Asia/Karachi and currency is PKR, both organization-configurable.
 - OneDrive Personal is the initial file provider and is connected by an administrator-owned account.
 - Users authenticate only to TaxDesk; they do not share the Microsoft account.
-- Production documents stay in OneDrive; D1 stores metadata only.
+- Production documents stay in OneDrive; PostgreSQL stores metadata only.
 - OneDrive feasibility must pass Sprint 1. If it fails, the storage contract remains unchanged and an R2 adapter replaces OneDrive work in Sprint 5.
-- Cloudflare D1 remains the first database. Repository boundaries preserve a future move to database-per-organization D1 or PostgreSQL.
-- D1's current paid limit is 10 GB per database and its intended horizontal model includes database-per-tenant isolation, so future SaaS scale uses a tenant database router rather than one indefinitely growing shared database. See [Cloudflare D1 limits](https://developers.cloudflare.com/d1/platform/limits/) and [Cloudflare tenant-isolation guidance](https://developers.cloudflare.com/use-cases/saas/data-isolation/).
+- The first production deployment uses Cloudflare Pages for the React application and Cloudflare Workers for the Hono API. Hyperdrive provides pooled TLS connections to managed PostgreSQL using a least-privilege credential.
+- Production and staging use separate managed PostgreSQL databases with automated backup and point-in-time-recovery capability. Encrypted independent exports are retained outside the database provider. Restore is rehearsed before production migration and at least quarterly thereafter.
+- Repository boundaries preserve a future move to database-per-organization or dedicated database infrastructure if multi-firm scale requires stronger isolation.
 - Email/SMS notification delivery is excluded; deadlines appear in the application dashboard.
 - CSV migration includes clients, active cases, and opening invoice balances—not complete historical accounting.
 - The Product Owner supplies service types, workflow statuses, checklist items, branding, invoice wording, and sanitized migration samples before their respective sprint begins.

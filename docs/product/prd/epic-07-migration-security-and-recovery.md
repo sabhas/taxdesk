@@ -75,9 +75,9 @@ Deliver validated CSV import, reconciliation, backup monitoring, independent rec
 
 **User story:** As an operator, I want independent backups and failure visibility so that loss of a primary service is recoverable.
 
-- [ ] Use D1 Time Travel operationally and create an encrypted independent daily export.
+- [ ] Verify managed PostgreSQL automated backups and point-in-time recovery, then create encrypted daily exports outside the database provider.
 - [ ] Record backup success/failure, source version, and retention metadata.
-- [ ] Alert on missed or failed backup jobs.
+- [ ] Alert on missing managed-backup coverage or failed independent exports.
 
 ### TD-708 — Restore rehearsal — 4 points
 
