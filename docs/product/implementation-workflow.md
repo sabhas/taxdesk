@@ -8,7 +8,6 @@ related:
   - implementation-backlog.md
   - definition-of-done.md
   - status.md
-  - prompts/
 ---
 
 # TaxDesk implementation workflow
@@ -37,7 +36,7 @@ shared schemas/types → domain service → repository/migration → API → web
 
 ## Scope rules
 
-- Implement only the story or epic named in the prompt.
+- Implement only the story or epic named in the invoked slash command.
 - Treat unlisted product ideas as backlog candidates, not implicit scope.
 - Keep OneDrive access behind `DocumentStorageProvider`.
 - Do not use real client data in development, tests, fixtures, or screenshots.
@@ -46,7 +45,7 @@ shared schemas/types → domain service → repository/migration → API → web
 ## After implementation
 
 1. Run type check, lint, unit tests, relevant integration tests, and browser tests.
-2. Use the verification prompt to audit acceptance criteria.
+2. Run `/verify-story` to audit acceptance criteria against the current codebase.
 3. Check off verified criteria in the epic PRD.
 4. Update `docs/product/status.md` and any affected technical documents.
 5. Add or supersede an ADR for a decision that changes security posture, tenancy, cost, or public contract.

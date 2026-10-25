@@ -1,26 +1,26 @@
-# Prompt: Implement a full TaxDesk epic
-
-Copy this into a new implementation chat only when the entire epic is intentionally approved for one delivery effort. Otherwise prefer `implement-story.md`.
-
 ---
+description: Implement a full TaxDesk epic (all unchecked stories)
+argument-hint: "<epic-prefix> <epic-slug> [epic-title]"
+---
+Implement **TaxDesk Epic $1: ${3:-<epic-title>}**.
 
-Implement **TaxDesk Epic {N}: {title}**.
+Use this only when the entire epic is intentionally approved for one delivery effort. Otherwise prefer `/implement-story`.
 
-Follow @docs/product/implementation-workflow.md.
+Follow `docs/product/implementation-workflow.md`.
 
 **Read in order:**
 
-- @docs/product/prd/epic-{NN}-{slug}.md
-- @docs/product/implementation-backlog.md
-- @docs/product/status.md
-- @docs/technical/architecture.md
-- @docs/technical/data-model.md
-- @docs/product/definition-of-done.md
-- @AGENTS.md, if it exists
+- `docs/product/prd/epic-${1:-NN}-${2:-slug}.md` (the epic prefix is zero-padded, for example `00`)
+- `docs/product/implementation-backlog.md`
+- `docs/product/status.md`
+- `docs/technical/architecture.md`
+- `docs/technical/data-model.md`
+- `docs/product/definition-of-done.md`
+- `AGENTS.md`, if it exists
 
 **Scope**
 
-- In scope: every unchecked story in Epic {N}.
+- In scope: every unchecked story in Epic $1.
 - Out of scope: other epics, production migration, and additional providers unless explicitly listed by the epic.
 
 **Execution rules**
@@ -38,4 +38,4 @@ Follow @docs/product/implementation-workflow.md.
 - Updated technical docs, status, and ADRs when required.
 - A release note summarizing user-visible capability, data changes, and operational actions.
 
-Before marking the epic done, run @docs/product/prompts/verify-epic.md.
+Before marking the epic done, run `/verify-epic $1 $2`.

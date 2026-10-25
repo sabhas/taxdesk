@@ -1,20 +1,20 @@
-# Prompt: Verify a TaxDesk epic
-
-Use after all stories in an epic are believed complete. This is an audit only; do not implement fixes unless explicitly requested.
-
 ---
+description: Audit a completed TaxDesk epic for release readiness
+argument-hint: "<epic-prefix> <epic-slug> [epic-title]"
+---
+Audit only. Do not change files or implement fixes unless explicitly asked afterwards.
 
-Audit the current codebase against **TaxDesk Epic {N}: {title}**.
+Audit the current codebase against **TaxDesk Epic $1: ${3:-<epic title>}**.
 
 **Read:**
 
-- @docs/product/prd/epic-{NN}-{slug}.md
-- @docs/product/implementation-backlog.md
-- @docs/technical/architecture.md
-- @docs/technical/data-model.md
-- @docs/product/definition-of-done.md
-- @docs/product/status.md
-- @AGENTS.md, if it exists
+- `docs/product/prd/epic-${1:-NN}-${2:-slug}.md` (the epic prefix is zero-padded, for example `00`)
+- `docs/product/implementation-backlog.md`
+- `docs/technical/architecture.md`
+- `docs/technical/data-model.md`
+- `docs/product/definition-of-done.md`
+- `docs/product/status.md`
+- `AGENTS.md`, if it exists
 
 **Output exactly:**
 

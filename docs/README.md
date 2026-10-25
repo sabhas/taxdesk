@@ -22,12 +22,14 @@ docs/
     implementation-workflow.md      # Mandatory read order and scope rules
     definition-of-done.md           # Shared completion standard
     status.md                       # Live implementation status
-    prompts/                        # Copyable implementation and verification prompts
     prd/                            # One execution-ready PRD per epic
   technical/
     architecture.md                 # Modules, interfaces, security boundaries
     data-model.md                   # Domain model and invariants
   adr/                              # Immutable architecture decisions
+.pi/
+  settings.json                     # Pi agent project configuration
+  prompts/                          # Pi slash-command prompts for implementation and verification
 ```
 
 ## How to use this documentation
@@ -35,7 +37,7 @@ docs/
 1. Read [the implementation plan](taxdesk-implementation-plan.md) for the approved product and architecture decisions.
 2. Select the next item in [the implementation backlog](product/implementation-backlog.md).
 3. Read its epic PRD under [`product/prd`](product/prd/README.md), then the linked technical documents.
-4. Use a template from [`product/prompts`](product/prompts/) and implement only the stories assigned to the current sprint.
+4. Run the matching Pi slash command from [`.pi/prompts`](../.pi/prompts) (for example `/implement-story`) and implement only the stories assigned to the current sprint.
 5. Verify every acceptance criterion and the shared [Definition of Done](product/definition-of-done.md).
 6. Update [implementation status](product/status.md) and check off completed acceptance criteria.
 

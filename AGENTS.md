@@ -19,6 +19,24 @@ Before changing product or implementation work, read these documents in order:
 `docs/product/implementation-workflow.md` defines the mandatory delivery order
 and scope rules. Implement only the story or epic assigned to the task.
 
+Pi slash commands in `.pi/prompts/` carry these rules and the required read order.
+Prefer them over hand-written prompts:
+
+| Command | Arguments | Use when |
+| --- | --- | --- |
+| `/implement-story` | `<story-id> <epic-prefix> <epic-slug>` | Implementing one story as a vertical slice |
+| `/implement-epic` | `<epic-prefix> <epic-slug> [epic-title]` | An entire epic is approved for one effort |
+| `/implement-sprint` | `<sprint-number> [goal] [story-ids...]` | Running a committed sprint backlog |
+| `/verify-story` | `<story-id> <epic-prefix> <epic-slug>` | Auditing one story against its criteria |
+| `/verify-epic` | `<epic-prefix> <epic-slug> [epic-title]` | Auditing a completed epic for release |
+
+`<epic-prefix>` is the zero-padded PRD prefix, so `/implement-story TD-001 00
+foundation-and-platform` targets `docs/product/prd/epic-00-foundation-and-platform.md`.
+
+These commands expand from `.pi/prompts/*.md` after project trust is granted. Run
+`/reload` after editing a prompt. Verification commands audit only; they do not
+implement fixes unless explicitly requested afterwards.
+
 ## Current implementation baseline
 
 - Start with Epic 0 / Sprint 1. Do not assume a frontend, API, workspace tooling,
@@ -73,3 +91,5 @@ and scope rules. Implement only the story or epic assigned to the task.
 - A story is not complete because it compiles. Meet every applicable item in
   `docs/product/definition-of-done.md`, including authorization coverage,
   accessibility, concurrency/error states, observability, and staging validation.
+- Run `/verify-story` or `/verify-epic` before checking off acceptance criteria;
+  claim completion only with evidence from the current codebase.

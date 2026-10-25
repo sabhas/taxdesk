@@ -1,25 +1,23 @@
-# Prompt: Implement one TaxDesk user story
-
-Copy this into a new implementation chat. Replace every placeholder and attach the referenced files.
-
 ---
+description: Implement one TaxDesk user story (vertical slice + tests)
+argument-hint: "<story-id> <epic-prefix> <epic-slug>"
+---
+Implement **TaxDesk $1** from **Epic ${2:-<NN>}: ${3:-<epic-slug>}**.
 
-Implement **TaxDesk {story ID}: {story title}** from **Epic {N}: {epic title}**.
-
-Follow @docs/product/implementation-workflow.md.
+Follow `docs/product/implementation-workflow.md`.
 
 **Read in order:**
 
-- @docs/product/prd/epic-{NN}-{slug}.md
-- @docs/product/implementation-backlog.md
-- @docs/product/status.md
-- @{relevant `docs/technical/*.md` documents}
-- @docs/product/definition-of-done.md
-- @AGENTS.md, if it exists
+- `docs/product/prd/epic-${2:-NN}-${3:-slug}.md` (the epic prefix is zero-padded, for example `00`)
+- `docs/product/implementation-backlog.md`
+- `docs/product/status.md`
+- Relevant `docs/technical/*.md` documents for this story
+- `docs/product/definition-of-done.md`
+- `AGENTS.md`, if it exists
 
 **Scope**
 
-- In scope: {paste the exact story and its acceptance criteria}
+- In scope: story **$1** only, including every acceptance criterion listed for it in the epic PRD. Quote the exact story text and criteria in your plan before writing code.
 - Out of scope: all other stories in this epic, other epics, and any new feature idea discovered during implementation.
 
 **Required implementation order**
