@@ -1,6 +1,6 @@
 ---
 title: "Epic 0: Foundation and Platform Validation"
-status: not_started
+status: in_progress
 version: 1.0
 owners: [product, engineering]
 last_reviewed: 2026-10-25
@@ -24,9 +24,9 @@ Deliver a deployable, observable skeleton and prove that the intended OneDrive P
 
 **User story:** As an engineer, I want a consistent workspace and quality commands so that every contributor builds and validates the same application.
 
-- [ ] Create pnpm workspace packages for the React web app, API, shared contracts, database, and test utilities.
-- [ ] Enable strict TypeScript, linting, formatting, and import-boundary checks.
-- [ ] Provide one documented command for install, type check, lint, test, and build.
+- [x] Create pnpm workspace packages for the React web app, API, shared contracts, database, and test utilities.
+- [x] Enable strict TypeScript, linting, formatting, and import-boundary checks.
+- [x] Provide one documented command for install, type check, lint, test, and build.
 
 ### TD-002 — Isolated environments — 3 points
 
