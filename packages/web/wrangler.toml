@@ -1,0 +1,10 @@
+# Cloudflare Pages configuration for the TaxDesk React application.
+#
+# Each environment is a separate Pages project so preview and production builds
+# cannot read each other's secrets. The Worker API is called same-origin through
+# the Pages proxy/route configuration described in
+# `docs/technical/environments.md`.
+
+name = "taxdesk-web"
+pages_build_output_dir = "./dist"
+compatibility_date = "2024-12-01"

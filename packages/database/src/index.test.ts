@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import postgres from 'postgres';
 import { createDatabaseClient } from './index.js';
 
 vi.mock('postgres', () => {
@@ -19,5 +20,14 @@ describe('createDatabaseClient', () => {
   it('creates a database client from a connection string', () => {
     const db = createDatabaseClient('postgres://user:password@localhost:5432/taxdesk');
     expect(db).toEqual({ mockDb: true });
+  });
+
+  it('requires TLS and disables prepared statements for Hyperdrive pooling', () => {
+    const connectionString = 'postgres://user:password@localhost:5432/taxdesk';
+    createDatabaseClient(connectionString);
+    expect(vi.mocked(postgres)).toHaveBeenCalledWith(connectionString, {
+      prepare: false,
+      ssl: 'require',
+    });
   });
 });

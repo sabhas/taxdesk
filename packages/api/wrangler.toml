@@ -1,0 +1,52 @@
+# Cloudflare Worker configuration for the TaxDesk Hono API.
+#
+# One deployment serves exactly one firm, and every environment has its own
+# managed PostgreSQL database, Hyperdrive binding, Worker name, and secret set.
+# `ENVIRONMENT` and `RELEASE_VERSION` are public, non-secret deployment metadata.
+# Database credentials never appear here; they live in the Hyperdrive binding
+# (development and staging may use `wrangler dev` locals).
+#
+# Replace the placeholder Hyperdrive IDs before deploying. The operator runbook
+# in `docs/technical/environments.md` lists the exact Secret values to set.
+
+name = "taxdesk-api"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Default target: local development against the dedicated managed development
+# database. `wrangler dev` resolves Hyperdrive locally unless `--remote` is used.
+[vars]
+ENVIRONMENT = "development"
+RELEASE_VERSION = "0.0.0"
+
+# `localConnectionString` is used only by `wrangler dev`; it is ignored on
+# deploy. Point it at the dedicated development database (or a local Postgres).
+# Override it without editing this file by exporting
+# CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE.
+[[hyperdrive]]
+binding = "HYPERDRIVE"
+id = "REPLACE_WITH_DEVELOPMENT_HYPERDRIVE_ID"
+localConnectionString = "postgres://taxdesk:taxdesk@localhost:5432/taxdesk_development"
+
+[env.staging]
+name = "taxdesk-api-staging"
+
+[env.staging.vars]
+ENVIRONMENT = "staging"
+RELEASE_VERSION = "0.0.0"
+
+[[env.staging.hyperdrive]]
+binding = "HYPERDRIVE"
+id = "REPLACE_WITH_STAGING_HYPERDRIVE_ID"
+
+[env.production]
+name = "taxdesk-api-production"
+
+[env.production.vars]
+ENVIRONMENT = "production"
+RELEASE_VERSION = "0.0.0"
+
+[[env.production.hyperdrive]]
+binding = "HYPERDRIVE"
+id = "REPLACE_WITH_PRODUCTION_HYPERDRIVE_ID"

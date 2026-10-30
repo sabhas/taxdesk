@@ -1,0 +1,20 @@
+# Local-only values for `wrangler dev`.
+#
+# Copy this file to `.dev.vars` (which is git-ignored) and fill in local,
+# non-confidential values. Hyperdrive supplies the database connection during
+# development, so no database credential belongs here. Never place production
+# secrets or real client data in this file.
+
+# ENVIRONMENT and RELEASE_VERSION come from wrangler.toml `[vars]`.
+#
+# Hyperdrive local development: `wrangler dev` needs a local Postgres
+# connection string. The development binding in wrangler.toml defaults to
+# `postgres://taxdesk:taxdesk@localhost:5432/taxdesk_development`. To use a
+# different database (for example the managed development database), export:
+#   CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE=postgres://...
+# An environment variable overrides `localConnectionString` without a file edit.
+# The simplest place is a git-ignored `.env` at the repo root (copy
+# `.env.example`); Wrangler auto-loads it before starting `pnpm dev:api`.
+#
+# Future provider credentials (for example OneDrive/Graph) are added here only
+# with non-production test values when the corresponding story lands.

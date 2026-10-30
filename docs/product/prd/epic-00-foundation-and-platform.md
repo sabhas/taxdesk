@@ -32,10 +32,10 @@ Deliver a deployable, observable skeleton and prove that the intended OneDrive P
 
 **User story:** As an operator, I want separate local, staging, and production environments so that experiments cannot affect firm data.
 
-- [ ] Configure separate managed PostgreSQL databases, Hyperdrive bindings, and secret sets for development, staging, and production.
-- [ ] Deploy the React application to Cloudflare Pages and the Hono API to Cloudflare Workers; connect to managed PostgreSQL through Hyperdrive over TLS.
-- [ ] Provide a `/health` response with environment, release version, and request ID only.
-- [ ] Confirm health responses never reveal secrets, database names, connection details, or infrastructure addresses.
+- [x] Configure separate managed PostgreSQL databases, Hyperdrive bindings, and secret sets for development, staging, and production.
+- [x] Deploy the React application to Cloudflare Pages and the Hono API to Cloudflare Workers; connect to managed PostgreSQL through Hyperdrive over TLS.
+- [x] Provide a `/health` response with environment, release version, and request ID only.
+- [x] Confirm health responses never reveal secrets, database names, connection details, or infrastructure addresses.
 
 ### TD-003 — Migration discipline — 5 points
 

@@ -6,6 +6,7 @@
   "main": "src/main.tsx",
   "types": "src/main.tsx",
   "scripts": {
+    "dev": "vite",
     "typecheck": "tsc --noEmit",
     "build": "vite build",
     "test": "vitest run"
