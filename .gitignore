@@ -6,4 +6,5 @@ coverage/
 .env.*
 !.env.example
 .wrangler/
+.dev.vars
 .DS_Store

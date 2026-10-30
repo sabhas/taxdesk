@@ -26,6 +26,7 @@ docs/
   technical/
     architecture.md                 # Modules, interfaces, security boundaries
     data-model.md                   # Domain model and invariants
+    environments.md                 # Environment isolation, Hyperdrive, deployment, health checks
   adr/                              # Immutable architecture decisions
 .pi/
   settings.json                     # Pi agent project configuration

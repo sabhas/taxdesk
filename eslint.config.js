@@ -9,6 +9,7 @@ export default tseslint.config(
       '**/node_modules/**',
       '**/dist/**',
       '**/coverage/**',
+      '**/.wrangler/**',
       '**/*.config.*',
       '**/vite.config.*',
       '**/drizzle.config.*',

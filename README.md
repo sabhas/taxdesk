@@ -29,18 +29,39 @@ should run the same command after `pnpm install --frozen-lockfile`.
 
 ```text
 packages/
-  api/         Hono Worker API (domain services, routes, request-ID middleware)
+  api/         Hono Worker API (domain services, routes, request-ID middleware,
+               wrangler.toml environment bindings)
   database/    Drizzle/PostgreSQL client and schema placeholder
   shared/      Shared Zod contracts and public DTOs
   test-utils/  Shared test helpers
-  web/         React/Vite web application
+  web/         React/Vite web application (wrangler.toml Pages config)
 ```
+
+## Environments
+
+`development`, `staging`, and `production` each use a separate managed
+PostgreSQL database, Hyperdrive binding, Worker/Pages project, and secret set.
+See [`docs/technical/environments.md`](docs/technical/environments.md) for the
+environment matrix, deployment commands, and health verification.
+
+| Task                                       | Command                      |
+| ------------------------------------------ | ---------------------------- |
+| Run the API locally                        | `pnpm dev:api`               |
+| Run the web app locally                    | `pnpm dev:web`               |
+| Deploy the API to staging                  | `pnpm deploy:api:staging`    |
+| Deploy the API to production               | `pnpm deploy:api:production` |
+| Build and deploy the web app to staging    | `pnpm deploy:web:staging`    |
+| Build and deploy the web app to production | `pnpm deploy:web:production` |
+
+Deployment commands use `pnpm dlx wrangler` and require Cloudflare
+credentials plus the Hyperdrive IDs configured in `packages/api/wrangler.toml`.
 
 ## API and web smoke test
 
 The web dev server proxies `/api` requests to `http://localhost:8787`. The API
-package currently exposes `GET /api/v1/app-info` as a smoke-test endpoint; real
-product endpoints are added story by story.
+exposes `GET /health` for environment, release version, and request ID only, and
+`GET /api/v1/app-info` as a durable smoke-test endpoint; real product endpoints
+are added story by story.
 
 ## Quality baseline
 

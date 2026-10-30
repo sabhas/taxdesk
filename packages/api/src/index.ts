@@ -1,8 +1,12 @@
 import { Hono } from 'hono';
-import { AppInfoSchema } from '@taxdesk/shared';
+import { AppInfoSchema, HealthSchema } from '@taxdesk/shared';
+import type { ApiBindings } from './config.js';
+import { resolveRuntimeConfig } from './config.js';
 import { AppInfoService } from './domain/app-info-service.js';
+import { HealthService } from './domain/health-service.js';
 
 export interface AppEnv {
+  Bindings: ApiBindings;
   Variables: {
     requestId: string;
   };
@@ -15,6 +19,14 @@ app.use('*', async (c, next) => {
   c.set('requestId', requestId);
   c.header('X-Request-Id', requestId);
   await next();
+});
+
+app.get('/health', (c) => {
+  const config = resolveRuntimeConfig(c.env);
+  const service = new HealthService(config);
+  const health = service.getHealth(c.get('requestId'));
+  c.header('Cache-Control', 'no-store');
+  return c.json(HealthSchema.parse(health));
 });
 
 app.get('/api/v1/app-info', (c) => {

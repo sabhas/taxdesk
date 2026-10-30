@@ -8,13 +8,13 @@ last_reviewed: 2026-10-25
 
 # Implementation status
 
-**Current focus:** Sprint 1 in progress. TD-001 workspace and quality baseline is complete; TD-002–TD-006 remain.
+**Current focus:** Sprint 1 in progress. TD-001 workspace and quality baseline and TD-002 isolated environments are complete; TD-003–TD-006 remain.
 
 Update this file when an epic or sprint starts, becomes blocked, or completes.
 
 | Epic | Name | Status | Sprint(s) | Blocked by | Notes |
 | --- | --- | --- | --- | --- | --- |
-| 0 | Foundation and platform validation | in_progress | 1 | — | TD-001 complete; Sprint 1 in progress |
+| 0 | Foundation and platform validation | in_progress | 1 | — | TD-001–TD-002 complete; Sprint 1 in progress |
 | 1 | Identity, MFA, and authorization | not_started | 2–3 | Epic 0 | Requires approved environment and auth decisions |
 | 2 | Client management | not_started | 4 | Epic 1 | Requires authorization and audit service |
 | 3 | Tax-case workflow | not_started | 5–6 | Epic 2 | Requires clients and role permissions |
