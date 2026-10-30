@@ -6,6 +6,7 @@ owners: [engineering, operations]
 last_reviewed: 2026-10-25
 related:
   - architecture.md
+  - migrations.md
   - ../product/prd/epic-00-foundation-and-platform.md
 ---
 
@@ -105,6 +106,18 @@ if no local Postgres is running; a database-backed request fails until one is.
 `localConnectionString` is ignored during `wrangler deploy`, and staging and
 production bindings do not set it. Never commit the real connection string.
 
+Create the development database and apply the forward-only migrations before
+database-backed requests work:
+
+```bash
+createdb taxdesk_development                       # or provision the managed development database
+pnpm db:migrate                                    # uses DATABASE_URL / .env
+pnpm db:migrate:status
+```
+
+See [`migrations.md`](migrations.md) for clean-database setup, checksum
+verification, add-a-migration steps, and the rollback policy.
+
 ## Secret sets
 
 Secrets are managed per environment with `wrangler secret put`; they are never
@@ -129,7 +142,13 @@ values.
 # Local development against the development Hyperdrive/database.
 pnpm dlx wrangler dev --config packages/api/wrangler.toml
 
-# Staging then production. Run TD-003 migrations before each deploy.
+# Staging then production. Apply migrations before each deploy (see
+# migrations.md) and confirm the target is current.
+DATABASE_URL="postgres://<app-role>:<password>@<host>:5432/<database>?sslmode=require" \
+  pnpm db:migrate
+DATABASE_URL="postgres://<app-role>:<password>@<host>:5432/<database>?sslmode=require" \
+  pnpm db:migrate:status --check
+
 pnpm dlx wrangler deploy --config packages/api/wrangler.toml --env staging
 pnpm dlx wrangler deploy --config packages/api/wrangler.toml --env production
 ```

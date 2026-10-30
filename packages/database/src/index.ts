@@ -1,6 +1,10 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 
+// The migration runner is exposed as `@taxdesk/database/migrations`, not from
+// this entry point: it uses Node-only `fs`/`crypto` APIs that must not leak into
+// the Worker-facing client.
+
 export type Database = ReturnType<typeof createDatabaseClient>;
 
 /**

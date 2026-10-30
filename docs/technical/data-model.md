@@ -31,6 +31,15 @@ Audit Event
 - Business identifiers such as invoice numbers are unique within the deployment.
 - Each deployment contains one firm only; its data is isolated by its dedicated application, database, secrets, and storage connection.
 
+## Operational tables
+
+The migration ledger (`taxdesk_migration_ledger`) is operational metadata rather
+than a business table: it records the name, SHA-256 checksum, UTC timestamp,
+duration, and applying database role of each forward-only migration. It is
+bootstrapped by the migration runner and is never edited by hand. See
+[migrations.md](migrations.md) for the schema, checksum rules, and rollback
+policy.
+
 ## Integrity rules
 
 - Tax identifiers use encrypted ciphertext for display and an HMAC blind index for exact duplicate detection.

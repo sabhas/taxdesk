@@ -41,10 +41,10 @@ Deliver a deployable, observable skeleton and prove that the intended OneDrive P
 
 **User story:** As an engineer, I want repeatable migrations so that database changes are safe and traceable.
 
-- [ ] Create a forward-only migration runner and initial migration ledger.
-- [ ] Support clean managed development-database setup and staging migration application.
-- [ ] Reject edited historical migrations in CI through checksums.
-- [ ] Document rollback as a compensating forward migration or controlled database restore.
+- [x] Create a forward-only migration runner and initial migration ledger.
+- [x] Support clean managed development-database setup and staging migration application.
+- [x] Reject edited historical migrations in CI through checksums.
+- [x] Document rollback as a compensating forward migration or controlled database restore.
 
 ### TD-004 — API and web walking skeleton — 3 points
 
