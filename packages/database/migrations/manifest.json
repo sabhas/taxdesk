@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "migrations": [
+    {
+      "name": "0001_initial_baseline.sql",
+      "checksum": "9696f8518afdd7736c75a50765a1c39d3b8e80d5c4e01643108a35530f443b29"
+    }
+  ]
+}
