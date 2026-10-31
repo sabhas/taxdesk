@@ -9,3 +9,6 @@ coverage/
 .dev.vars
 .DS_Store
 .pi-sandbox
+
+# pnpm content-addressable store created by a repo-local store-dir
+.pnpm-store/
