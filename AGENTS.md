@@ -41,6 +41,13 @@ implement fixes unless explicitly requested afterwards.
 
 - Start with Epic 0 / Sprint 1. TD-001 established the pnpm workspace and quality
   commands; subsequent stories build on that baseline.
+- TD-005 passed: `packages/onedrive-spike` is a throwaway feasibility harness
+  (`pnpm spike:onedrive`), not a product adapter, and its evidence is committed
+  under `docs/product/evidence/`. Epic 4 document storage is now unblocked with
+  respect to storage feasibility; it still depends on Epic 3. Reuse the recorded
+  findings (app-scoped folder, 4 MiB single-request threshold, 320 KiB chunk
+  multiples, resumable sessions, reconnect-required detection) in
+  `docs/product/sprint-1-review-notes.md`.
 - The application is a pnpm workspace modular monolith: React/Vite web, Hono Worker
   API, shared TypeScript/Zod contracts, Drizzle/PostgreSQL, and test utilities.
 - Use the repository-defined commands in `README.md` for install, format, lint,

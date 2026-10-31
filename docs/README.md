@@ -22,6 +22,8 @@ docs/
     implementation-workflow.md      # Mandatory read order and scope rules
     definition-of-done.md           # Shared completion standard
     status.md                       # Live implementation status
+    sprint-1-review-notes.md        # Sprint 1 review record, including the TD-005 spike outcome
+    evidence/                       # Machine-generated, secret-free evidence records
     prd/                            # One execution-ready PRD per epic
   technical/
     architecture.md                 # Modules, interfaces, security boundaries
@@ -30,6 +32,7 @@ docs/
     migrations.md                   # Forward-only migrations, ledger, checksums, rollback
   guides/
     staging-deployment.md           # First-time staging deployment walkthrough
+    onedrive-spike.md               # TD-005 OneDrive Personal feasibility spike runbook
   adr/                              # Immutable architecture decisions
 .pi/
   settings.json                     # Pi agent project configuration

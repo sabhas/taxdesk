@@ -1,0 +1,106 @@
+{
+  "reportVersion": 1,
+  "story": "TD-005",
+  "recordedAt": "2026-10-31T19:44:43.802Z",
+  "operator": "Sabir",
+  "environment": "non-production",
+  "accountType": "personal",
+  "tenant": "consumers",
+  "applicationId": "a71adcc8-d925-475a-ad09-b42ea1c10b6e",
+  "redirectUri": "http://localhost:8788/oauth/callback",
+  "requestedScopes": [
+    "offline_access",
+    "Files.ReadWrite.AppFolder"
+  ],
+  "grantedScopes": [
+    "Files.ReadWrite.AppFolder"
+  ],
+  "results": [
+    {
+      "scenario": "consent",
+      "status": "passed",
+      "durationMs": 1724,
+      "detail": "Delegated consent granted the app-folder scope with offline access, and the application folder resolved.",
+      "metrics": {
+        "consent.requestedScopeCount": 2,
+        "consent.grantedScopeCount": 1,
+        "consent.refreshTokenIssued": true,
+        "appRoot.resolved": true,
+        "appRoot.childCount": 1,
+        "token.accessTokenExpiresInSeconds": 3599
+      }
+    },
+    {
+      "scenario": "token_refresh",
+      "status": "passed",
+      "durationMs": 503,
+      "detail": "A refresh token produced a new access token valid for 3599 seconds and rotated the refresh token.",
+      "metrics": {
+        "token.initialAccessTokenExpiresInSeconds": 3599,
+        "token.refreshedAccessTokenExpiresInSeconds": 3599,
+        "token.refreshTokenRotated": true
+      }
+    },
+    {
+      "scenario": "upload",
+      "status": "passed",
+      "durationMs": 12486,
+      "detail": "A 1048576-byte file uploaded in one request and a 5242880-byte file uploaded in 4 chunks of 1310720 bytes.",
+      "metrics": {
+        "upload.simpleUploadBytes": 1048576,
+        "upload.simpleUploadDurationMs": 2093,
+        "upload.simpleUploadRetries": 0,
+        "upload.simpleUploadLimitBytes": 4194304,
+        "upload.chunkedUploadBytes": 5242880,
+        "upload.chunkedUploadDurationMs": 8530,
+        "upload.chunkSizeBytes": 1310720,
+        "upload.chunkCount": 4,
+        "upload.sessionRetries": 0
+      }
+    },
+    {
+      "scenario": "download",
+      "status": "passed",
+      "durationMs": 4868,
+      "detail": "Downloaded 2 file(s) and matched every SHA-256 checksum.",
+      "metrics": {
+        "download.verifiedFiles": 2,
+        "download.totalBytes": 6291456
+      }
+    },
+    {
+      "scenario": "upload_interruption",
+      "status": "passed",
+      "durationMs": 14240,
+      "detail": "An interrupted upload session resumed from byte 1310720 and stored the original 5242880-byte content.",
+      "metrics": {
+        "interruption.firstChunkBytes": 1310720,
+        "interruption.resumedFromByte": 1310720,
+        "interruption.resumedChunkCount": 3,
+        "interruption.chunkSizeBytes": 1310720,
+        "interruption.totalBytes": 5242880,
+        "interruption.contentVerified": true,
+        "interruption.sessionRetries": 0
+      }
+    },
+    {
+      "scenario": "revoked_consent",
+      "status": "passed",
+      "durationMs": 72894,
+      "httpStatus": 400,
+      "graphErrorCode": "invalid_grant",
+      "detail": "A refresh after revocation was rejected as reconnect-required, and a fresh authorization-code consent restored access.",
+      "metrics": {
+        "revocation.errorCode": "invalid_grant",
+        "revocation.httpStatus": 400,
+        "revocation.reconnectRequired": true,
+        "reconnect.succeeded": true
+      }
+    }
+  ],
+  "outcome": "passed",
+  "blockingDecision": {
+    "raised": false
+  },
+  "notes": "Non-production Microsoft application, Personal account, synthetic and non-confidential test files only. No client data was used."
+}

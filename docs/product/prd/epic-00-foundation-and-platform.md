@@ -56,13 +56,20 @@ Deliver a deployable, observable skeleton and prove that the intended OneDrive P
 
 ### TD-005 — OneDrive Personal feasibility spike — 4 points
 
+**Verified 2026-10-31.** All six scenarios passed against a real Microsoft
+Personal account on the second run; evidence is committed at
+[`docs/product/evidence/td-005-onedrive-spike-report.json`](../../evidence/td-005-onedrive-spike-report.json)
+and the recorded scopes, callback, expiry behaviour, file-size behaviour, upload
+resumption, and reconnect procedure are in
+[`docs/product/sprint-1-review-notes.md`](../sprint-1-review-notes.md).
+
 **User story:** As a firm administrator, I want proof that the intended Microsoft account can safely support the planned storage workflow before the application depends on it.
 
-- [ ] Register a non-production Microsoft application and delegated OAuth callback.
-- [ ] Request only documented minimum Graph permissions for OneDrive upload/download.
-- [ ] Test consent, token refresh, upload, download, upload interruption, and revoked consent using non-confidential test files.
-- [ ] Record scopes, callback URLs, observed expiry behavior, file-size behavior, and reconnect procedure in the sprint review notes.
-- [ ] Raise a blocking decision if any required scenario fails.
+- [x] Register a non-production Microsoft application and delegated OAuth callback.
+- [x] Request only documented minimum Graph permissions for OneDrive upload/download.
+- [x] Test consent, token refresh, upload, download, upload interruption, and revoked consent using non-confidential test files.
+- [x] Record scopes, callback URLs, observed expiry behavior, file-size behavior, and reconnect procedure in the sprint review notes.
+- [x] Raise a blocking decision if any required scenario fails.
 
 ### TD-006 — Continuous integration and staging deployment — 2 points
 
