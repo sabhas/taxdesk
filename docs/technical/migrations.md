@@ -3,7 +3,7 @@ title: Database migrations
 status: accepted
 version: 1.0
 owners: [engineering, operations]
-last_reviewed: 2026-10-30
+last_reviewed: 2026-11-04
 related:
   - environments.md
   - data-model.md
@@ -162,10 +162,13 @@ DATABASE_URL="postgres://<app-role>:<password>@<host>:5432/<database>?sslmode=re
 # 3. Deploy the Worker and Pages application (see environments.md).
 ```
 
-CI (wired in TD-006) runs `pnpm db:migrate:verify` — the checksum gate below —
-and must hold the staging `DATABASE_URL` in an environment-scoped secret. Until
-CI exists, the same check runs as part of `pnpm test` and can be invoked
-directly.
+CI runs both migration gates. The `Quality gates` job runs
+`pnpm db:migrate:verify` — the checksum gate below — and the
+`Clean database migrations` job starts a disposable PostgreSQL service, applies
+every migration with `pnpm db:migrate`, confirms `pnpm db:migrate:status --check`,
+and runs `pnpm test:migrations`. The staging deployment holds
+`STAGING_DATABASE_URL` in the protected `staging` environment and applies
+migrations before deploying the Worker and Pages app. See [`ci.md`](ci.md).
 
 ## CI checksum protection
 

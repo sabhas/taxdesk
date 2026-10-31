@@ -3,7 +3,7 @@ title: "Epic 0: Foundation and Platform Validation"
 status: in_progress
 version: 1.0
 owners: [product, engineering]
-last_reviewed: 2026-10-31
+last_reviewed: 2026-11-04
 related:
   - ../roadmap.md
   - ../../technical/architecture.md
@@ -73,12 +73,18 @@ resumption, and reconnect procedure are in
 
 ### TD-006 — Continuous integration and staging deployment — 2 points
 
+**Implemented 2026-11-04.** Pipeline, gates, and runbook are in
+[`docs/technical/ci.md`](../../technical/ci.md); the protected workflow files are
+`.github/workflows/ci.yml`, `.github/workflows/deploy-staging.yml`, and
+`.github/workflows/platform-posture.yml`. The first CI-driven staging run and the
+staging-provider posture evidence are recorded in Sprint Review.
+
 **User story:** As a product owner, I want every change validated before it reaches staging so that defects are found early.
 
-- [ ] Run install, type check, lint, tests, migration validation, build, and secret scanning in CI.
-- [ ] Deploy passing main-branch changes to the isolated staging environment.
-- [ ] Confirm Hyperdrive uses TLS and a least-privilege credential, point-in-time recovery is enabled, independent exports leave the provider, and failed backup checks alert an operator.
-- [ ] Ensure pull-request builds cannot read production secrets.
+- [x] Run install, type check, lint, tests, migration validation, build, and secret scanning in CI. (`Quality gates`, `Clean database migrations`, and `Secret history scan` jobs; `pnpm ci:secrets`, `pnpm ci:workflows`, `pnpm ci:selftest`.)
+- [x] Deploy passing main-branch changes to the isolated staging environment. (`.github/workflows/deploy-staging.yml` runs only after a successful `main` push CI run, or a manual full-SHA dispatch, in the `staging` environment.)
+- [ ] Confirm Hyperdrive uses TLS and a least-privilege credential, point-in-time recovery is enabled, independent exports leave the provider, and failed backup checks alert an operator. **Gate implemented and tested** in `pnpm ci:db-posture`, `pnpm ci:backup-check`, and `.github/workflows/platform-posture.yml`; the staging `PLATFORM_POSTURE_EVIDENCE_JSON` record and first successful scheduled run are still required from the operator before this is checked.
+- [x] Ensure pull-request builds cannot read production secrets. (`ci.yml` uses read-only permissions and no `secrets.*` or environment; `pnpm ci:workflows` rejects `pull_request` workflows that enter an environment or read secrets.)
 
 ## Exit criteria
 

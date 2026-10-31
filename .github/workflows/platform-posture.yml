@@ -1,0 +1,62 @@
+name: Platform posture
+
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: platform-posture
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify recovery posture
+    environment:
+      name: staging
+      url: ${{ vars.STAGING_WEB_URL }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify managed recovery, independent exports, and alerting
+        env:
+          PLATFORM_POSTURE_EVIDENCE_JSON: ${{ secrets.PLATFORM_POSTURE_EVIDENCE_JSON }}
+        run: pnpm ci:backup-check
+
+      - name: Alert an operator
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Platform posture check failed"
+          body="The staging recovery/posture gate failed. Review the run: $RUN_URL"
+          existing=$(gh issue list --state open --search "in:title \"$title\"" --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "$title" --body "$body"
+          fi

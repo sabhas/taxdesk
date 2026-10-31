@@ -1,0 +1,111 @@
+name: Deploy staging
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Full 40-character commit SHA to deploy
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+env:
+  DEPLOY_SHA: ${{ inputs.ref || github.event.workflow_run.head_sha || github.sha }}
+
+jobs:
+  deploy:
+    name: Deploy to staging
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main')
+    environment:
+      name: staging
+      url: ${{ vars.STAGING_WEB_URL }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Validate the deployment commit
+        run: |
+          if ! printf '%s' "$DEPLOY_SHA" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "::error::The deployment ref must be a full 40-character commit SHA."
+            exit 1
+          fi
+
+      - name: Check out the verified commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
+          persist-credentials: false
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify staging Hyperdrive and Pages configuration
+        run: pnpm ci:config-posture
+
+      - name: Validate migration history checksums
+        run: pnpm db:migrate:verify
+
+      - name: Apply staging migrations
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+        run: pnpm db:migrate
+
+      - name: Confirm the staging database is current
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+        run: pnpm db:migrate:status --check
+
+      - name: Verify staging TLS and least-privilege database role
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+        run: pnpm ci:db-posture
+
+      - name: Verify recovery, export, and alerting posture
+        env:
+          PLATFORM_POSTURE_EVIDENCE_JSON: ${{ secrets.PLATFORM_POSTURE_EVIDENCE_JSON }}
+        run: pnpm ci:backup-check
+
+      - name: Deploy the API Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: pnpm deploy:api:staging --var RELEASE_VERSION:$DEPLOY_SHA
+
+      - name: Deploy the Pages web application
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: pnpm deploy:web:staging
+
+      - name: Smoke test the staging Pages host
+        env:
+          STAGING_WEB_URL: ${{ vars.STAGING_WEB_URL }}
+          RELEASE_VERSION: ${{ env.DEPLOY_SHA }}
+        run: pnpm ci:staging-smoke

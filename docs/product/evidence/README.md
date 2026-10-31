@@ -42,3 +42,10 @@ evidence file always represents the current claim for its story.
 
 The TD-005 report contract is `OnedriveSpikeReportSchema` in
 [`packages/shared/src/onedrive-spike.ts`](../../../packages/shared/src/onedrive-spike.ts).
+
+TD-006 recovery evidence is **not** committed here: the provider-neutral
+`PlatformPostureEvidenceSchema` record is stored as the protected
+`PLATFORM_POSTURE_EVIDENCE_JSON` secret in the `staging` GitHub environment and
+re-validated by the daily posture workflow. It contains no provider token,
+connection string, database name, or host. See
+[`../technical/ci.md`](../technical/ci.md).

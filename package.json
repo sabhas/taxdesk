@@ -18,6 +18,13 @@
     "db:migrate:verify": "pnpm --filter @taxdesk/database run migrate verify",
     "db:migrate:manifest": "pnpm --filter @taxdesk/database run migrate manifest",
     "test:migrations": "pnpm --filter @taxdesk/database run test -- src/migrations/migrations.integration.test.ts",
+    "ci:secrets": "pnpm --filter @taxdesk/platform run secrets",
+    "ci:workflows": "pnpm --filter @taxdesk/platform run workflows",
+    "ci:config-posture": "pnpm --filter @taxdesk/platform run config-posture",
+    "ci:selftest": "pnpm --filter @taxdesk/platform run selftest",
+    "ci:staging-smoke": "pnpm --filter @taxdesk/platform run smoke",
+    "ci:db-posture": "pnpm --filter @taxdesk/platform run db-posture",
+    "ci:backup-check": "pnpm --filter @taxdesk/platform run backup-check",
     "spike:onedrive": "pnpm --filter @taxdesk/onedrive-spike run spike",
     "dev:api": "pnpm dlx wrangler dev --config packages/api/wrangler.toml",
     "dev:web": "pnpm --filter @taxdesk/web dev",
@@ -25,7 +32,7 @@
     "deploy:api:production": "pnpm dlx wrangler deploy --config packages/api/wrangler.toml --env production",
     "deploy:web:staging": "pnpm --filter @taxdesk/web build && pnpm dlx wrangler pages deploy dist --cwd packages/web --project-name taxdesk-web-staging --branch staging",
     "deploy:web:production": "pnpm --filter @taxdesk/web build && pnpm dlx wrangler pages deploy dist --cwd packages/web --project-name taxdesk-web-production --branch main",
-    "verify": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm build"
+    "verify": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm db:migrate:verify && pnpm ci:secrets && pnpm ci:workflows && pnpm ci:config-posture && pnpm ci:selftest && pnpm build"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

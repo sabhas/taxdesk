@@ -38,6 +38,7 @@ export default tseslint.config(
         { type: 'api', pattern: 'packages/api/src/**/*' },
         { type: 'web', pattern: 'packages/web/src/**/*' },
         { type: 'test-utils', pattern: 'packages/test-utils/src/**/*' },
+        { type: 'platform', pattern: 'packages/platform/src/**/*' },
         { type: 'spike', pattern: 'packages/onedrive-spike/src/**/*' },
       ],
       'boundaries/ignore': [
@@ -59,6 +60,7 @@ export default tseslint.config(
             { from: 'api', allow: ['shared', 'database', 'api', 'test-utils'] },
             { from: 'web', allow: ['shared', 'web', 'test-utils'] },
             { from: 'test-utils', allow: ['shared', 'test-utils'] },
+            { from: 'platform', allow: ['shared', 'platform'] },
             { from: 'spike', allow: ['shared', 'spike'] },
           ],
         },

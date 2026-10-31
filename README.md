@@ -22,8 +22,10 @@ shared Zod contracts, database package, and test utilities.
 | Build every package                                  | `pnpm build`        |
 | Run the full quality gate                            | `pnpm verify`       |
 
-`pnpm verify` runs type check, lint, format check, tests, and build in order. CI
-should run the same command after `pnpm install --frozen-lockfile`.
+`pnpm verify` runs type check, lint, format check, tests, migration checksum
+validation, secret scanning, workflow-policy enforcement, the gate self-test,
+and build in order. CI runs the same gates after
+`pnpm install --frozen-lockfile`.
 
 ## Dependency reset
 
@@ -65,6 +67,8 @@ packages/
                migrations/ SQL files
   onedrive-spike/  TD-005 throwaway feasibility harness and its report CLI
                (not deployed and not imported by the product)
+  platform/    TD-006 CI gates, staging smoke checks, database posture,
+               secret scanning, and recovery-evidence validation
   shared/      Shared Zod contracts and public DTOs
   test-utils/  Shared test helpers
   web/         React/Vite web application, Pages Function API proxy, and
@@ -92,6 +96,22 @@ credentials plus the Hyperdrive IDs configured in `packages/api/wrangler.toml`.
 The web deploy commands include the Pages Function in `packages/web/functions/`
 and use the `staging` preview branch and `main` production branch so each Pages
 project receives its matching API service binding.
+
+Routine staging deploys are automated: a successful `CI` run on a `main` push
+applies migrations, verifies database and recovery posture, deploys the API and
+web app, and smoke-tests the Pages host. Pull-request builds run with read-only
+permissions and no repository or environment secrets. See
+[`docs/technical/ci.md`](docs/technical/ci.md) for the workflows, required
+branch-protection checks, environment secrets, and recovery evidence contract.
+
+| Task                                       | Command                 |
+| ------------------------------------------ | ----------------------- |
+| Scan tracked files for secrets             | `pnpm ci:secrets`       |
+| Enforce the CI/deployment workflow policy  | `pnpm ci:workflows`     |
+| Prove failing gates are rejected           | `pnpm ci:selftest`      |
+| Verify staging TLS and database role       | `pnpm ci:db-posture`    |
+| Validate recovery/export/alerting evidence | `pnpm ci:backup-check`  |
+| Smoke-test a deployed staging host         | `pnpm ci:staging-smoke` |
 
 ## OneDrive Personal feasibility spike
 
