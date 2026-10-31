@@ -1,10 +1,29 @@
 # Cloudflare Pages configuration for the TaxDesk React application.
 #
-# Each environment is a separate Pages project so preview and production builds
-# cannot read each other's secrets. The Worker API is called same-origin through
-# the Pages proxy/route configuration described in
-# `docs/technical/environments.md`.
+# The Pages Function in `functions/[[path]].ts` forwards same-origin `/health`
+# and `/api/*` requests to the matching Hono Worker through the `API` service
+# binding. Set the binding to the Worker for the environment being deployed:
+# development/local uses `taxdesk-api`, the staging preview uses
+# `taxdesk-api-staging`, and production uses `taxdesk-api-production`.
+#
+# Staging deploys use the `staging` preview branch so they receive the staging
+# binding; production deploys use the `main` production branch. Each environment
+# remains a separate Pages project and can never read another project's secrets.
 
 name = "taxdesk-web"
 pages_build_output_dir = "./dist"
 compatibility_date = "2024-12-01"
+
+[[services]]
+binding = "API"
+service = "taxdesk-api"
+
+[env.preview]
+[[env.preview.services]]
+binding = "API"
+service = "taxdesk-api-staging"
+
+[env.production]
+[[env.production.services]]
+binding = "API"
+service = "taxdesk-api-production"

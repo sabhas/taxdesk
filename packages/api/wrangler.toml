@@ -34,11 +34,11 @@ name = "taxdesk-api-staging"
 
 [env.staging.vars]
 ENVIRONMENT = "staging"
-RELEASE_VERSION = "0.0.0"
+RELEASE_VERSION = "0.1.0-td004"
 
 [[env.staging.hyperdrive]]
 binding = "HYPERDRIVE"
-id = "REPLACE_WITH_STAGING_HYPERDRIVE_ID"
+id = "2c20141d82af41759636c76e43c0da4c"
 
 [env.production]
 name = "taxdesk-api-production"

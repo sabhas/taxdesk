@@ -1,25 +1,17 @@
 import { Hono } from 'hono';
 import { AppInfoSchema, HealthSchema } from '@taxdesk/shared';
-import type { ApiBindings } from './config.js';
 import { resolveRuntimeConfig } from './config.js';
 import { AppInfoService } from './domain/app-info-service.js';
 import { HealthService } from './domain/health-service.js';
+import { requestIdMiddleware } from './middleware/request-id.js';
+import { problemDetailsResponse } from './problem-details.js';
+import type { AppEnv } from './types.js';
 
-export interface AppEnv {
-  Bindings: ApiBindings;
-  Variables: {
-    requestId: string;
-  };
-}
+export type { AppEnv } from './types.js';
 
 const app = new Hono<AppEnv>();
 
-app.use('*', async (c, next) => {
-  const requestId = c.req.header('X-Request-Id') ?? crypto.randomUUID();
-  c.set('requestId', requestId);
-  c.header('X-Request-Id', requestId);
-  await next();
-});
+app.use('*', requestIdMiddleware);
 
 app.get('/health', (c) => {
   const config = resolveRuntimeConfig(c.env);
@@ -37,24 +29,31 @@ app.get('/api/v1/app-info', (c) => {
 });
 
 app.notFound((c) => {
-  return c.json(
-    {
-      error: 'Not Found',
-      requestId: c.get('requestId'),
-    },
-    404,
-  );
+  return problemDetailsResponse(c, {
+    status: 404,
+    code: 'NOT_FOUND',
+    title: 'Not Found',
+    detail: 'The requested resource was not found.',
+  });
 });
 
 app.onError((err, c) => {
-  console.error(`[${c.get('requestId')}]`, err);
-  return c.json(
-    {
-      error: 'Internal Server Error',
+  // Structured, allow-listed operational log. Never serialize the raw error,
+  // request body, bindings, or provider/database values.
+  console.error(
+    JSON.stringify({
+      level: 'error',
+      event: 'api.unhandled_error',
       requestId: c.get('requestId'),
-    },
-    500,
+      errorName: err instanceof Error ? err.name : 'UnknownError',
+    }),
   );
+  return problemDetailsResponse(c, {
+    status: 500,
+    code: 'INTERNAL_ERROR',
+    title: 'Internal Server Error',
+    detail: 'The server could not complete the request. Please try again later.',
+  });
 });
 
 export default app;

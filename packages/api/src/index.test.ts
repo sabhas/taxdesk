@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { AppInfoSchema, HealthSchema } from '@taxdesk/shared';
+import { AppInfoSchema, HealthSchema, ProblemDetailsSchema } from '@taxdesk/shared';
 import type { ApiBindings } from './config.js';
 import app from './index.js';
 
@@ -29,12 +29,52 @@ describe('GET /api/v1/app-info', () => {
     }
   });
 
-  it('returns a consistent JSON error for unknown routes', async () => {
+  it('returns a Problem Details response for unknown routes', async () => {
     const response = await app.request('/api/v1/unknown');
     expect(response.status).toBe(404);
+    expect(response.headers.get('Content-Type')).toBe('application/problem+json; charset=UTF-8');
+    expect(response.headers.get('Cache-Control')).toBe('no-store');
+
     const body: unknown = await response.json();
-    expect(body).toMatchObject({ error: 'Not Found' });
-    expect(response.headers.get('X-Request-Id')).toBeTruthy();
+    const parsed = ProblemDetailsSchema.safeParse(body);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data).toMatchObject({
+        status: 404,
+        code: 'NOT_FOUND',
+        title: 'Not Found',
+      });
+      expect(parsed.data.requestId).toBe(response.headers.get('X-Request-Id'));
+    }
+  });
+
+  it('returns a safe Problem Details response for unhandled failures', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const response = await app.request(
+      '/health',
+      undefined,
+      bindings({ ENVIRONMENT: 'local' as never }),
+    );
+    expect(response.status).toBe(500);
+    expect(response.headers.get('Content-Type')).toBe('application/problem+json; charset=UTF-8');
+
+    const rawBody = await response.text();
+    expect(rawBody).toContain('INTERNAL_ERROR');
+    expect(rawBody).not.toContain('local');
+    expect(rawBody).not.toContain('db.internal');
+    expect(rawBody).not.toContain('supersecret');
+
+    const parsed = ProblemDetailsSchema.safeParse(JSON.parse(rawBody));
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.requestId).toBe(response.headers.get('X-Request-Id'));
+    }
+
+    expect(errorSpy).toHaveBeenCalledOnce();
+    const logLine = String(errorSpy.mock.calls[0]?.[0]);
+    expect(logLine).toContain('api.unhandled_error');
+    expect(logLine).not.toContain('supersecret');
+    expect(logLine).not.toContain('db.internal');
   });
 });
 
@@ -72,6 +112,18 @@ describe('GET /health', () => {
     const body = HealthSchema.parse(await response.json());
     expect(body.requestId).toBe('req-supplied');
     expect(response.headers.get('X-Request-Id')).toBe('req-supplied');
+  });
+
+  it('replaces an unsafe caller-supplied request ID', async () => {
+    const response = await app.request(
+      '/health',
+      { headers: { 'X-Request-Id': 'bad value' } },
+      bindings(),
+    );
+    const body = HealthSchema.parse(await response.json());
+    expect(body.requestId).not.toBe('bad value');
+    expect(body.requestId).toBe(response.headers.get('X-Request-Id'));
+    expect(body.requestId).toMatch(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/);
   });
 
   it('never reveals secrets, database names, or infrastructure addresses', async () => {
