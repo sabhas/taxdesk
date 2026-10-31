@@ -3,7 +3,7 @@ title: First-time staging deployment guide
 status: accepted
 version: 1.0
 owners: [engineering, operations]
-last_reviewed: 2026-10-31
+last_reviewed: 2026-11-04
 related:
   - ../technical/environments.md
   - ../technical/migrations.md
@@ -15,6 +15,13 @@ related:
 This guide walks through the first deployment of the TaxDesk walking skeleton to
 staging. It assumes no prior Wrangler or Cloudflare experience and covers only
 the staging environment. Do not create production resources as part of TD-004.
+
+> **Routine deployments are automated.** TD-006 deploys a successful `main`
+> build to staging and verifies migrations, database posture, recovery evidence,
+> and a same-origin smoke check. Use this guide only to provision the staging
+> resources for the first time or to recover a misconfigured environment. See
+> [`../technical/ci.md`](../technical/ci.md) for the pipeline, required GitHub
+> environment secrets, and the posture evidence contract.
 
 You will create:
 
@@ -352,5 +359,7 @@ Capture these for the sprint review:
 - Confirmation that the `taxdesk-web-staging` preview binding uses
   `taxdesk-api-staging`.
 
-Do not deploy production yet. Production deployment, secret isolation, CI, and
-backup checks belong to TD-006.
+Automated staging deployment, secret isolation, and backup/posture checks are
+implemented in TD-006; see [`../technical/ci.md`](../technical/ci.md). Do not
+deploy production yet. Production deployment and the production recovery
+rehearsal belong to later epics.

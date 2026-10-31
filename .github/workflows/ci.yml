@@ -1,0 +1,139 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Quality gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type check
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Check formatting
+        run: pnpm format:check
+
+      - name: Unit and integration tests
+        run: pnpm test
+
+      - name: Validate migration history checksums
+        run: pnpm db:migrate:verify
+
+      - name: Scan tracked files for secrets
+        run: pnpm ci:secrets
+
+      - name: Verify staging Hyperdrive and Pages configuration
+        run: pnpm ci:config-posture
+
+      - name: Enforce workflow security policy
+        run: pnpm ci:workflows
+
+      - name: Prove a failing gate blocks the pipeline
+        run: pnpm ci:selftest
+
+      - name: Build every package
+        run: pnpm build
+
+  migrations:
+    name: Clean database migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: taxdesk
+          POSTGRES_PASSWORD: taxdesk
+          POSTGRES_DB: taxdesk_migrations_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U taxdesk -d taxdesk_migrations_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://taxdesk:taxdesk@localhost:5432/taxdesk_migrations_test?sslmode=disable
+      TAXDESK_MIGRATIONS_TEST_DATABASE_URL: postgres://taxdesk:taxdesk@localhost:5432/taxdesk_migrations_test?sslmode=disable
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate migration checksums
+        run: pnpm db:migrate:verify
+
+      - name: Migrate a clean database
+        run: pnpm db:migrate
+
+      - name: Confirm the database is current
+        run: pnpm db:migrate:status --check
+
+      - name: Run the PostgreSQL migration integration suite
+        run: pnpm test:migrations
+
+  secret-history:
+    name: Secret history scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Scan for secrets in history
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

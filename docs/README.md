@@ -2,7 +2,7 @@
 title: TaxDesk documentation
 status: accepted
 version: 1.0
-last_reviewed: 2026-10-31
+last_reviewed: 2026-11-04
 ---
 
 # TaxDesk documentation
@@ -29,6 +29,7 @@ docs/
     architecture.md                 # Modules, interfaces, security boundaries
     data-model.md                   # Domain model and invariants
     environments.md                 # Environment isolation, Hyperdrive, deployment, health checks
+    ci.md                           # CI gates, staging delivery, secret isolation, recovery posture
     migrations.md                   # Forward-only migrations, ledger, checksums, rollback
   guides/
     staging-deployment.md           # First-time staging deployment walkthrough

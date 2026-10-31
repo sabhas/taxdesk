@@ -3,10 +3,11 @@ title: Environments and deployment
 status: accepted
 version: 1.0
 owners: [engineering, operations]
-last_reviewed: 2026-10-31
+last_reviewed: 2026-11-04
 related:
   - architecture.md
   - migrations.md
+  - ci.md
   - ../product/prd/epic-00-foundation-and-platform.md
 ---
 
@@ -41,7 +42,7 @@ in `[vars]`. They are the only configuration the health endpoint reads.
 - Only `development` and `staging` may contain synthetic data. Real client data
   appears in `production` only after the TD-709 restore rehearsal and TD-710
   security review pass.
-- Pull-request and preview builds must not have access to production secrets.
+- Pull-request and preview builds must not have access to production secrets. The workflow policy gate in `pnpm ci:workflows` rejects a `pull_request` workflow that enters an environment or references `secrets.*`; see [ci.md](ci.md).
 - Replace every `REPLACE_WITH_*_HYPERDRIVE_ID` placeholder before deploying.
 
 ## Managed PostgreSQL and Hyperdrive over TLS
@@ -150,6 +151,18 @@ values.
 
 ## Deployment
 
+### Automated staging deployment
+
+A successful `CI` run on a `main` push deploys staging automatically through
+`.github/workflows/deploy-staging.yml`. The workflow applies migrations, verifies
+database and recovery posture, deploys the API Worker and Pages app, then runs a
+same-origin smoke check. It runs in the protected `staging` GitHub environment,
+never for a pull request, and checks out the exact commit SHA that passed CI.
+
+A manual dispatch must supply a full 40-character commit SHA; a branch name is
+rejected. See [`ci.md`](ci.md) for the required environment secrets and
+variables, the posture evidence contract, and the rollback procedure.
+
 ### API Worker
 
 ```bash
@@ -167,9 +180,11 @@ pnpm dlx wrangler deploy --config packages/api/wrangler.toml --env staging
 pnpm dlx wrangler deploy --config packages/api/wrangler.toml --env production
 ```
 
-Set `RELEASE_VERSION` in the matching `wrangler.toml` environment before the
-deploy so the health endpoint reports the released build. Remove the temporary
-placeholder only when superseded by a release token generated in TD-006.
+Set `RELEASE_VERSION` in the matching `wrangler.toml` environment before a
+manual deploy so the health endpoint reports the released build. The automated
+staging workflow overrides it with the deployed commit
+(`pnpm deploy:api:staging --var RELEASE_VERSION:$DEPLOY_SHA`), so the running
+staging health response always identifies the verified commit.
 
 ### Web application (Cloudflare Pages)
 
@@ -261,3 +276,16 @@ The same assertions run in the automated suite:
 built from bindings containing a database URL, a Hyperdrive connection string,
 and a client secret never appears in the response, while
 `packages/shared/src/health.test.ts` rejects unknown fields.
+
+## Recovery and backup posture
+
+Staging must have automated encrypted backups, point-in-time recovery, an
+independent encrypted export stored outside the database provider, and an
+operator alert on failed recovery checks. `pnpm ci:db-posture` verifies the live
+TLS session and least-privilege database role; `pnpm ci:backup-check` validates
+the operator-recorded coverage and export evidence. The daily `Platform posture`
+workflow re-runs the check and opens an operator issue when it fails. The
+evidence contract and runbook live in [`ci.md`](ci.md).
+
+Do not deploy staging while the posture gate fails. Real client data remains
+forbidden in staging; the production recovery rehearsal is TD-709.

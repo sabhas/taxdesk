@@ -26,7 +26,7 @@ observed provider behaviour, and any blocking decision are written down.
 | TD-003 Migration discipline | complete | Forward-only runner, ledger, checksums in `docs/technical/migrations.md`. |
 | TD-004 API and web walking skeleton | complete | Staging Pages → Worker proxy, Problem Details, request IDs. |
 | TD-005 OneDrive Personal feasibility spike | **complete — passed** | Run 2 passed all six scenarios against a real Personal account; evidence committed at `docs/product/evidence/td-005-onedrive-spike-report.json`; blocking decision cleared. |
-| TD-006 Continuous integration and staging deployment | not started | |
+| TD-006 Continuous integration and staging deployment | implementation complete — first CI run pending | CI, staging deploy, workflow policy, secret scanning, database/recovery posture checks, and operator alerting are committed. The staging posture evidence record and first CI-driven staging deploy are captured in Sprint Review. |
 
 The sprint review itself has not been held. The section below is the completed
 TD-005 record for the review.
@@ -210,3 +210,74 @@ own acceptance criteria.
   residual from run 1 (the harness only cleans up files created by the current
   run). Empty the folder by hand after the final run and delete the app
   registration.
+
+---
+
+## TD-006 — Continuous integration and staging deployment
+
+**Outcome:** implementation complete; first CI-driven staging deploy and the
+staging provider posture record are pending Sprint Review.
+**Runbook:** [`docs/technical/ci.md`](../technical/ci.md).
+
+### Delivered
+
+| Concern | Evidence |
+| --- | --- |
+| Install, type check, lint, format, tests, build | `Quality gates` job in `.github/workflows/ci.yml`; `pnpm verify` runs the same gates locally |
+| Migration validation | `pnpm db:migrate:verify` in `Quality gates`; a disposable PostgreSQL service applies a clean database, checks `status --check`, and runs `pnpm test:migrations` in `Clean database migrations` |
+| Secret scanning | Full-history `gitleaks` job plus `pnpm ci:secrets` (tracked files, forbidden credential files, redacted findings) |
+| Workflow security policy | `pnpm ci:workflows` rejects `pull_request_target`, PR environments/secrets, floating actions, unguarded `workflow_run`, unvalidated manual refs, and non-alert `issues: write` |
+| Staging config | `pnpm ci:config-posture` confirms a concrete staging Hyperdrive ID with no local connection string, the Pages preview binding, and the TLS-required database client |
+| Staging deployment | `.github/workflows/deploy-staging.yml` deploys only a successful `main` push or a manual full-SHA dispatch, in the protected `staging` environment |
+| TLS and least privilege | `pnpm ci:db-posture` reads `pg_stat_ssl` and role attributes; reports contain no role name, host, database name, or connection string |
+| PITR, independent exports, alerting | Strict `PlatformPostureEvidenceSchema` in `packages/platform/src/contracts.ts`; `pnpm ci:backup-check` fails closed on missing, stale, or contradictory evidence |
+| Operator alerting | Daily `Platform posture` workflow opens or comments on a GitHub issue on failure, with only the run URL |
+| PR production-secret isolation | `ci.yml` has `permissions: contents: read`, no `environment`, and no `secrets.*`; policy tests enforce it |
+| Failing-gate proof | `pnpm ci:selftest` runs on every build and proves a synthetic secret, unsafe workflow, and failing posture record are rejected |
+
+### Files
+
+- Workflows: `.github/workflows/ci.yml`, `.github/workflows/deploy-staging.yml`,
+  `.github/workflows/platform-posture.yml`
+- Tooling: `packages/platform/src/{contracts,posture,config-posture,database-posture,secret-scan,workflow-policy,staging-smoke,selftest,cli}.ts`
+- Tests: `packages/platform/src/*.test.ts` plus workflow-policy tests that read
+  the committed workflows
+- Runbook: [`docs/technical/ci.md`](../technical/ci.md)
+
+### Sprint Review actions
+
+1. Create the `staging` GitHub environment and set `STAGING_DATABASE_URL`,
+   `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`,
+   `PLATFORM_POSTURE_EVIDENCE_JSON`, and the `STAGING_WEB_URL` variable.
+2. Record the posture evidence after verifying PITR, a completed independent
+   export, and a delivered simulated failure alert. Do not check the remaining
+   TD-006 criterion until the scheduled workflow reports success.
+3. Enable branch protection requiring `Quality gates`, `Clean database
+   migrations`, and `Secret history scan`.
+4. Merge to `main` and confirm the first automated staging deploy and smoke
+   check. Record the run URL here.
+5. Open a deliberately failing pull request and record that the required check
+   blocks merge.
+
+### Residual risk
+
+Provider-side recovery facts (PITR window, independent export, alert delivery)
+cannot be derived from the repository. They are operator-recorded evidence and
+are re-validated daily. The deploy gate fails closed until that record exists and
+is fresh.
+
+### Local verification (2026-11-04)
+
+| Command | Result |
+| --- | --- |
+| `pnpm verify` | Passed: strict types, lint, Prettier, every package's tests, migration checksum verification, secret scan (tracked files, zero findings), workflow policy (3 workflows, zero violations), staging config posture, gate self-test, and build |
+| `pnpm test` | 285 tests passed; 5 PostgreSQL migration integration tests skipped because no test database URL was set |
+| `pnpm test:migrations` against a disposable PostgreSQL 16 container | 65 tests passed, including clean-database apply, idempotent re-run, checksum drift, and rollback |
+| `pnpm db:migrate` + `pnpm db:migrate:status --check` against the same clean database | Applied `0001_initial_baseline.sql`; status reported 1 applied, 0 pending |
+| `pnpm ci:db-posture` against the disposable database | Failed closed for a superuser/owner role on plaintext; a `NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS` non-owner role passed both role checks while plaintext still failed TLS |
+| `gitleaks` on the staged tree and Git history | No leaks |
+| `gitleaks`/`pnpm ci:secrets` | No findings in tracked files |
+
+**Not yet run:** GitHub Actions, the first CI-driven staging deploy, and the
+staging provider posture evidence. Those require the `staging` GitHub
+environment credentials and a real provider backup/export verification.

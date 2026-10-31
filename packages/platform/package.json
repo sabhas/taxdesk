@@ -1,0 +1,38 @@
+{
+  "name": "@taxdesk/platform",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "TD-006 CI gates, staging smoke checks, and platform posture verification",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "esbuild src/cli.ts --bundle --format=esm --platform=node --target=node22 --external:postgres --outfile=dist/cli.js",
+    "test": "vitest run",
+    "secrets": "pnpm run build && node dist/cli.js secrets",
+    "workflows": "pnpm run build && node dist/cli.js workflows",
+    "config-posture": "pnpm run build && node dist/cli.js config-posture",
+    "selftest": "pnpm run build && node dist/cli.js selftest",
+    "smoke": "pnpm run build && node dist/cli.js staging-smoke",
+    "db-posture": "pnpm run build && node dist/cli.js database-posture",
+    "backup-check": "pnpm run build && node dist/cli.js backup-check"
+  },
+  "dependencies": {
+    "@taxdesk/shared": "workspace:*",
+    "postgres": "^3.4.5",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "esbuild": "^0.24.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
