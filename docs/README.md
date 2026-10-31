@@ -2,7 +2,7 @@
 title: TaxDesk documentation
 status: accepted
 version: 1.0
-last_reviewed: 2026-10-25
+last_reviewed: 2026-10-31
 ---
 
 # TaxDesk documentation
@@ -28,6 +28,8 @@ docs/
     data-model.md                   # Domain model and invariants
     environments.md                 # Environment isolation, Hyperdrive, deployment, health checks
     migrations.md                   # Forward-only migrations, ledger, checksums, rollback
+  guides/
+    staging-deployment.md           # First-time staging deployment walkthrough
   adr/                              # Immutable architecture decisions
 .pi/
   settings.json                     # Pi agent project configuration
@@ -42,6 +44,7 @@ docs/
 4. Run the matching Pi slash command from [`.pi/prompts`](../.pi/prompts) (for example `/implement-story`) and implement only the stories assigned to the current sprint.
 5. Verify every acceptance criterion and the shared [Definition of Done](product/definition-of-done.md).
 6. Update [implementation status](product/status.md) and check off completed acceptance criteria.
+7. For the first staging deployment, follow the [staging deployment guide](guides/staging-deployment.md).
 
 ## Epic index
 

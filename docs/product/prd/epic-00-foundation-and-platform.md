@@ -3,7 +3,7 @@ title: "Epic 0: Foundation and Platform Validation"
 status: in_progress
 version: 1.0
 owners: [product, engineering]
-last_reviewed: 2026-10-25
+last_reviewed: 2026-10-31
 related:
   - ../roadmap.md
   - ../../technical/architecture.md
@@ -50,9 +50,9 @@ Deliver a deployable, observable skeleton and prove that the intended OneDrive P
 
 **User story:** As an engineer, I want the browser and API deployed together so that later features inherit a working delivery path.
 
-- [ ] Serve the React shell from Cloudflare Pages and route same-origin API requests to the staged Hono Worker.
-- [ ] Define shared Problem Details error schema and request-ID middleware.
-- [ ] Show a friendly web error state when the API health call fails.
+- [x] Serve the React shell from Cloudflare Pages and route same-origin API requests to the staged Hono Worker.
+- [x] Define shared Problem Details error schema and request-ID middleware.
+- [x] Show a friendly web error state when the API health call fails.
 
 ### TD-005 — OneDrive Personal feasibility spike — 4 points
 

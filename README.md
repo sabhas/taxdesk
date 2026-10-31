@@ -25,6 +25,36 @@ shared Zod contracts, database package, and test utilities.
 `pnpm verify` runs type check, lint, format check, tests, and build in order. CI
 should run the same command after `pnpm install --frozen-lockfile`.
 
+## Dependency reset
+
+The optional [`just`](https://github.com/casey/just) recipes wrap the safe
+reinstall paths. Install it with `brew install just`, then run `just` from the
+repo root to list recipes.
+
+| Task                                                           | Command                |
+| -------------------------------------------------------------- | ---------------------- |
+| Install from the committed lockfile                            | `just install`         |
+| Remove `node_modules` and reinstall                            | `just reinstall`       |
+| Reinstall including optional native packages for all platforms | `just reinstall-force` |
+| Intentionally regenerate `pnpm-lock.yaml`                      | `just relock`          |
+| Run the complete quality gate                                  | `just verify`          |
+| Show platform and installed Rollup binaries                    | `just doctor`          |
+
+`pnpm-lock.yaml` is versioned and should not be deleted for routine
+troubleshooting. `just reinstall` removes only generated `node_modules`
+directories; `just relock` is for deliberate dependency changes and its result
+must be reviewed and committed. Without `just`, run the equivalent commands
+directly:
+
+```bash
+rm -rf node_modules packages/*/node_modules
+pnpm install --frozen-lockfile
+```
+
+Use `pnpm install --frozen-lockfile --force` only when a shared workspace's
+native optional dependency is missing because `node_modules` was last populated
+on a different operating system or CPU architecture.
+
 ## Workspace layout
 
 ```text
@@ -35,7 +65,8 @@ packages/
                migrations/ SQL files
   shared/      Shared Zod contracts and public DTOs
   test-utils/  Shared test helpers
-  web/         React/Vite web application (wrangler.toml Pages config)
+  web/         React/Vite web application, Pages Function API proxy, and
+               wrangler.toml Pages/service-binding config
 ```
 
 ## Environments
@@ -56,6 +87,9 @@ environment matrix, deployment commands, and health verification.
 
 Deployment commands use `pnpm dlx wrangler` and require Cloudflare
 credentials plus the Hyperdrive IDs configured in `packages/api/wrangler.toml`.
+The web deploy commands include the Pages Function in `packages/web/functions/`
+and use the `staging` preview branch and `main` production branch so each Pages
+project receives its matching API service binding.
 
 ## Database migrations
 
@@ -82,12 +116,41 @@ repo-root `.env` or `.env.local` (both git-ignored). An explicit shell value or 
 `--database-url` argument takes precedence, which is how CI and staging pass the
 secret. Add the variable to `.env` as shown in `.env.example`.
 
-## API and web smoke test
+## API and web walking skeleton
 
-The web dev server proxies `/api` requests to `http://localhost:8787`. The API
-exposes `GET /health` for environment, release version, and request ID only, and
-`GET /api/v1/app-info` as a durable smoke-test endpoint; real product endpoints
-are added story by story.
+The web dev server proxies `/health` and `/api` requests to
+`http://localhost:8787`. In Cloudflare Pages, the Function in
+`packages/web/functions/[[path]].ts` forwards the same paths to the staged Hono
+Worker through the `API` service binding, so the browser always uses same-origin
+requests.
+
+The API exposes `GET /health` for environment, release version, and request ID
+only, and `GET /api/v1/app-info` as a durable smoke-test endpoint; real product
+endpoints are added story by story. The React shell calls `/health`, shows
+loading and success states, and presents a friendly retryable error with the
+request reference ID when the health call fails.
+
+## API error contract
+
+Every API failure returns RFC 9457-style Problem Details with the
+`application/problem+json` content type:
+
+```json
+{
+  "type": "https://taxdesk.app/problems/not-found",
+  "title": "Not Found",
+  "status": 404,
+  "code": "NOT_FOUND",
+  "detail": "The requested resource was not found.",
+  "requestId": "0f2c…"
+}
+```
+
+`ProblemDetailsSchema` and `RequestIdSchema` live in `@taxdesk/shared`;
+`errors` is an optional array of `{ field, message }` validation entries. The
+API's request-ID middleware keeps a bounded, header-safe inbound `X-Request-Id`
+or generates a UUID, echoes it on every response, and never places secrets,
+provider tokens, database details, or raw errors in the body or structured log.
 
 ## Quality baseline
 

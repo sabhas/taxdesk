@@ -3,7 +3,7 @@ title: Environments and deployment
 status: accepted
 version: 1.0
 owners: [engineering, operations]
-last_reviewed: 2026-10-25
+last_reviewed: 2026-10-31
 related:
   - architecture.md
   - migrations.md
@@ -159,18 +159,46 @@ placeholder only when superseded by a release token generated in TD-006.
 
 ### Web application (Cloudflare Pages)
 
-```bash
-pnpm --filter @taxdesk/web build
-pnpm dlx wrangler pages deploy packages/web/dist \
-  --project-name taxdesk-web-staging
+The Pages Function at `packages/web/functions/[[path]].ts` proxies same-origin
+`/health` and `/api/*` requests to the Hono Worker bound as `API`.
+`packages/web/public/_routes.json` limits Function invocation to those paths, so
+static application routes are still served directly by Pages. The browser never
+connects to PostgreSQL or a storage provider directly.
 
-pnpm dlx wrangler pages deploy packages/web/dist \
-  --project-name taxdesk-web-production
+`packages/web/wrangler.toml` declares the service binding per deployment target:
+
+| Pages target | Branch | `API` service binding |
+| --- | --- | --- |
+| Local/development | local | `taxdesk-api` |
+| Staging | `staging` preview | `taxdesk-api-staging` |
+| Production | `main` production | `taxdesk-api-production` |
+
+Deploy the two web environments with the repository commands:
+
+```bash
+# Build, include functions/, and deploy the staging preview binding.
+pnpm deploy:web:staging
+
+# Build, include functions/, and deploy the production binding.
+pnpm deploy:web:production
 ```
 
-Route same-origin `/api/*` traffic from the Pages project to the matching
-Worker (for example with a Pages route or service binding). The browser never
-connects to PostgreSQL or a storage provider directly.
+The commands run `wrangler` with `--cwd packages/web` so Pages finds the
+`functions/` directory and the service-binding configuration. If a Pages project
+uses a different production branch, pass its branch to `wrangler pages deploy`;
+the binding must still point at the matching Worker.
+
+Verify the deployed walking skeleton from the Pages host:
+
+```bash
+curl -fsS https://<pages-host>/health | jq -e \
+  '.environment == "staging" and (.requestId | length > 0)'
+curl -fsS https://<pages-host>/api/v1/app-info | jq -e '.name == "TaxDesk API"'
+```
+
+Both requests must return the Worker response without a cross-origin browser
+request. A missing or misconfigured `API` binding returns a safe `503` Problem
+Details response instead of falling through to a static 404.
 
 ## Health contract
 
@@ -185,8 +213,18 @@ no-store` header:
 }
 ```
 
-`X-Request-Id` echoes the inbound header or generates one, and always matches
-the `requestId` in the body.
+`X-Request-Id` keeps a bounded, header-safe inbound value or generates a UUID,
+and always matches the `requestId` in the body.
+
+## Problem Details and request IDs
+
+API failures use the shared `ProblemDetailsSchema` from `@taxdesk/shared` and
+return `Content-Type: application/problem+json`. The body contains `type`,
+`title`, `status`, `code`, `detail`, `requestId`, and optional field `errors`.
+The contract is strict, so database names, infrastructure addresses, provider
+tokens, and raw exception messages cannot be added accidentally. Unhandled
+errors are logged as structured JSON containing only the event name, request ID,
+and error class; raw errors and secrets are never serialized.
 
 ### Verify on staging and production
 
