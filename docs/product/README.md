@@ -14,6 +14,8 @@ last_reviewed: 2026-10-25
 | [Implementation workflow](implementation-workflow.md) | Mandatory read order, scope rules, and build order |
 | [Definition of Done](definition-of-done.md) | Minimum quality bar for every story |
 | [Implementation status](status.md) | Current epic and sprint progress |
+| [Sprint 1 review notes](sprint-1-review-notes.md) | Sprint 1 review record, including the TD-005 OneDrive spike outcome and blocking decision |
+| [Spike evidence](evidence/README.md) | Machine-generated, secret-free evidence records |
 | [Epic PRDs](prd/README.md) | User stories and acceptance criteria |
 
 The product owner accepts stories during the Sprint Review against their explicit acceptance criteria. A story may move to the next sprint only if it meets the Definition of Done.

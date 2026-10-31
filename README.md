@@ -63,6 +63,8 @@ packages/
                wrangler.toml environment bindings)
   database/    Drizzle/PostgreSQL client, forward-only migration runner, and
                migrations/ SQL files
+  onedrive-spike/  TD-005 throwaway feasibility harness and its report CLI
+               (not deployed and not imported by the product)
   shared/      Shared Zod contracts and public DTOs
   test-utils/  Shared test helpers
   web/         React/Vite web application, Pages Function API proxy, and
@@ -90,6 +92,22 @@ credentials plus the Hyperdrive IDs configured in `packages/api/wrangler.toml`.
 The web deploy commands include the Pages Function in `packages/web/functions/`
 and use the `staging` preview branch and `main` production branch so each Pages
 project receives its matching API service binding.
+
+## OneDrive Personal feasibility spike
+
+TD-005 is a throwaway harness, not a product feature. It proves that the
+intended Microsoft Personal account can support the document workflow and
+writes a strict, secret-free evidence record. It is not deployed and is not
+imported by the API or the web application.
+
+| Task                            | Command                                            |
+| ------------------------------- | -------------------------------------------------- |
+| Run the OneDrive Personal spike | `pnpm spike:onedrive --client-id <application-id>` |
+
+See [`docs/guides/onedrive-spike.md`](docs/guides/onedrive-spike.md) for the app
+registration, the exact delegated scopes, the revocation step, and the evidence
+recording. The recorded outcome lives in
+[`docs/product/sprint-1-review-notes.md`](docs/product/sprint-1-review-notes.md).
 
 ## Database migrations
 

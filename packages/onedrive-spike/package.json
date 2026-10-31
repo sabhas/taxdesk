@@ -1,0 +1,31 @@
+{
+  "name": "@taxdesk/onedrive-spike",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "TD-005 throwaway harness that proves OneDrive Personal can support the document workflow",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "esbuild src/cli.ts --bundle --format=esm --platform=node --outfile=dist/cli.js",
+    "test": "vitest run",
+    "spike": "pnpm run build && node dist/cli.js"
+  },
+  "dependencies": {
+    "@taxdesk/shared": "workspace:*",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "esbuild": "^0.24.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

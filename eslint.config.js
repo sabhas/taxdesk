@@ -38,6 +38,7 @@ export default tseslint.config(
         { type: 'api', pattern: 'packages/api/src/**/*' },
         { type: 'web', pattern: 'packages/web/src/**/*' },
         { type: 'test-utils', pattern: 'packages/test-utils/src/**/*' },
+        { type: 'spike', pattern: 'packages/onedrive-spike/src/**/*' },
       ],
       'boundaries/ignore': [
         '**/*.test.ts',
@@ -58,6 +59,7 @@ export default tseslint.config(
             { from: 'api', allow: ['shared', 'database', 'api', 'test-utils'] },
             { from: 'web', allow: ['shared', 'web', 'test-utils'] },
             { from: 'test-utils', allow: ['shared', 'test-utils'] },
+            { from: 'spike', allow: ['shared', 'spike'] },
           ],
         },
       ],
@@ -73,6 +75,8 @@ export default tseslint.config(
     rules: {
       '@typescript-eslint/no-non-null-assertion': 'off',
       '@typescript-eslint/no-explicit-any': 'off',
+      // Test doubles legitimately return already-settled promises.
+      '@typescript-eslint/require-await': 'off',
     },
   },
   prettier,

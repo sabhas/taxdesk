@@ -125,6 +125,20 @@ committed and never returned by an API. At this story there are no application
 secrets yet (database access is supplied by the Hyperdrive binding). Future
 provider credentials such as OneDrive/Graph values are added here.
 
+The TD-005 OneDrive feasibility spike deliberately adds **no** Worker secret. It
+runs on an operator workstation as a local CLI, is a public client using
+PKCE (so it has no client secret), and holds tokens in memory only. Its
+configuration comes from CLI flags and these local, non-secret variables:
+
+| Variable | Purpose |
+| --- | --- |
+| `TAXDESK_MS_GRAPH_CLIENT_ID` | Application (client) ID of the non-production spike registration |
+| `TAXDESK_SPIKE_OPERATOR` | Name recorded in the committed evidence file |
+
+See [`../guides/onedrive-spike.md`](../guides/onedrive-spike.md). Do not put a
+Graph client secret, refresh token, or access token in `.dev.vars`, `.env`, or a
+Worker secret for the spike.
+
 ```bash
 pnpm dlx wrangler secret list --env staging
 pnpm dlx wrangler secret put <SECRET_NAME> --env staging
