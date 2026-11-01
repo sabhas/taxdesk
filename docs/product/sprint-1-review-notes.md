@@ -219,6 +219,43 @@ own acceptance criteria.
 staging provider posture record are pending Sprint Review.
 **Runbook:** [`docs/technical/ci.md`](../technical/ci.md).
 
+### Staging environment — verification record
+
+This section separates what the repository proves, what an operator observed,
+and what is still uncaptured. Do not collapse the three.
+
+| Claim | Proven how | Status |
+| --- | --- | --- |
+| The committed staging config cannot silently downgrade | `pnpm ci:config-posture` (runs in CI and locally) | **Verified** — STAGING_API_NAME, STAGING_HYPERDRIVE_BINDING, STAGING_HYPERDRIVE_ID, STAGING_HYPERDRIVE_NO_LOCAL_CONNECTION, STAGING_PAGES_BINDING, DATABASE_CLIENT_REQUIRES_TLS all pass |
+| The deployed staging stack serves the web shell, the API health response, and same-origin API routing | Operator observation, 2026-11-01 | **Operator-confirmed, artifact uncaptured** — this is an attestation, not a recorded run |
+| The staging database is at the current migration version | `pnpm db:migrate:status --check` with `DATABASE_URL` | **Pending** |
+| The staging session uses TLS and a least-privilege, non-owner role | `pnpm ci:db-posture` with `DATABASE_URL` | **Pending** |
+| Health reports the deployed commit | `pnpm ci:staging-smoke` with `STAGING_WEB_URL` and `RELEASE_VERSION` | **Pending** — cannot pass yet: the running staging Worker still reports the manual-deploy `RELEASE_VERSION = "0.1.0-td004"` from `[env.staging.vars]`, which only the CI deploy overrides with the commit SHA |
+
+Capture the three pending artifacts with these commands; every report is
+secret-free by design (names, counts, booleans only), so the JSON can be pasted
+here verbatim.
+
+```bash
+# 1. Migration state of the staging database.
+DATABASE_URL="postgres://<app-role>:<password>@<host>:5432/taxdesk_staging?sslmode=require" \
+  pnpm db:migrate:status --check
+
+# 2. TLS + least-privilege role posture.
+DATABASE_URL="postgres://<app-role>:<password>@<host>:5432/taxdesk_staging?sslmode=require" \
+  pnpm ci:db-posture
+
+# 3. Same-origin walking skeleton through the Pages host.
+STAGING_WEB_URL="https://<staging-pages-host>" pnpm ci:staging-smoke
+```
+
+What operator confirmation of a working staging stack does **not** prove: no
+Worker code path opens the `HYPERDRIVE` binding yet. `/health` and
+`/api/v1/app-info` never touch PostgreSQL, and `ci:db-posture` connects from the
+CI runner, not from the Worker. The Worker → Hyperdrive → PostgreSQL leg is
+therefore still unproven and is the open part of TD-002's second criterion; see
+`status.md`.
+
 ### Delivered
 
 | Concern | Evidence |
