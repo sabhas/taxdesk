@@ -228,24 +228,34 @@ and what is still uncaptured. Do not collapse the three.
 | --- | --- | --- |
 | The committed staging config cannot silently downgrade | `pnpm ci:config-posture` (runs in CI and locally) | **Verified** — STAGING_API_NAME, STAGING_HYPERDRIVE_BINDING, STAGING_HYPERDRIVE_ID, STAGING_HYPERDRIVE_NO_LOCAL_CONNECTION, STAGING_PAGES_BINDING, DATABASE_CLIENT_REQUIRES_TLS all pass |
 | The deployed staging stack serves the web shell, the API health response, and same-origin API routing | Operator observation, 2026-11-01 | **Operator-confirmed, artifact uncaptured** — this is an attestation, not a recorded run |
-| The staging database is at the current migration version | `pnpm db:migrate:status --check` with `DATABASE_URL` | **Pending** |
+| The staging database is at the current migration version | `pnpm db:migrate:status --check` with `DATABASE_URL` | **Verified 2026-11-01** — `status: up_to_date`, 1 applied, 0 pending; captured report below |
 | The staging session uses TLS and a least-privilege, non-owner role | `pnpm ci:db-posture` with `DATABASE_URL` | **Pending** |
 | Health reports the deployed commit | `pnpm ci:staging-smoke` with `STAGING_WEB_URL` and `RELEASE_VERSION` | **Pending** — cannot pass yet: the running staging Worker still reports the manual-deploy `RELEASE_VERSION = "0.1.0-td004"` from `[env.staging.vars]`, which only the CI deploy overrides with the commit SHA |
 
-Capture the three pending artifacts with these commands; every report is
-secret-free by design (names, counts, booleans only), so the JSON can be pasted
+Captured staging migration report (secret-free by construction: names, checksums,
+timestamps, and counts only):
+
+```json
+{"command":"status","status":"up_to_date","applied":[{"name":"0001_initial_baseline.sql","checksum":"9696f8518afdd7736c75a50765a1c39d3b8e80d5c4e01643108a35530f443b29","appliedAt":"2026-10-31T16:04:33.732Z","durationMs":528}],"pending":[]}
+```
+
+Two integrity facts follow from that report. The applied checksum is identical to
+the one in [`packages/database/migrations/manifest.json`](../../../packages/database/migrations/manifest.json),
+so the staged baseline is byte-identical to the committed file and the checksum
+gate would catch any later edit. The `appliedAt` timestamp precedes the current
+commit, which confirms the ledger row was written by the runner on a real
+application rather than seeded by hand.
+
+Capture the two remaining artifacts with these commands; both reports are
+secret-free by design (booleans and check IDs only), so the JSON can be pasted
 here verbatim.
 
 ```bash
-# 1. Migration state of the staging database.
-DATABASE_URL="postgres://<app-role>:<password>@<host>:5432/taxdesk_staging?sslmode=require" \
-  pnpm db:migrate:status --check
-
-# 2. TLS + least-privilege role posture.
+# 1. TLS + least-privilege role posture of the staging database.
 DATABASE_URL="postgres://<app-role>:<password>@<host>:5432/taxdesk_staging?sslmode=require" \
   pnpm ci:db-posture
 
-# 3. Same-origin walking skeleton through the Pages host.
+# 2. Same-origin walking skeleton through the Pages host.
 STAGING_WEB_URL="https://<staging-pages-host>" pnpm ci:staging-smoke
 ```
 
