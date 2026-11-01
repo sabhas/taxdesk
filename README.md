@@ -91,8 +91,10 @@ environment matrix, deployment commands, and health verification.
 | Build and deploy the web app to staging    | `pnpm deploy:web:staging`    |
 | Build and deploy the web app to production | `pnpm deploy:web:production` |
 
-Deployment commands use `pnpm dlx wrangler` and require Cloudflare
-credentials plus the Hyperdrive IDs configured in `packages/api/wrangler.toml`.
+Deployment commands use the workspace-pinned `wrangler` binary (`pnpm exec
+wrangler`) so a release is never built by an unpinned download. They require
+Cloudflare credentials plus the Hyperdrive IDs configured in
+`packages/api/wrangler.toml`.
 The web deploy commands include the Pages Function in `packages/web/functions/`
 and use the `staging` preview branch and `main` production branch so each Pages
 project receives its matching API service binding.

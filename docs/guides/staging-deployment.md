@@ -36,7 +36,7 @@ You will create:
 From the repository root:
 
 ```bash
-cd /Users/sabirhassan/projects/taxdesk
+cd <path-to-your-taxdesk-clone>
 
 node --version      # must be 22+
 pnpm --version      # must be 10+
@@ -50,13 +50,13 @@ pnpm verify
 ## Step 2 — Log in to Cloudflare
 
 ```bash
-pnpm dlx wrangler login
+pnpm exec wrangler login
 ```
 
 This opens a browser. Approve access, then confirm:
 
 ```bash
-pnpm dlx wrangler whoami
+pnpm exec wrangler whoami
 ```
 
 You should see your Cloudflare account email and account ID.
@@ -105,7 +105,7 @@ a secure binding.
 Run:
 
 ```bash
-pnpm dlx wrangler hyperdrive create taxdesk-staging \
+pnpm exec wrangler hyperdrive create taxdesk-staging \
   --connection-string="postgres://USER:PASSWORD@HOST:5432/taxdesk_staging?sslmode=require"
 ```
 
@@ -144,7 +144,7 @@ RELEASE_VERSION = "0.1.0-td004"
 Confirm the Hyperdrive configuration exists:
 
 ```bash
-pnpm dlx wrangler hyperdrive list
+pnpm exec wrangler hyperdrive list
 ```
 
 ## Step 5 — Apply staging database migrations
@@ -191,7 +191,7 @@ pnpm deploy:api:staging
 This runs the equivalent of:
 
 ```bash
-pnpm dlx wrangler deploy \
+pnpm exec wrangler deploy \
   --config packages/api/wrangler.toml \
   --env staging
 ```
@@ -226,7 +226,7 @@ correctly.
 If this is the first time, create the Pages project:
 
 ```bash
-pnpm dlx wrangler pages project create taxdesk-web-staging \
+pnpm exec wrangler pages project create taxdesk-web-staging \
   --production-branch main
 ```
 
@@ -340,7 +340,7 @@ pnpm deploy:web:staging
 For live Worker logs:
 
 ```bash
-pnpm dlx wrangler tail taxdesk-api-staging
+pnpm exec wrangler tail taxdesk-api-staging
 ```
 
 Keep that terminal open while making requests through the staging Pages URL.

@@ -54,7 +54,7 @@ in `[vars]`. They are the only configuration the health endpoint reads.
 3. Create a Hyperdrive configuration per environment:
 
    ```bash
-   pnpm dlx wrangler hyperdrive create taxdesk-development \
+   pnpm exec wrangler hyperdrive create taxdesk-development \
      --connection-string="postgres://<app-role>:<password>@<host>:5432/<database>?sslmode=require"
    ```
 
@@ -141,8 +141,8 @@ Graph client secret, refresh token, or access token in `.dev.vars`, `.env`, or a
 Worker secret for the spike.
 
 ```bash
-pnpm dlx wrangler secret list --env staging
-pnpm dlx wrangler secret put <SECRET_NAME> --env staging
+pnpm exec wrangler secret list --env staging
+pnpm exec wrangler secret put <SECRET_NAME> --env staging
 ```
 
 For local development, copy `packages/api/.dev.vars.example` to
@@ -167,7 +167,7 @@ variables, the posture evidence contract, and the rollback procedure.
 
 ```bash
 # Local development against the development Hyperdrive/database.
-pnpm dlx wrangler dev --config packages/api/wrangler.toml
+pnpm exec wrangler dev --config packages/api/wrangler.toml
 
 # Staging then production. Apply migrations before each deploy (see
 # migrations.md) and confirm the target is current.
@@ -176,8 +176,8 @@ DATABASE_URL="postgres://<app-role>:<password>@<host>:5432/<database>?sslmode=re
 DATABASE_URL="postgres://<app-role>:<password>@<host>:5432/<database>?sslmode=require" \
   pnpm db:migrate:status --check
 
-pnpm dlx wrangler deploy --config packages/api/wrangler.toml --env staging
-pnpm dlx wrangler deploy --config packages/api/wrangler.toml --env production
+pnpm exec wrangler deploy --config packages/api/wrangler.toml --env staging
+pnpm exec wrangler deploy --config packages/api/wrangler.toml --env production
 ```
 
 Set `RELEASE_VERSION` in the matching `wrangler.toml` environment before a
