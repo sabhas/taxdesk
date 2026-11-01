@@ -227,11 +227,11 @@ and what is still uncaptured. Do not collapse the three.
 | Claim | Proven how | Status |
 | --- | --- | --- |
 | The committed staging config cannot silently downgrade | `pnpm ci:config-posture` (runs in CI and locally) | **Verified** — STAGING_API_NAME, STAGING_HYPERDRIVE_BINDING, STAGING_HYPERDRIVE_ID, STAGING_HYPERDRIVE_NO_LOCAL_CONNECTION, STAGING_PAGES_BINDING, DATABASE_CLIENT_REQUIRES_TLS all pass |
-| The deployed staging stack serves the web shell, the API health response, and same-origin API routing | Operator observation, 2026-11-01 | **Operator-confirmed, artifact uncaptured** — this is an attestation, not a recorded run |
+| The deployed staging stack serves the web shell, the API health response, and same-origin API routing | `pnpm ci:staging-smoke` through the Pages host | **Verified 2026-11-01** — captured 15/15 run supersedes the earlier operator attestation |
 | The staging database is at the current migration version | `pnpm db:migrate:status --check` with `DATABASE_URL` | **Verified 2026-11-01** — `status: up_to_date`, 1 applied, 0 pending; captured report below |
 | The staging session uses TLS and a least-privilege, non-owner role | `pnpm ci:db-posture` with `DATABASE_URL` | **Verified 2026-11-01** — failed on first run, remediated, now 4/4 pass; before and after reports below |
-| The deployed Pages host serves the walking skeleton through the Worker binding | `pnpm ci:staging-smoke` with `STAGING_WEB_URL` | **Caught a defect** — 14 of 15 checks passed; `APP_INFO_CONTRACT` failed on a real bug, now fixed in `7ba50d7` and awaiting redeploy. Report and diagnosis below |
-| Health reports the deployed commit | `pnpm ci:staging-smoke` with `RELEASE_VERSION` | **Pending** — blocked until the fixed build is deployed; the running Worker still reports the manual-deploy `RELEASE_VERSION = "0.1.0-td004"` from `[env.staging.vars]`, which only the CI deploy overrides with the commit SHA |
+| The deployed Pages host serves the walking skeleton through the Worker binding | `pnpm ci:staging-smoke` with `STAGING_WEB_URL` | **Verified 2026-11-01** — 15/15 after the `APP_INFO_CONTRACT` defect was fixed in `7ba50d7` and deployed; the finding is recorded below |
+| Health reports the deployed commit | `pnpm ci:staging-smoke` with `RELEASE_VERSION` | **Verified 2026-11-01** — reported `c776aa2bd3d16d7b1a73a37690e259153564772d`, equal to the requested SHA |
 
 Captured staging migration report (secret-free by construction: names, checksums,
 timestamps, and counts only):
@@ -317,9 +317,28 @@ migrations and a DML-only role for the Worker would be better, and it needs its
 own secret plus a workflow change. That hardening is deliberately left out of
 TD-006 scope; note it as a follow-up rather than a silent default.
 
-### Staging smoke check — caught a real defect
+### Staging smoke check — passed, after catching a real defect
 
-Captured smoke report (failed check only; the other 14 passed individually):
+Captured successful smoke report (all 15 checks):
+
+```json
+{"check":"staging-smoke","ok":true,"failed":[],"releaseVersion":"c776aa2bd3d16d7b1a73a37690e259153564772d"}
+```
+
+Base URL HTTPS, health status/content-type/cache-control/contract/environment,
+request-ID echo in header and body, `RELEASE_VERSION`, secret-free health, app-info
+status/contract/secret-free, and the 404 Problem Details status, content type, and
+contract with the matching request ID all pass.
+
+This report also settles a deployment-mechanics question that was previously only
+inferred: the Worker ran with `RELEASE_VERSION` overridden by `--var`, not the
+stale `[env.staging.vars]` value `0.1.0-td004`, and the smoke check read the
+deployed SHA back from `/health`. The manual "set `RELEASE_VERSION` before
+deploying" step is not load-bearing for the automated path, though the
+hand-deployment instruction in `docs/technical/environments.md` still applies.
+
+The pre-fix run and its diagnosis are kept rather than deleted, because that run
+is the evidence that the gate catches defects which exist only when deployed:
 
 ```json
 {"check":"staging-smoke","ok":false,"failed":["APP_INFO_CONTRACT"],"releaseVersion":"0.1.0-td004"}
@@ -350,9 +369,9 @@ payload that was valid but carried the wrong environment, which pointed the firs
 investigation at the shared contract rather than the route. It now names the
 mismatch and the environment it saw, and a test pins that wording.
 
-**Still required.** The fix has to be deployed before this row can pass; the
-running Worker is the pre-fix build. The first CI-driven deploy covers it, or a
-manual `pnpm deploy:api:staging` does.
+**Resolved 2026-11-01.** `7ba50d7` was deployed and the same smoke check now
+passes 15/15. The defect existed only in the deployed combination of route and
+bindings, which is the class of bug this gate exists to catch.
 
 What operator confirmation of a working staging stack does **not** prove: no
 Worker code path opens the `HYPERDRIVE` binding yet. `/health` and
