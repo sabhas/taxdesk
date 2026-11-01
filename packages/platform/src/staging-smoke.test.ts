@@ -153,6 +153,36 @@ describe('runStagingSmoke', () => {
     );
   });
 
+  it('names the app-info mismatch instead of reporting a generic invalid payload', async () => {
+    const fetchImpl = mockFetch((url) => {
+      if (url.pathname === '/health') {
+        return json(healthBody(), 200, {
+          'Cache-Control': 'no-store',
+          'X-Request-Id': REQUEST_ID,
+        });
+      }
+      if (url.pathname === '/api/v1/app-info') {
+        // A deployed-but-miswired route: valid contract, wrong environment.
+        return json(appInfoBody({ environment: 'development' }));
+      }
+      return json(problemDetailsBody(), 404, {
+        'Content-Type': 'application/problem+json',
+        'X-Request-Id': REQUEST_ID,
+      });
+    });
+
+    const result = await runStagingSmoke({
+      baseUrl: 'http://localhost:8787',
+      fetchImpl,
+      requestId: REQUEST_ID,
+    });
+
+    expect(result.failed).toEqual(['APP_INFO_CONTRACT']);
+    const appInfoCheck = result.checks.find((entry) => entry.id === 'APP_INFO_CONTRACT');
+    expect(appInfoCheck?.detail).toContain('development');
+    expect(appInfoCheck?.detail).toContain('staging');
+  });
+
   it('rejects a non-local plaintext base URL', async () => {
     const result = await runStagingSmoke({
       baseUrl: 'http://staging.example.test',

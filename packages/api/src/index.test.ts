@@ -16,17 +16,32 @@ function bindings(overrides: Partial<ApiBindings> = {}): ApiBindings {
 }
 
 describe('GET /api/v1/app-info', () => {
-  it('returns valid app info and a request ID', async () => {
-    const response = await app.request('/api/v1/app-info');
+  it('reports the deployed environment and release version, never a default', async () => {
+    const response = await app.request(
+      '/api/v1/app-info',
+      undefined,
+      bindings({ ENVIRONMENT: 'staging', RELEASE_VERSION: '1.2.3' }),
+    );
     expect(response.status).toBe(200);
     expect(response.headers.get('X-Request-Id')).toBeTruthy();
-    const body: unknown = await response.json();
-    const parsed = AppInfoSchema.safeParse(body);
-    expect(parsed.success).toBe(true);
-    if (parsed.success) {
-      expect(parsed.data.name).toBe('TaxDesk API');
-      expect(parsed.data.environment).toBe('development');
-    }
+
+    // Regression: the route once built AppInfoService with default arguments, so
+    // deployed staging answered environment "development" and version "0.0.0".
+    // The staging smoke check caught it; this test keeps it caught locally.
+    const parsed = AppInfoSchema.parse(await response.json());
+    expect(parsed).toEqual({ name: 'TaxDesk API', version: '1.2.3', environment: 'staging' });
+  });
+
+  it('fails closed without leaking bindings when configuration is invalid', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const response = await app.request(
+      '/api/v1/app-info',
+      undefined,
+      bindings({ ENVIRONMENT: 'local' as never }),
+    );
+    expect(response.status).toBe(500);
+    expect(await response.text()).not.toContain('local');
+    expect(errorSpy).toHaveBeenCalledOnce();
   });
 
   it('returns a Problem Details response for unknown routes', async () => {

@@ -190,17 +190,22 @@ export async function runStagingSmoke(options: StagingSmokeOptions): Promise<Sta
         appInfoResponse.status === 200 ? 'App info returned 200.' : 'App info did not return 200.',
       ),
     );
-    checks.push(
-      check(
-        'APP_INFO_CONTRACT',
-        appInfoParsed.success &&
-          appInfoParsed.data.name === 'TaxDesk API' &&
-          appInfoParsed.data.environment === 'staging',
-        appInfoParsed.success && appInfoParsed.data.environment === 'staging'
-          ? 'App info matches the staging contract.'
-          : 'App info payload is invalid.',
-      ),
-    );
+    const appInfoContractOk =
+      appInfoParsed.success &&
+      appInfoParsed.data.name === 'TaxDesk API' &&
+      appInfoParsed.data.environment === 'staging';
+    // Name the actual mismatch. Reporting "payload is invalid" for a wrong
+    // environment sent the first staging investigation looking at the contract
+    // instead of at the route that built it.
+    let appInfoDetail = 'App info matches the staging contract.';
+    if (!appInfoParsed.success) {
+      appInfoDetail = 'App info does not match the shared contract.';
+    } else if (appInfoParsed.data.name !== 'TaxDesk API') {
+      appInfoDetail = 'App info reports a different service name.';
+    } else if (appInfoParsed.data.environment !== 'staging') {
+      appInfoDetail = `App info reports the ${appInfoParsed.data.environment} environment instead of staging.`;
+    }
+    checks.push(check('APP_INFO_CONTRACT', appInfoContractOk, appInfoDetail));
     checks.push(
       check(
         'APP_INFO_SECRET_FREE',
