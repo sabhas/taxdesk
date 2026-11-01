@@ -30,8 +30,8 @@
     "dev:web": "pnpm --filter @taxdesk/web dev",
     "deploy:api:staging": "wrangler deploy --config packages/api/wrangler.toml --env staging",
     "deploy:api:production": "wrangler deploy --config packages/api/wrangler.toml --env production",
-    "deploy:web:staging": "pnpm --filter @taxdesk/web build && wrangler pages deploy dist --cwd packages/web --project-name taxdesk-web-staging --branch staging",
-    "deploy:web:production": "pnpm --filter @taxdesk/web build && wrangler pages deploy dist --cwd packages/web --project-name taxdesk-web-production --branch main",
+    "deploy:web:staging": "pnpm --filter @taxdesk/web build && pnpm --filter @taxdesk/web exec wrangler pages deploy dist --project-name taxdesk-web-staging --branch staging",
+    "deploy:web:production": "pnpm --filter @taxdesk/web build && pnpm --filter @taxdesk/web exec wrangler pages deploy dist --project-name taxdesk-web-production --branch main",
     "verify": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm db:migrate:verify && pnpm ci:secrets && pnpm ci:workflows && pnpm ci:config-posture && pnpm ci:selftest && pnpm build"
   },
   "devDependencies": {

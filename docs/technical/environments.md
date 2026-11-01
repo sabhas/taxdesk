@@ -212,10 +212,12 @@ pnpm deploy:web:staging
 pnpm deploy:web:production
 ```
 
-The commands run `wrangler` with `--cwd packages/web` so Pages finds the
-`functions/` directory and the service-binding configuration. If a Pages project
-uses a different production branch, pass its branch to `wrangler pages deploy`;
-the binding must still point at the matching Worker.
+The commands run `wrangler` inside `packages/web` (via `pnpm --filter
+@taxdesk/web exec`) so Pages resolves the `dist` output, the `functions/`
+directory, and the `wrangler.toml` service-binding configuration from that
+package rather than relying on a `--cwd` global flag. If a Pages project uses a
+different production branch, pass its branch to `wrangler pages deploy`; the
+binding must still point at the matching Worker.
 
 Verify the deployed walking skeleton from the Pages host:
 
