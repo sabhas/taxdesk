@@ -26,12 +26,12 @@
     "ci:db-posture": "pnpm --filter @taxdesk/platform run db-posture",
     "ci:backup-check": "pnpm --filter @taxdesk/platform run backup-check",
     "spike:onedrive": "pnpm --filter @taxdesk/onedrive-spike run spike",
-    "dev:api": "pnpm dlx wrangler dev --config packages/api/wrangler.toml",
+    "dev:api": "wrangler dev --config packages/api/wrangler.toml",
     "dev:web": "pnpm --filter @taxdesk/web dev",
-    "deploy:api:staging": "pnpm dlx wrangler deploy --config packages/api/wrangler.toml --env staging",
-    "deploy:api:production": "pnpm dlx wrangler deploy --config packages/api/wrangler.toml --env production",
-    "deploy:web:staging": "pnpm --filter @taxdesk/web build && pnpm dlx wrangler pages deploy dist --cwd packages/web --project-name taxdesk-web-staging --branch staging",
-    "deploy:web:production": "pnpm --filter @taxdesk/web build && pnpm dlx wrangler pages deploy dist --cwd packages/web --project-name taxdesk-web-production --branch main",
+    "deploy:api:staging": "wrangler deploy --config packages/api/wrangler.toml --env staging",
+    "deploy:api:production": "wrangler deploy --config packages/api/wrangler.toml --env production",
+    "deploy:web:staging": "pnpm --filter @taxdesk/web build && wrangler pages deploy dist --cwd packages/web --project-name taxdesk-web-staging --branch staging",
+    "deploy:web:production": "pnpm --filter @taxdesk/web build && wrangler pages deploy dist --cwd packages/web --project-name taxdesk-web-production --branch main",
     "verify": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm db:migrate:verify && pnpm ci:secrets && pnpm ci:workflows && pnpm ci:config-posture && pnpm ci:selftest && pnpm build"
   },
   "devDependencies": {
@@ -43,6 +43,7 @@
     "prettier": "^3.4.2",
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.18.1",
-    "vitest": "^2.1.8"
+    "vitest": "^2.1.8",
+    "wrangler": "^4.156.0"
   }
 }

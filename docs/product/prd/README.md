@@ -11,7 +11,7 @@ Each epic is a bounded product capability. Each numbered story must fit in one s
 
 | Epic | Document | Status |
 | --- | --- | --- |
-| 0 | [Foundation and platform validation](epic-00-foundation-and-platform.md) | not_started |
+| 0 | [Foundation and platform validation](epic-00-foundation-and-platform.md) | in_progress |
 | 1 | [Identity, MFA, and authorization](epic-01-identity-mfa-and-authorization.md) | not_started |
 | 2 | [Client management](epic-02-client-management.md) | not_started |
 | 3 | [Tax-case workflow](epic-03-tax-case-workflow.md) | not_started |
