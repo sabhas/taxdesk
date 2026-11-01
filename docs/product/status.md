@@ -14,7 +14,7 @@ Update this file when an epic or sprint starts, becomes blocked, or completes.
 
 | Epic | Name | Status | Sprint(s) | Blocked by | Notes |
 | --- | --- | --- | --- | --- | --- |
-| 0 | Foundation and platform validation | in_progress | 1 | — | TD-001–TD-006 implemented (OneDrive proof of concept passed; CI and staging delivery gates committed). Staging deployed, migrated, green on `ci:db-posture` (least-privilege non-owner role) and green on a 15/15 staging smoke check; that check caught the `/api/v1/app-info` environment defect, fixed in `7ba50d7`. TD-006 staging posture evidence, the first CI-driven staging deploy, and the failing-check demonstration still pending Sprint Review |
+| 0 | Foundation and platform validation | in_progress | 1 | — | TD-001–TD-006 implemented (OneDrive proof of concept passed; CI and staging delivery gates committed). Staging deployed, migrated, green on `ci:db-posture` (least-privilege non-owner role) and green on a 15/15 staging smoke check; that check caught the `/api/v1/app-info` environment defect, fixed in `7ba50d7`. The posture evidence secret is operator-attested and awaits confirmation by the first CI-driven deploy; the failing-check demonstration is still pending Sprint Review |
 | 1 | Identity, MFA, and authorization | not_started | 2–3 | Epic 0 | Requires approved environment and auth decisions |
 | 2 | Client management | not_started | 4 | Epic 1 | Requires authorization and audit service |
 | 3 | Tax-case workflow | not_started | 5–6 | Epic 2 | Requires clients and role permissions |
