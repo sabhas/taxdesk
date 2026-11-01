@@ -229,8 +229,9 @@ and what is still uncaptured. Do not collapse the three.
 | The committed staging config cannot silently downgrade | `pnpm ci:config-posture` (runs in CI and locally) | **Verified** — STAGING_API_NAME, STAGING_HYPERDRIVE_BINDING, STAGING_HYPERDRIVE_ID, STAGING_HYPERDRIVE_NO_LOCAL_CONNECTION, STAGING_PAGES_BINDING, DATABASE_CLIENT_REQUIRES_TLS all pass |
 | The deployed staging stack serves the web shell, the API health response, and same-origin API routing | Operator observation, 2026-11-01 | **Operator-confirmed, artifact uncaptured** — this is an attestation, not a recorded run |
 | The staging database is at the current migration version | `pnpm db:migrate:status --check` with `DATABASE_URL` | **Verified 2026-11-01** — `status: up_to_date`, 1 applied, 0 pending; captured report below |
-| The staging session uses TLS and a least-privilege, non-owner role | `pnpm ci:db-posture` with `DATABASE_URL` | **Failed 2026-11-01** — TLS in use and TLS enforced pass; `DATABASE_ROLE_LEAST_PRIVILEGE` and `DATABASE_ROLE_NOT_OWNER` fail. Capture and remediation below |
-| Health reports the deployed commit | `pnpm ci:staging-smoke` with `STAGING_WEB_URL` and `RELEASE_VERSION` | **Pending** — cannot pass yet: the running staging Worker still reports the manual-deploy `RELEASE_VERSION = "0.1.0-td004"` from `[env.staging.vars]`, which only the CI deploy overrides with the commit SHA |
+| The staging session uses TLS and a least-privilege, non-owner role | `pnpm ci:db-posture` with `DATABASE_URL` | **Verified 2026-11-01** — failed on first run, remediated, now 4/4 pass; before and after reports below |
+| The deployed Pages host serves the walking skeleton through the Worker binding | `pnpm ci:staging-smoke` with `STAGING_WEB_URL` | **Caught a defect** — 14 of 15 checks passed; `APP_INFO_CONTRACT` failed on a real bug, now fixed in `7ba50d7` and awaiting redeploy. Report and diagnosis below |
+| Health reports the deployed commit | `pnpm ci:staging-smoke` with `RELEASE_VERSION` | **Pending** — blocked until the fixed build is deployed; the running Worker still reports the manual-deploy `RELEASE_VERSION = "0.1.0-td004"` from `[env.staging.vars]`, which only the CI deploy overrides with the commit SHA |
 
 Captured staging migration report (secret-free by construction: names, checksums,
 timestamps, and counts only):
@@ -254,30 +255,38 @@ design (check IDs and booleans only), so the JSON can be pasted here verbatim.
 STAGING_WEB_URL="https://<staging-pages-host>" pnpm ci:staging-smoke
 ```
 
-### Staging database role — blocking failure and remediation
+### Staging database role — failure, remediation, and result
 
-Captured staging posture report:
+Two captured posture reports, before and after remediation:
 
 ```json
 {"check":"database-posture","ok":false,"checks":[{"id":"DATABASE_TLS_IN_USE","passed":true},{"id":"DATABASE_TLS_ENFORCED","passed":true},{"id":"DATABASE_ROLE_LEAST_PRIVILEGE","passed":false},{"id":"DATABASE_ROLE_NOT_OWNER","passed":false}],"failed":["DATABASE_ROLE_LEAST_PRIVILEGE","DATABASE_ROLE_NOT_OWNER"],"privileges":{"tlsInUse":true,"connectionRequiresTls":true,"roleIsSuperuser":false,"roleCanCreateDatabases":true,"roleCanCreateRoles":true,"roleCanReplicate":true,"roleBypassesRowLevelSecurity":true,"roleOwnsDatabase":true}}
 ```
 
-**Diagnosis.** Staging connects as the provider's administrative role: it is not
-a superuser, but it holds `CREATEDB`, `CREATEROLE`, `REPLICATION` and
+**Resolved 2026-11-01.** After the remediation below, all four checks pass: TLS
+is in use and enforced, the application role has no elevated attributes, and it
+does not own the database. `deploy-staging.yml` step 8 will now pass.
+
+```json
+{"check":"database-posture","ok":true,"checks":[{"id":"DATABASE_TLS_IN_USE","passed":true},{"id":"DATABASE_TLS_ENFORCED","passed":true},{"id":"DATABASE_ROLE_LEAST_PRIVILEGE","passed":true},{"id":"DATABASE_ROLE_NOT_OWNER","passed":true}],"failed":[],"privileges":{"tlsInUse":true,"connectionRequiresTls":true,"roleIsSuperuser":false,"roleCanCreateDatabases":false,"roleCanCreateRoles":false,"roleCanReplicate":false,"roleBypassesRowLevelSecurity":false,"roleOwnsDatabase":false}}
+```
+
+**Diagnosis (kept for the record).** Staging connected as the provider's
+administrative role: it is not a superuser, but it holds `CREATEDB`, `CREATEROLE`, `REPLICATION` and
 `BYPASSRLS`, and it owns the database. This is the default role a managed
 provider hands out, and it is what the Worker and the migration runner have both
 been using. Transport is fine — the session uses TLS and the connection string
 requires it — so the gap is authorization, not encryption.
 
-**Why this blocks the epic.** `deploy-staging.yml` runs `pnpm ci:db-posture`
-before deploying (step 8), so the first CI-driven staging deploy fails closed
-until the credential is replaced. This is the gate working as designed: TD-006
-requires “a least-privilege credential”, and the epic cannot close on an admin
-role just because it happens to work.
+**Why it blocked the epic.** `deploy-staging.yml` runs `pnpm ci:db-posture`
+before deploying (step 8), so the first CI-driven staging deploy would have
+failed closed on the old credential. That is the gate working as designed:
+TD-006 requires “a least-privilege credential”, and an admin role that happens
+to work is not one.
 
-**Remediation.** Create a dedicated application role and stop connecting as the
-owner. Ownership transfer is not required — the check only asks whether the
-*connected* role owns the database.
+**Remediation (applied).** Create a dedicated application role and stop
+connecting as the owner. Ownership transfer is not required — the check only asks
+whether the *connected* role owns the database.
 
 ```sql
 CREATE ROLE taxdesk_app LOGIN PASSWORD '<generated>'
@@ -307,6 +316,43 @@ traffic. That passes the gate but is not the strict model — a DDL role for
 migrations and a DML-only role for the Worker would be better, and it needs its
 own secret plus a workflow change. That hardening is deliberately left out of
 TD-006 scope; note it as a follow-up rather than a silent default.
+
+### Staging smoke check — caught a real defect
+
+Captured smoke report (failed check only; the other 14 passed individually):
+
+```json
+{"check":"staging-smoke","ok":false,"failed":["APP_INFO_CONTRACT"],"releaseVersion":"0.1.0-td004"}
+```
+
+Everything that proves the delivery path worked passed: HTTPS, `HEALTH_STATUS`,
+`HEALTH_CONTRACT`, `HEALTH_ENVIRONMENT`, `REQUEST_ID_ECHO` (header *and* body),
+`HEALTH_SECRET_FREE`, `APP_INFO_STATUS`, `PROBLEM_DETAILS_STATUS`,
+`PROBLEM_DETAILS_CONTENT_TYPE`, and `PROBLEM_DETAILS_CONTRACT` with the same
+request ID. The Pages → service binding → Worker leg is therefore real, not
+merely configured.
+
+**Root cause.** `/api/v1/app-info` built `AppInfoService` with no arguments, so
+the service's default parameters answered `environment: "development"` and
+`version: "0.0.0"` from a staging Worker. `/health` was wired through
+`resolveRuntimeConfig` and answered correctly, which is exactly why no local test
+noticed: the defect only existed in the *deployed* combination of route and
+bindings.
+
+**Fix.** Commit `7ba50d7`. The service no longer has defaults, so the compiler
+requires the route to pass resolved configuration, and `version` now comes from
+`RELEASE_VERSION` so app-info and health agree on the live build. Two tests pin
+it: staging bindings must produce staging output, and invalid bindings must fail
+closed as a sanitized 500 instead of falling back to a default.
+
+**Gate quality.** `APP_INFO_CONTRACT` reported “App info payload is invalid” for a
+payload that was valid but carried the wrong environment, which pointed the first
+investigation at the shared contract rather than the route. It now names the
+mismatch and the environment it saw, and a test pins that wording.
+
+**Still required.** The fix has to be deployed before this row can pass; the
+running Worker is the pre-fix build. The first CI-driven deploy covers it, or a
+manual `pnpm deploy:api:staging` does.
 
 What operator confirmation of a working staging stack does **not** prove: no
 Worker code path opens the `HYPERDRIVE` binding yet. `/health` and
