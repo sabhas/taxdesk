@@ -232,6 +232,7 @@ and what is still uncaptured. Do not collapse the three.
 | The staging session uses TLS and a least-privilege, non-owner role | `pnpm ci:db-posture` with `DATABASE_URL` | **Verified 2026-11-01** — failed on first run, remediated, now 4/4 pass; before and after reports below |
 | The deployed Pages host serves the walking skeleton through the Worker binding | `pnpm ci:staging-smoke` with `STAGING_WEB_URL` | **Verified 2026-11-01** — 15/15 after the `APP_INFO_CONTRACT` defect was fixed in `7ba50d7` and deployed; the finding is recorded below |
 | Health reports the deployed commit | `pnpm ci:staging-smoke` with `RELEASE_VERSION` | **Verified 2026-11-01** — reported `c776aa2bd3d16d7b1a73a37690e259153564772d`, equal to the requested SHA |
+| The staging recovery/posture evidence is recorded and valid | `PLATFORM_POSTURE_EVIDENCE_JSON` in the `staging` environment, read by `pnpm ci:backup-check` | **Operator-attested 2026-11-01** — the operator confirms the secret is set and valid. GitHub secrets are write-only, so the repository cannot read it back; the automated confirmation is the first successful deploy run reaching step 8. Treat a green run as the proof and a red one as the record being wrong or stale |
 
 Captured staging migration report (secret-free by construction: names, checksums,
 timestamps, and counts only):
