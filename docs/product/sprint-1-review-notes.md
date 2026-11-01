@@ -229,7 +229,7 @@ and what is still uncaptured. Do not collapse the three.
 | The committed staging config cannot silently downgrade | `pnpm ci:config-posture` (runs in CI and locally) | **Verified** — STAGING_API_NAME, STAGING_HYPERDRIVE_BINDING, STAGING_HYPERDRIVE_ID, STAGING_HYPERDRIVE_NO_LOCAL_CONNECTION, STAGING_PAGES_BINDING, DATABASE_CLIENT_REQUIRES_TLS all pass |
 | The deployed staging stack serves the web shell, the API health response, and same-origin API routing | Operator observation, 2026-11-01 | **Operator-confirmed, artifact uncaptured** — this is an attestation, not a recorded run |
 | The staging database is at the current migration version | `pnpm db:migrate:status --check` with `DATABASE_URL` | **Verified 2026-11-01** — `status: up_to_date`, 1 applied, 0 pending; captured report below |
-| The staging session uses TLS and a least-privilege, non-owner role | `pnpm ci:db-posture` with `DATABASE_URL` | **Pending** |
+| The staging session uses TLS and a least-privilege, non-owner role | `pnpm ci:db-posture` with `DATABASE_URL` | **Failed 2026-11-01** — TLS in use and TLS enforced pass; `DATABASE_ROLE_LEAST_PRIVILEGE` and `DATABASE_ROLE_NOT_OWNER` fail. Capture and remediation below |
 | Health reports the deployed commit | `pnpm ci:staging-smoke` with `STAGING_WEB_URL` and `RELEASE_VERSION` | **Pending** — cannot pass yet: the running staging Worker still reports the manual-deploy `RELEASE_VERSION = "0.1.0-td004"` from `[env.staging.vars]`, which only the CI deploy overrides with the commit SHA |
 
 Captured staging migration report (secret-free by construction: names, checksums,
@@ -246,18 +246,67 @@ gate would catch any later edit. The `appliedAt` timestamp precedes the current
 commit, which confirms the ledger row was written by the runner on a real
 application rather than seeded by hand.
 
-Capture the two remaining artifacts with these commands; both reports are
-secret-free by design (booleans and check IDs only), so the JSON can be pasted
-here verbatim.
+Capture the remaining artifact with this command; the report is secret-free by
+design (check IDs and booleans only), so the JSON can be pasted here verbatim.
 
 ```bash
-# 1. TLS + least-privilege role posture of the staging database.
-DATABASE_URL="postgres://<app-role>:<password>@<host>:5432/taxdesk_staging?sslmode=require" \
-  pnpm ci:db-posture
-
-# 2. Same-origin walking skeleton through the Pages host.
+# Same-origin walking skeleton through the Pages host.
 STAGING_WEB_URL="https://<staging-pages-host>" pnpm ci:staging-smoke
 ```
+
+### Staging database role — blocking failure and remediation
+
+Captured staging posture report:
+
+```json
+{"check":"database-posture","ok":false,"checks":[{"id":"DATABASE_TLS_IN_USE","passed":true},{"id":"DATABASE_TLS_ENFORCED","passed":true},{"id":"DATABASE_ROLE_LEAST_PRIVILEGE","passed":false},{"id":"DATABASE_ROLE_NOT_OWNER","passed":false}],"failed":["DATABASE_ROLE_LEAST_PRIVILEGE","DATABASE_ROLE_NOT_OWNER"],"privileges":{"tlsInUse":true,"connectionRequiresTls":true,"roleIsSuperuser":false,"roleCanCreateDatabases":true,"roleCanCreateRoles":true,"roleCanReplicate":true,"roleBypassesRowLevelSecurity":true,"roleOwnsDatabase":true}}
+```
+
+**Diagnosis.** Staging connects as the provider's administrative role: it is not
+a superuser, but it holds `CREATEDB`, `CREATEROLE`, `REPLICATION` and
+`BYPASSRLS`, and it owns the database. This is the default role a managed
+provider hands out, and it is what the Worker and the migration runner have both
+been using. Transport is fine — the session uses TLS and the connection string
+requires it — so the gap is authorization, not encryption.
+
+**Why this blocks the epic.** `deploy-staging.yml` runs `pnpm ci:db-posture`
+before deploying (step 8), so the first CI-driven staging deploy fails closed
+until the credential is replaced. This is the gate working as designed: TD-006
+requires “a least-privilege credential”, and the epic cannot close on an admin
+role just because it happens to work.
+
+**Remediation.** Create a dedicated application role and stop connecting as the
+owner. Ownership transfer is not required — the check only asks whether the
+*connected* role owns the database.
+
+```sql
+CREATE ROLE taxdesk_app LOGIN PASSWORD '<generated>'
+  NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+
+GRANT CONNECT ON DATABASE taxdesk_staging TO taxdesk_app;
+GRANT USAGE ON SCHEMA public TO taxdesk_app;
+-- The ledger and every later migration are created by the runner, so the role
+-- needs CREATE on the schema. It still must not own the database.
+GRANT CREATE ON SCHEMA public TO taxdesk_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO taxdesk_app;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO taxdesk_app;
+```
+
+Then, in order:
+
+1. Point the staging Hyperdrive configuration at the new role
+   (`wrangler hyperdrive update <id> --connection-string "postgres://taxdesk_app:…?sslmode=require"`),
+   and replace `STAGING_DATABASE_URL` with the same credential.
+2. Re-run `pnpm db:migrate:status --check` and `pnpm ci:db-posture` with the new
+   credential; both must pass before anything is deployed.
+3. Redeploy the staging Worker so it stops using pooled connections opened with
+   the old credential — Hyperdrive keeps them alive otherwise.
+
+Caveat recorded rather than hidden: one role still both migrates and serves
+traffic. That passes the gate but is not the strict model — a DDL role for
+migrations and a DML-only role for the Worker would be better, and it needs its
+own secret plus a workflow change. That hardening is deliberately left out of
+TD-006 scope; note it as a follow-up rather than a silent default.
 
 What operator confirmation of a working staging stack does **not** prove: no
 Worker code path opens the `HYPERDRIVE` binding yet. `/health` and

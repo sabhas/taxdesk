@@ -8,13 +8,13 @@ last_reviewed: 2026-11-04
 
 # Implementation status
 
-**Current focus:** Sprint 1 implementation is complete. TD-001 to TD-005 are done, and TD-006 now provides the CI gates, staging delivery workflow, pull-request secret isolation, database/recovery posture checks, and operator alerting. The first CI-driven staging run and the staging posture evidence record remain to be captured in Sprint Review.
+**Current focus:** Sprint 1 implementation is complete. TD-001 to TD-005 are done, and TD-006 now provides the CI gates, staging delivery workflow, pull-request secret isolation, database/recovery posture checks, and operator alerting. Staging is deployed and migrated, but it connects with the provider's administrative database role, so `pnpm ci:db-posture` fails and the first CI-driven staging deploy is blocked until a least-privilege role replaces it. The staging posture evidence record and the first CI-driven staging run also remain to be captured in Sprint Review.
 
 Update this file when an epic or sprint starts, becomes blocked, or completes.
 
 | Epic | Name | Status | Sprint(s) | Blocked by | Notes |
 | --- | --- | --- | --- | --- | --- |
-| 0 | Foundation and platform validation | in_progress | 1 | — | TD-001–TD-006 implemented (OneDrive proof of concept passed; CI and staging delivery gates committed). TD-006 staging posture evidence and first CI-driven staging deploy pending Sprint Review |
+| 0 | Foundation and platform validation | in_progress | 1 | — | TD-001–TD-006 implemented (OneDrive proof of concept passed; CI and staging delivery gates committed). Staging is deployed and up to date on migrations, but connects as the provider's admin/owner database role, so `pnpm ci:db-posture` fails and blocks the first CI-driven staging deploy; a least-privilege non-owner role is required. TD-006 staging posture evidence and the first CI-driven staging deploy still pending Sprint Review |
 | 1 | Identity, MFA, and authorization | not_started | 2–3 | Epic 0 | Requires approved environment and auth decisions |
 | 2 | Client management | not_started | 4 | Epic 1 | Requires authorization and audit service |
 | 3 | Tax-case workflow | not_started | 5–6 | Epic 2 | Requires clients and role permissions |
