@@ -22,7 +22,8 @@ app.get('/health', (c) => {
 });
 
 app.get('/api/v1/app-info', (c) => {
-  const service = new AppInfoService();
+  const config = resolveRuntimeConfig(c.env);
+  const service = new AppInfoService('TaxDesk API', config.releaseVersion, config.environment);
   const appInfo = service.getAppInfo();
   const parsed = AppInfoSchema.parse(appInfo);
   return c.json(parsed);
