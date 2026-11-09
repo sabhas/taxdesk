@@ -1,0 +1,7 @@
+# Reviewed gitleaks false positives. Each line is an exact finding fingerprint
+# (commit:file:rule:line), so the exception never covers new findings.
+#
+# RFC 6238 Appendix B published TOTP test seed (base32 of ASCII
+# "12345678901234567890") in a unit test; not a credential. Later commits build
+# the seed from its ASCII form instead of a literal.
+b1f8ba1c00baa7c0693ff1896d7de95285713ac3:packages/api/src/crypto/crypto.test.ts:generic-api-key:100

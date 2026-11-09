@@ -82,7 +82,10 @@ run against a database name that does not end in `_test`.
 
 Two independent scans run for every change:
 
-1. `gitleaks` scans the full Git history (`fetch-depth: 0`).
+1. `gitleaks` scans the full Git history (`fetch-depth: 0`). A reviewed false
+   positive is excepted only by its exact finding fingerprint in
+   `.gitleaksignore`, with a comment explaining why; fix the source as well so
+   new commits do not repeat it.
 2. `pnpm ci:secrets` scans every tracked file with high-confidence rules
    (private-key blocks, cloud and GitHub tokens, JWTs, generic credential
    assignments) and rejects tracked `.env`, `.dev.vars`, private-key files, and
