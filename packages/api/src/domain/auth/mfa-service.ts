@@ -49,7 +49,7 @@ export class MfaService {
     });
     return {
       secret,
-      otpauthUri: this.dependencies.totp.otpauthUri(secret, actor.user.email),
+      otpauthUri: this.dependencies.totp.otpauthUri(secret, actor.user.username),
       issuer: this.dependencies.totp.options.issuer,
     };
   }
@@ -202,7 +202,7 @@ export class MfaService {
       actor.user.passwordHash,
     );
     if (!verification.valid) {
-      throw new AuthError(401, 'INVALID_CREDENTIALS', 'The email or password is incorrect.');
+      throw new AuthError(401, 'INVALID_CREDENTIALS', 'The password is incorrect.');
     }
     const credential = await this.dependencies.repositories.mfa.getCredential(actor.userId);
     if (credential === null || credential.confirmedAt === null) {

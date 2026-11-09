@@ -1,6 +1,7 @@
 import {
   AUDIT_ACTIONS,
   newUuidV7,
+  normalizeUsername,
   type ActivationLink,
   type InviteUserRequest,
   type InviteUserResponse,
@@ -12,7 +13,7 @@ import type { Repositories, UnitOfWork } from '../../repositories/ports.js';
 import { appendAuditEvent } from './audit-service.js';
 import { AuthError } from './errors.js';
 import { ACTIVATION_TOKEN_TTL_MS } from './session-policy.js';
-import { normalizeEmail, toUserSummary } from './session-view.js';
+import { toUserSummary } from './session-view.js';
 import type { Actor, UserRecord } from './types.js';
 
 export interface UserLifecycleDependencies {
@@ -64,10 +65,10 @@ export class UserLifecycleService {
     readonly baseUrl: string;
   }): Promise<InviteUserResponse> {
     const now = this.dependencies.clock();
-    const normalizedEmail = normalizeEmail(input.invitation.email);
-    const existing = await this.dependencies.repositories.users.findByEmail(normalizedEmail);
+    const username = normalizeUsername(input.invitation.username);
+    const existing = await this.dependencies.repositories.users.findByUsername(username);
     if (existing !== null) {
-      throw new AuthError(409, 'EMAIL_IN_USE', 'A user with that email already exists.');
+      throw new AuthError(409, 'USERNAME_IN_USE', 'A user with that username already exists.');
     }
 
     const userId = newUuidV7(now.getTime());
@@ -78,8 +79,7 @@ export class UserLifecycleService {
     const created = await this.dependencies.unitOfWork.run(async (repositories) => {
       const user = await repositories.users.create({
         id: userId,
-        email: input.invitation.email.trim(),
-        emailNormalized: normalizedEmail,
+        username,
         displayName: input.invitation.displayName,
         passwordHash: null,
         passwordHashVersion: null,

@@ -41,9 +41,9 @@ function recorder(): Recorder {
 function services(
   overrides: {
     bootstrap?: (input: unknown) => Promise<{ firmId: string; userId: string }>;
-    resetPassword?: (email: string, password: string) => Promise<void>;
-    disableMfa?: (email: string) => Promise<void>;
-    reactivate?: (email: string) => Promise<void>;
+    resetPassword?: (username: string, password: string) => Promise<void>;
+    disableMfa?: (username: string) => Promise<void>;
+    reactivate?: (username: string) => Promise<void>;
   } = {},
 ): { value: CliServices; closed: () => boolean } {
   let closed = false;
@@ -84,7 +84,7 @@ describe('bootstrap CLI', () => {
   it('requires all values in non-interactive mode', async () => {
     const io = recorder();
     const code = await runBootstrapCli({
-      argv: ['--non-interactive', '--email', 'owner@example.test'],
+      argv: ['--non-interactive', '--username', 'owner'],
       env,
       prompt: fakePrompt([]),
       stdout: (line) => io.stdout.push(line),
@@ -105,8 +105,8 @@ describe('bootstrap CLI', () => {
         '--non-interactive',
         '--firm-name',
         'Example Firm',
-        '--email',
-        'Owner@Example.test',
+        '--username',
+        'Owner',
         '--display-name',
         'Owner',
         '--password',
@@ -130,7 +130,7 @@ describe('bootstrap CLI', () => {
       },
     });
     expect(code).toBe(0);
-    expect(received?.['email']).toBe('Owner@Example.test');
+    expect(received?.['username']).toBe('owner');
     const output = io.stdout.join('\n');
     expect(output).toContain('"status":"created"');
     expect(output).not.toContain('correct horse battery staple');
@@ -143,7 +143,7 @@ describe('bootstrap CLI', () => {
       argv: [],
       env,
       prompt: fakePrompt(
-        ['Example Firm', 'owner@example.test', 'Owner'],
+        ['Example Firm', 'owner', 'Owner'],
         ['correct horse battery staple', 'different value here'],
       ),
       stdout: (line) => io.stdout.push(line),
@@ -155,11 +155,11 @@ describe('bootstrap CLI', () => {
     expect(io.stderr.join('\n')).toContain('do not match');
   });
 
-  it('re-asks an invalid email instead of failing after the password prompts', async () => {
+  it('re-asks an invalid username instead of failing after the password prompts', async () => {
     const io = recorder();
     const created = services();
     const prompt = fakePrompt(
-      ['Example Firm', 'owner', 'owner@example.test', 'Owner'],
+      ['Example Firm', 'bad name!', 'owner', 'Owner'],
       ['correct horse battery staple', 'correct horse battery staple'],
     );
     const code = await runBootstrapCli({
@@ -172,11 +172,11 @@ describe('bootstrap CLI', () => {
       createServices: () => created.value,
     });
     expect(code).toBe(0);
-    expect(io.stderr.join('\n')).toContain('valid email address');
+    expect(io.stderr.join('\n')).toContain('Use 3–32 letters');
     expect(prompt.asked).toEqual([
       'Firm name',
-      'Administrator email',
-      'Administrator email',
+      'Administrator username',
+      'Administrator username',
       'Administrator display name',
     ]);
     expect(io.stdout.join('\n')).toContain('"status":"created"');
@@ -204,12 +204,12 @@ describe('recovery CLI', () => {
     const code = await runRecoveryCli({
       argv: [
         '--non-interactive',
-        '--email',
-        'person@example.test',
+        '--username',
+        'person',
         '--action',
         'reactivate',
         '--confirm',
-        'someone-else@example.test',
+        'someone-else',
       ],
       env,
       prompt: fakePrompt([]),
@@ -224,23 +224,23 @@ describe('recovery CLI', () => {
 
   it('runs a password reset and reports completion without the secret', async () => {
     const io = recorder();
-    let reset: { email: string; password: string } | undefined;
+    let reset: { username: string; password: string } | undefined;
     const fake = services({
-      resetPassword: async (email, password) => {
-        reset = { email, password };
+      resetPassword: async (username, password) => {
+        reset = { username, password };
       },
     });
     const code = await runRecoveryCli({
       argv: [
         '--non-interactive',
-        '--email',
-        'person@example.test',
+        '--username',
+        'person',
         '--action',
         'reset-password',
         '--password',
         'another correct horse battery',
         '--confirm',
-        'person@example.test',
+        'person',
       ],
       env,
       prompt: fakePrompt([]),
@@ -250,7 +250,7 @@ describe('recovery CLI', () => {
       createServices: () => fake.value,
     });
     expect(code).toBe(0);
-    expect(reset?.email).toBe('person@example.test');
+    expect(reset?.username).toBe('person');
     expect(io.stdout.join('\n')).toContain('"action":"reset-password"');
     expect(io.stdout.join('\n')).not.toContain('another correct horse battery');
     expect(fake.closed()).toBe(true);
@@ -259,13 +259,7 @@ describe('recovery CLI', () => {
   it('rejects an unknown action', async () => {
     const io = recorder();
     const code = await runRecoveryCli({
-      argv: [
-        '--non-interactive',
-        '--email',
-        'person@example.test',
-        '--action',
-        'delete-everything',
-      ],
+      argv: ['--non-interactive', '--username', 'person', '--action', 'delete-everything'],
       env,
       prompt: fakePrompt([]),
       stdout: (line) => io.stdout.push(line),

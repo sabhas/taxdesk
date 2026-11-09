@@ -19,7 +19,7 @@ export function LoginPage({
   onAuthenticated: (session: CurrentSession) => void;
   onMfaRequired: (challenge: MfaChallengeState) => void;
 }) {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState<ErrorNotice | null>(null);
@@ -44,7 +44,7 @@ export function LoginPage({
     setNotice(null);
     try {
       const response = await login({
-        email,
+        username,
         password,
         ...(turnstileToken.length === 0 ? {} : { turnstileToken }),
       });
@@ -80,16 +80,18 @@ export function LoginPage({
       {notice !== null && <ErrorAlert notice={notice} />}
       <form onSubmit={(event) => void handleSubmit(event)} aria-describedby="login-help">
         <div className="field">
-          <label htmlFor="email">Email</label>
+          <label htmlFor="username">Username</label>
           <input
-            id="email"
-            name="email"
-            type="email"
+            id="username"
+            name="username"
+            type="text"
             autoComplete="username"
+            autoCapitalize="none"
+            spellCheck={false}
             required
-            value={email}
+            value={username}
             onChange={(event) => {
-              setEmail(event.target.value);
+              setUsername(event.target.value);
             }}
           />
         </div>

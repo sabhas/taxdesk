@@ -39,7 +39,7 @@ repo root. An explicit `--database-url` wins.
 pnpm auth:bootstrap
 ```
 
-The command asks for the firm name, administrator email, display name, and
+The command asks for the firm name, administrator username, display name, and
 password (twice), then creates the firm settings row, the administrator, and a
 `firm.bootstrapped` audit event. Only the PBKDF2 password hash is stored.
 
@@ -53,7 +53,7 @@ codes offline.
 For CI-style provisioning of a disposable environment only:
 
 ```bash
-pnpm auth:bootstrap --non-interactive --firm-name "Example Firm" --email admin@example.test --display-name "Example Admin" --password "<generated test password>"
+pnpm auth:bootstrap --non-interactive --firm-name "Example Firm" --username admin --display-name "Example Admin" --password "<generated test password>"
 ```
 
 ## Choose a recovery action
@@ -74,9 +74,9 @@ Use the offline command only when no other administrator can fix it in the app.
 pnpm auth:recover
 ```
 
-The command asks for the account email and one action, then requires you to
-type the email again to confirm. It prints one JSON line on success, for
-example `{"command":"auth:recover","status":"completed","action":"disable-mfa","email":"admin@example.test"}`.
+The command asks for the account username and one action, then requires you to
+type the username again to confirm. It prints one JSON line on success, for
+example `{"command":"auth:recover","status":"completed","action":"disable-mfa","username":"admin"}`.
 Passwords, hashes, and tokens are never printed.
 
 | Action | Effect |
@@ -88,10 +88,10 @@ Passwords, hashes, and tokens are never printed.
 Each action writes a `user.recovery_*` audit event with no actor (the operator
 acted outside the application).
 
-Non-interactive form (requires the exact email as confirmation):
+Non-interactive form (requires the exact username as confirmation):
 
 ```bash
-pnpm auth:recover --non-interactive --email admin@example.test --action disable-mfa --confirm admin@example.test
+pnpm auth:recover --non-interactive --username admin --action disable-mfa --confirm admin
 ```
 
 Exit codes: `0` completed, `1` refused by the domain (for example, unknown

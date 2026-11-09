@@ -47,7 +47,8 @@ singleton enforced by a constant unique index), `roles`, `permissions`,
 `role_permissions`, `users`, `user_roles`, `sessions`, `activation_tokens`,
 `login_challenges`, `mfa_credentials`, `mfa_recovery_codes`, `auth_attempts`,
 and `audit_events`. Migration `0003_consultant_assigned_case_work.sql` adds the
-`cases.work_assigned` permission. The role/permission matrix lives in
+`cases.work_assigned` permission. Migration `0004_username_sign_in.sql` replaces
+the email columns with a unique, permanent, lowercase `username`. The role/permission matrix lives in
 `ROLE_DEFINITIONS` in `@taxdesk/shared`; a seed test fails if the SQL and the
 shared catalog drift.
 
@@ -58,7 +59,7 @@ shared catalog drift.
   store only SHA-256 digests of their random values. TOTP secrets are
   AES-256-GCM ciphertext with a `key_version`. Password hashes are versioned
   PBKDF2-HMAC-SHA-256 strings.
-- `auth_attempts` stores hashed account and network keys only, never an email
+- `auth_attempts` stores hashed account and network keys only, never a username
   or IP address, and is pruned after 24 hours.
 - `audit_events` is append-only: a trigger rejects every `UPDATE` and `DELETE`.
   Metadata is a flat object of scalar values and never holds credentials,

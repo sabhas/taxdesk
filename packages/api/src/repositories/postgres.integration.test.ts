@@ -86,7 +86,7 @@ describeWithDatabase('identity repositories against PostgreSQL', () => {
     });
     const result = await bootstrap.bootstrap({
       firmName: 'Database Firm',
-      email: 'owner@example.test',
+      username: 'owner',
       displayName: 'Owner',
       password: PASSWORD,
     });
@@ -99,7 +99,7 @@ describeWithDatabase('identity repositories against PostgreSQL', () => {
     expect(user?.passwordHash).toMatch(/^pbkdf2-sha256\$1\$/);
 
     const login = await dependencies.authService.login({
-      email: 'owner@example.test',
+      username: 'owner',
       password: PASSWORD,
       requestId: 'db-login',
     });
@@ -113,7 +113,7 @@ describeWithDatabase('identity repositories against PostgreSQL', () => {
   });
 
   it('enrolls MFA, consumes a recovery code once, and records audit events', async () => {
-    const user = await dependencies.repositories.users.findByEmail('owner@example.test');
+    const user = await dependencies.repositories.users.findByUsername('owner');
     if (user === null) {
       throw new Error('Bootstrap user missing.');
     }
@@ -136,7 +136,7 @@ describeWithDatabase('identity repositories against PostgreSQL', () => {
     expect(refreshed.mfaVerified).toBe(true);
 
     const challenge = await dependencies.authService.login({
-      email: 'owner@example.test',
+      username: 'owner',
       password: PASSWORD,
       requestId: 'db-mfa-login',
     });
@@ -152,7 +152,7 @@ describeWithDatabase('identity repositories against PostgreSQL', () => {
     expect(firstUse.token.length).toBeGreaterThan(20);
 
     const replay = await dependencies.authService.login({
-      email: 'owner@example.test',
+      username: 'owner',
       password: PASSWORD,
       requestId: 'db-mfa-login-2',
     });
@@ -174,7 +174,7 @@ describeWithDatabase('identity repositories against PostgreSQL', () => {
   });
 
   it('invites, activates, updates with ETags, and revokes sessions on deactivation', async () => {
-    const adminUser = await dependencies.repositories.users.findByEmail('owner@example.test');
+    const adminUser = await dependencies.repositories.users.findByUsername('owner');
     if (adminUser === null) {
       throw new Error('Admin missing.');
     }
@@ -187,7 +187,7 @@ describeWithDatabase('identity repositories against PostgreSQL', () => {
     const invitation = await dependencies.userService.inviteUser({
       actor: admin,
       invitation: {
-        email: 'member@example.test',
+        username: 'member',
         displayName: 'Member',
         role: 'manager',
       },
@@ -201,7 +201,7 @@ describeWithDatabase('identity repositories against PostgreSQL', () => {
       requestId: 'db-activate',
     });
 
-    const member = await dependencies.repositories.users.findByEmail('member@example.test');
+    const member = await dependencies.repositories.users.findByUsername('member');
     expect(member?.status).toBe('active');
     const memberSession = await dependencies.sessionService.issue(member!, {
       mfaVerified: true,

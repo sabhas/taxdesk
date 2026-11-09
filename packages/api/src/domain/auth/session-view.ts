@@ -4,7 +4,7 @@ import type { RoleRecord, SessionRecord, UserRecord } from './types.js';
 export function toPublicUser(user: UserRecord): PublicUser {
   return {
     id: user.id,
-    email: user.email,
+    username: user.username,
     displayName: user.displayName,
     status: user.status,
     mfaEnrolled: user.mfaEnrolledAt !== null,
@@ -15,7 +15,7 @@ export function toPublicUser(user: UserRecord): PublicUser {
 export function toUserSummary(user: UserRecord, roles: readonly RoleRecord[]): UserSummary {
   return {
     id: user.id,
-    email: user.email,
+    username: user.username,
     displayName: user.displayName,
     status: user.status,
     roles: roles.map((role) => role.key) as UserSummary['roles'],
@@ -42,8 +42,4 @@ export function buildCurrentSession(input: {
       mfaVerified: input.session.mfaVerifiedAt !== null,
     },
   };
-}
-
-export function normalizeEmail(email: string): string {
-  return email.trim().toLowerCase();
 }

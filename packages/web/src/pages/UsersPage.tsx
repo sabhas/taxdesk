@@ -33,7 +33,7 @@ export function UsersPage() {
   const [busyUserId, setBusyUserId] = useState<string | null>(null);
   const [link, setLink] = useState<OneTimeLink | null>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [role, setRole] = useState<RoleKey>('consultant');
   const [inviting, setInviting] = useState(false);
@@ -68,14 +68,16 @@ export function UsersPage() {
     setNotice(null);
     setSuccess(null);
     try {
-      const result = await inviteUser({ email, displayName, role });
+      const result = await inviteUser({ username, displayName, role });
       setLink({
         url: result.activationUrl,
         expiresAt: result.expiresAt,
-        label: `Activation link for ${result.user.email}`,
+        label: `Activation link for ${result.user.username}`,
       });
-      setSuccess(`Invited ${result.user.email}. Copy the activation link and share it securely.`);
-      setEmail('');
+      setSuccess(
+        `Invited ${result.user.username}. Copy the activation link and share it securely.`,
+      );
+      setUsername('');
       setDisplayName('');
       await load();
     } catch (error) {
@@ -94,7 +96,7 @@ export function UsersPage() {
       setUsers((current) =>
         current === null ? null : current.map((item) => (item.id === updated.id ? updated : item)),
       );
-      setSuccess(`Updated ${updated.email} to ${ROLE_LABELS[nextRole]}.`);
+      setSuccess(`Updated ${updated.username} to ${ROLE_LABELS[nextRole]}.`);
     } catch (error) {
       setNotice(toErrorNotice(error, 'Could not change the role'));
       await load();
@@ -115,8 +117,8 @@ export function UsersPage() {
       );
       setSuccess(
         nextStatus === 'deactivated'
-          ? `Deactivated ${updated.email}. Their sessions were revoked.`
-          : `Reactivated ${updated.email}.`,
+          ? `Deactivated ${updated.username}. Their sessions were revoked.`
+          : `Reactivated ${updated.username}.`,
       );
     } catch (error) {
       setNotice(toErrorNotice(error, 'Could not update the account'));
@@ -135,7 +137,7 @@ export function UsersPage() {
       setLink({
         url: result.activationUrl,
         expiresAt: result.expiresAt,
-        label: `Password reset link for ${user.email}`,
+        label: `Password reset link for ${user.username}`,
       });
     } catch (error) {
       setNotice(toErrorNotice(error, 'Could not create a reset link'));
@@ -202,17 +204,26 @@ export function UsersPage() {
         <h2 id="invite-heading">Invite a user</h2>
         <form onSubmit={(event) => void invite(event)}>
           <div className="field">
-            <label htmlFor="invite-email">Email</label>
+            <label htmlFor="invite-username">Username</label>
             <input
-              id="invite-email"
-              type="email"
+              id="invite-username"
+              type="text"
               autoComplete="off"
+              autoCapitalize="none"
+              spellCheck={false}
               required
-              value={email}
+              minLength={3}
+              maxLength={32}
+              pattern="[A-Za-z0-9][A-Za-z0-9._\-]{1,30}[A-Za-z0-9]"
+              aria-describedby="invite-username-help"
+              value={username}
               onChange={(event) => {
-                setEmail(event.target.value);
+                setUsername(event.target.value);
               }}
             />
+            <p id="invite-username-help" className="muted small">
+              3–32 letters, digits, dots, underscores, or hyphens. Usernames are permanent.
+            </p>
           </div>
           <div className="field">
             <label htmlFor="invite-name">Display name</label>
@@ -273,7 +284,7 @@ export function UsersPage() {
                   <tr key={user.id}>
                     <td>
                       <strong>{user.displayName}</strong>
-                      <div className="muted small">{user.email}</div>
+                      <div className="muted small">{user.username}</div>
                     </td>
                     <td>
                       <label className="visually-hidden" htmlFor={`role-${user.id}`}>

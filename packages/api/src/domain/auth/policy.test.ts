@@ -42,8 +42,7 @@ const session: SessionRecord = {
 };
 const user: UserRecord = {
   id: session.userId,
-  email: 'consultant@example.test',
-  emailNormalized: 'consultant@example.test',
+  username: 'consultant',
   displayName: 'Consultant',
   passwordHash: 'hash',
   passwordHashVersion: 1,

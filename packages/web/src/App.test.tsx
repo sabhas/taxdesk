@@ -24,7 +24,7 @@ function sessionFor(
   return {
     user: {
       id: USER_ID,
-      email: 'person@example.test',
+      username: 'person',
       displayName: 'Test Person',
       status: 'active',
       mfaEnrolled: input.mfaEnrolled ?? true,
@@ -82,8 +82,8 @@ function anonymous(): Response {
   return problem(401, 'UNAUTHENTICATED', 'Sign in to continue.');
 }
 
-async function fillLogin(email = 'person@example.test', password = 'correct horse battery staple') {
-  fireEvent.change(screen.getByLabelText('Email'), { target: { value: email } });
+async function fillLogin(username = 'person', password = 'correct horse battery staple') {
+  fireEvent.change(screen.getByLabelText('Username'), { target: { value: username } });
   fireEvent.change(screen.getByLabelText('Password'), { target: { value: password } });
   fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
 }
@@ -99,7 +99,8 @@ describe('login states', () => {
   it('shows a generic invalid-credential error with a reference ID', async () => {
     mockFetchSequence([
       anonymous,
-      () => problem(401, 'INVALID_CREDENTIALS', 'The email or password is incorrect.', 'req-bad'),
+      () =>
+        problem(401, 'INVALID_CREDENTIALS', 'The username or password is incorrect.', 'req-bad'),
     ]);
     render(<App />);
     await screen.findByRole('heading', { name: 'Sign in to TaxDesk' });
@@ -107,7 +108,7 @@ describe('login states', () => {
 
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Sign-in failed');
-    expect(alert).toHaveTextContent('The email or password is incorrect.');
+    expect(alert).toHaveTextContent('The username or password is incorrect.');
     expect(alert).toHaveTextContent('req-bad');
     expect(alert).not.toHaveTextContent('password hash');
   });
@@ -276,7 +277,7 @@ describe('authorization and session lifecycle in the UI', () => {
   it('keeps the user signed in after a wrong password while disabling MFA', async () => {
     mockFetchSequence([
       () => json(sessionFor()),
-      () => problem(401, 'INVALID_CREDENTIALS', 'The email or password is incorrect.', 'req-pw'),
+      () => problem(401, 'INVALID_CREDENTIALS', 'The password is incorrect.', 'req-pw'),
     ]);
     render(<App />);
     await screen.findByRole('heading', { name: /Welcome, Test Person/ });
@@ -290,9 +291,7 @@ describe('authorization and session lifecycle in the UI', () => {
     });
     fireEvent.click(screen.getByLabelText(/MFA will be removed/));
     fireEvent.click(screen.getByRole('button', { name: 'Disable MFA' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'The email or password is incorrect.',
-    );
+    expect(await screen.findByRole('alert')).toHaveTextContent('The password is incorrect.');
     expect(screen.getByRole('heading', { name: 'Security' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Sign in to TaxDesk' })).not.toBeInTheDocument();
   });
@@ -300,7 +299,7 @@ describe('authorization and session lifecycle in the UI', () => {
   it('deactivates a user and reports that their sessions were revoked', async () => {
     const staff = {
       id: '0198a000-0000-7000-8000-000000000003',
-      email: 'staff@example.test',
+      username: 'staff',
       displayName: 'Staff Person',
       status: 'active' as const,
       roles: ['consultant' as const],
@@ -326,7 +325,7 @@ describe('authorization and session lifecycle in the UI', () => {
     await screen.findByText('Staff Person');
     fireEvent.click(screen.getByRole('button', { name: 'Deactivate' }));
     expect(
-      await screen.findByText('Deactivated staff@example.test. Their sessions were revoked.'),
+      await screen.findByText('Deactivated staff. Their sessions were revoked.'),
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Reactivate' })).toBeInTheDocument();
     const [url, init] = fetchMock.mock.calls[2] as [string, RequestInit];
@@ -385,7 +384,7 @@ describe('Turnstile and user administration', () => {
   it('shows a one-time activation link after inviting a user', async () => {
     const user = {
       id: '0198a000-0000-7000-8000-000000000002',
-      email: 'new@example.test',
+      username: 'new',
       displayName: 'New Person',
       status: 'invited' as const,
       roles: ['consultant' as const],
@@ -409,11 +408,11 @@ describe('Turnstile and user administration', () => {
     await screen.findByRole('heading', { name: /Welcome, Test Person/ });
     fireEvent.click(screen.getByRole('button', { name: 'Users' }));
     await screen.findByRole('heading', { name: 'Invite a user' });
-    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'new@example.test' } });
+    fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'new' } });
     fireEvent.change(screen.getByLabelText('Display name'), { target: { value: 'New Person' } });
     fireEvent.click(screen.getByRole('button', { name: 'Send invitation' }));
 
-    expect(await screen.findByText(/Activation link for new@example.test/)).toBeInTheDocument();
+    expect(await screen.findByText(/Activation link for new/)).toBeInTheDocument();
     expect(
       screen.getByRole('link', { name: 'https://taxdesk.test/activate?token=one-time-token-1234' }),
     ).toBeInTheDocument();
@@ -424,10 +423,7 @@ describe('Turnstile and user administration', () => {
 describe('activation', () => {
   it('activates an invited account from a one-time link', async () => {
     window.history.replaceState({}, '', '/activate?token=activation-token-value-1234');
-    mockFetchSequence([
-      anonymous,
-      () => json({ status: 'activated', email: 'person@example.test' }),
-    ]);
+    mockFetchSequence([anonymous, () => json({ status: 'activated', username: 'person' })]);
     render(<App />);
     await screen.findByRole('heading', { name: 'Activate your TaxDesk account' });
     fireEvent.change(screen.getByLabelText('New password'), {

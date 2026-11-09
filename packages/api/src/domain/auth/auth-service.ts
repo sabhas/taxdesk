@@ -3,6 +3,7 @@ import {
   AUDIT_ACTIONS,
   PasswordPolicySchema,
   newUuidV7,
+  normalizeUsername,
   type CurrentSession,
 } from '@taxdesk/shared';
 import type { PasswordHasher } from '../../crypto/password.js';
@@ -16,7 +17,6 @@ import { throttleDenied, type LoginKeys, type LoginThrottle } from './login-thro
 import { normalizeRecoveryCode } from './recovery-code.js';
 import { LOGIN_CHALLENGE_TTL_MS } from './session-policy.js';
 import type { SessionService } from './session-service.js';
-import { normalizeEmail } from './session-view.js';
 import type { Actor, UserRecord } from './types.js';
 import { createTurnstileVerifier, type TurnstileVerifier } from './turnstile.js';
 
@@ -35,7 +35,7 @@ export interface AuthServiceDependencies {
 }
 
 export interface LoginInput {
-  readonly email: string;
+  readonly username: string;
   readonly password: string;
   readonly turnstileToken?: string;
   readonly remoteIp?: string;
@@ -59,7 +59,7 @@ export interface IssuedLogin {
   readonly view: CurrentSession;
 }
 
-const GENERIC_CREDENTIAL_FAILURE = 'The email or password is incorrect.';
+const GENERIC_CREDENTIAL_FAILURE = 'The username or password is incorrect.';
 
 /**
  * Credential verification, MFA challenge, activation, and logout. Every
@@ -71,8 +71,8 @@ export class AuthService {
 
   async login(input: LoginInput): Promise<LoginOutcome> {
     const now = this.dependencies.clock();
-    const normalizedEmail = normalizeEmail(input.email);
-    const keys = await this.dependencies.throttle.keysFor(normalizedEmail, input.remoteIp);
+    const username = normalizeUsername(input.username);
+    const keys = await this.dependencies.throttle.keysFor(username, input.remoteIp);
     await this.dependencies.throttle.prune();
 
     const decision = await this.dependencies.throttle.evaluate(keys);
@@ -105,7 +105,7 @@ export class AuthService {
       }
     }
 
-    const user = await this.dependencies.repositories.users.findByEmail(normalizedEmail);
+    const user = await this.dependencies.repositories.users.findByUsername(username);
     const verification = await this.dependencies.passwordHasher.verify(
       input.password,
       user?.passwordHash ?? null,
@@ -288,7 +288,7 @@ export class AuthService {
     readonly token: string;
     readonly password: string;
     readonly requestId: string;
-  }): Promise<{ readonly email: string }> {
+  }): Promise<{ readonly username: string }> {
     const now = this.dependencies.clock();
     const policy = PasswordPolicySchema.safeParse(input.password);
     if (!policy.success) {
@@ -367,7 +367,7 @@ export class AuthService {
         entityId: user.id,
         requestId: input.requestId,
       });
-      return { email: user.email };
+      return { username: user.username };
     });
   }
 
@@ -451,7 +451,7 @@ export class AuthService {
     remoteIp: string | undefined,
     now: Date,
   ): Promise<LoginKeys> {
-    const keys = await this.dependencies.throttle.keysFor(user.emailNormalized, remoteIp);
+    const keys = await this.dependencies.throttle.keysFor(user.username, remoteIp);
     const decision = await this.dependencies.throttle.evaluate(keys);
     if (decision.action === 'deny') {
       await this.dependencies.repositories.loginChallenges.consume(challengeId, now.toISOString());

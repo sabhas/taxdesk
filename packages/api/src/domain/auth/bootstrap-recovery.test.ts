@@ -30,7 +30,7 @@ describe('first administrator bootstrap', () => {
     const harness = createTestHarness();
     const result = await bootstrapFor(harness).bootstrap({
       firmName: 'Firm One',
-      email: 'Owner@Example.test',
+      username: 'Owner',
       displayName: 'Firm Owner',
       password: PASSWORD,
     });
@@ -41,7 +41,7 @@ describe('first administrator bootstrap', () => {
 
     const user = await harness.repositories.users.findById(result.userId);
     expect(user?.status).toBe('active');
-    expect(user?.emailNormalized).toBe('owner@example.test');
+    expect(user?.username).toBe('owner');
     expect(user?.passwordHash).toMatch(/^pbkdf2-sha256\$1\$/);
     expect(user?.passwordHash).not.toContain(PASSWORD);
 
@@ -55,25 +55,25 @@ describe('first administrator bootstrap', () => {
     const service = bootstrapFor(harness);
     await service.bootstrap({
       firmName: 'Firm One',
-      email: 'owner@example.test',
+      username: 'owner',
       displayName: 'Firm Owner',
       password: PASSWORD,
     });
     await expect(
       service.bootstrap({
         firmName: 'Firm Two',
-        email: 'other@example.test',
+        username: 'other',
         displayName: 'Other',
         password: PASSWORD,
       }),
     ).rejects.toMatchObject({ code: 'FIRM_ALREADY_BOOTSTRAPPED' });
 
     const second = createTestHarness();
-    await seedUser(second, { email: 'admin@example.test', password: PASSWORD });
+    await seedUser(second, { username: 'admin', password: PASSWORD });
     await expect(
       bootstrapFor(second).bootstrap({
         firmName: 'Firm One',
-        email: 'owner@example.test',
+        username: 'owner',
         displayName: 'Firm Owner',
         password: PASSWORD,
       }),
@@ -85,7 +85,7 @@ describe('first administrator bootstrap', () => {
     await expect(
       bootstrapFor(harness).bootstrap({
         firmName: 'Firm One',
-        email: 'owner@example.test',
+        username: 'owner',
         displayName: 'Firm Owner',
         password: 'short',
       }),
@@ -97,7 +97,7 @@ describe('offline recovery', () => {
   it('resets a password, revokes sessions, and writes an audit event', async () => {
     const harness = createTestHarness();
     const { user } = await seedUser(harness, {
-      email: 'person@example.test',
+      username: 'person',
       password: PASSWORD,
       mfaEnrolled: true,
     });
@@ -106,7 +106,7 @@ describe('offline recovery', () => {
       requestId: 'test',
     });
 
-    await recoveryFor(harness).resetPassword('person@example.test', 'new correct horse battery');
+    await recoveryFor(harness).resetPassword('person', 'new correct horse battery');
 
     const updated = await harness.repositories.users.findById(user.id);
     expect(
@@ -130,13 +130,13 @@ describe('offline recovery', () => {
   it('disables MFA and reactivates a deactivated user', async () => {
     const harness = createTestHarness();
     const { user } = await seedUser(harness, {
-      email: 'person@example.test',
+      username: 'person',
       password: PASSWORD,
       mfaEnrolled: true,
     });
     const service = recoveryFor(harness);
 
-    await service.disableMfa('person@example.test');
+    await service.disableMfa('person');
     expect(await harness.repositories.mfa.getCredential(user.id)).toBeNull();
     const afterDisable = await harness.repositories.users.findById(user.id);
     expect(afterDisable?.mfaEnrolledAt).toBeNull();
@@ -148,7 +148,7 @@ describe('offline recovery', () => {
       expectedVersion: current?.version ?? 1,
       at: harness.now().toISOString(),
     });
-    await service.reactivate('person@example.test');
+    await service.reactivate('person');
     const reactivated = await harness.repositories.users.findById(user.id);
     expect(reactivated?.status).toBe('active');
     expect(harness.state.auditEvents.map((event) => event.action)).toEqual(
@@ -158,9 +158,7 @@ describe('offline recovery', () => {
 
   it('reports a missing account without exposing database details', async () => {
     const harness = createTestHarness();
-    await expect(
-      recoveryFor(harness).resetPassword('missing@example.test', PASSWORD),
-    ).rejects.toMatchObject({
+    await expect(recoveryFor(harness).resetPassword('missing', PASSWORD)).rejects.toMatchObject({
       code: 'USER_NOT_FOUND',
     });
   });

@@ -14,8 +14,8 @@ export interface LoginKeys {
 }
 
 /**
- * Persisted login throttling keyed by hashed normalized email and hashed
- * network identity. Email addresses and IP addresses are not stored in clear
+ * Persisted login throttling keyed by hashed normalized username and hashed
+ * network identity. Usernames and IP addresses are not stored in clear
  * text in the attempts table.
  */
 export class LoginThrottle {
@@ -25,9 +25,9 @@ export class LoginThrottle {
     private readonly clock: () => Date,
   ) {}
 
-  async keysFor(normalizedEmail: string, remoteIp: string | undefined): Promise<LoginKeys> {
+  async keysFor(normalizedUsername: string, remoteIp: string | undefined): Promise<LoginKeys> {
     return {
-      accountKey: await this.tokenHasher.hash(`account:${normalizedEmail}`),
+      accountKey: await this.tokenHasher.hash(`account:${normalizedUsername}`),
       networkKey: await this.tokenHasher.hash(`network:${remoteIp ?? 'unknown'}`),
     };
   }
