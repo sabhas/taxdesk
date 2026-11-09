@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -19,7 +19,6 @@ const connectionString = process.env['TAXDESK_MIGRATIONS_TEST_DATABASE_URL'];
 const committedMigrationsDirectory = fileURLToPath(new URL('../../migrations/', import.meta.url));
 const LEDGER_TABLE = 'taxdesk_migration_ledger';
 const PROBE_TABLE = 'taxdesk_migration_rollback_probe';
-const OK_TABLE = 'taxdesk_migration_ok';
 
 function assertDisposableTestDatabase(url: string): void {
   const databaseName = new URL(url).pathname.replace(/^\//, '');
@@ -50,9 +49,11 @@ describeWithDatabase('migration runner against PostgreSQL', () => {
   });
 
   beforeEach(async () => {
-    await executor.execute(`DROP TABLE IF EXISTS ${LEDGER_TABLE}`);
-    await executor.execute(`DROP TABLE IF EXISTS ${PROBE_TABLE}`);
-    await executor.execute(`DROP TABLE IF EXISTS ${OK_TABLE}`);
+    // Every test starts from a truly clean schema. Dropping only the tables a
+    // test knows about would leave the identity migration's tables behind and
+    // make a re-run fail on existing objects.
+    await executor.execute('DROP SCHEMA IF EXISTS public CASCADE');
+    await executor.execute('CREATE SCHEMA public');
   });
 
   async function tableExists(name: string): Promise<boolean> {
@@ -76,12 +77,15 @@ describeWithDatabase('migration runner against PostgreSQL', () => {
     const source = new DirectoryMigrationSource(committedMigrationsDirectory);
     const result = await runMigrations({ executor, source });
 
-    expect(result.applied.map((entry) => entry.name)).toEqual(['0001_initial_baseline.sql']);
+    const committed = (await readdir(committedMigrationsDirectory))
+      .filter((name) => name.endsWith('.sql'))
+      .sort();
+    expect(result.applied.map((entry) => entry.name)).toEqual(committed);
     expect(await tableExists(LEDGER_TABLE)).toBe(true);
 
     const plan = await planMigrations({ executor, source });
     expect(plan.pending).toEqual([]);
-    expect(plan.applied).toHaveLength(1);
+    expect(plan.applied).toHaveLength(committed.length);
     expect(plan.applied[0]?.checksum).toMatch(/^[0-9a-f]{64}$/);
   });
 

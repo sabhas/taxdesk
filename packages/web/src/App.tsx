@@ -1,81 +1,134 @@
-import { useEffect, useState } from 'react';
-import type { Health } from '@taxdesk/shared';
-import { loadHealth, type HealthLoadResult } from './health-client.js';
+import { useCallback, useState } from 'react';
+import type { CurrentSession } from '@taxdesk/shared';
+import { AppShell, type View } from './components/AppShell.js';
+import { ErrorAlert, LoadingMessage, PermissionDenied } from './components/feedback.js';
+import { ActivationPage } from './pages/ActivationPage.js';
+import { AuditPage } from './pages/AuditPage.js';
+import { DashboardPage } from './pages/DashboardPage.js';
+import { FirmSettingsPage } from './pages/FirmSettingsPage.js';
+import { LoginPage, type MfaChallengeState } from './pages/LoginPage.js';
+import { MfaChallengePage } from './pages/MfaChallengePage.js';
+import { MfaEnrollmentPage } from './pages/MfaEnrollmentPage.js';
+import { SecurityPage } from './pages/SecurityPage.js';
+import { UsersPage } from './pages/UsersPage.js';
+import { SessionProvider, useSession } from './session/session-context.js';
 
-type LoadState = { status: 'loading' } | HealthLoadResult;
+function activationTokenFromLocation(): string | null {
+  const parameters = new URLSearchParams(window.location.search);
+  const token = parameters.get('token');
+  return token !== null && token.length > 0 ? token : null;
+}
 
-export function App() {
-  const [attempt, setAttempt] = useState(0);
-  const [state, setState] = useState<LoadState>({ status: 'loading' });
+function AppContent() {
+  const { state, can, adopt, refresh } = useSession();
+  const [challenge, setChallenge] = useState<MfaChallengeState | null>(null);
+  const [activationToken, setActivationToken] = useState<string | null>(
+    activationTokenFromLocation,
+  );
+  const [view, setView] = useState<View>('dashboard');
 
-  useEffect(() => {
-    let cancelled = false;
-    setState({ status: 'loading' });
+  const onAuthenticated = useCallback(
+    (session: CurrentSession) => {
+      adopt(session);
+      setChallenge(null);
+    },
+    [adopt],
+  );
 
-    void loadHealth().then((result) => {
-      if (!cancelled) {
-        setState(result);
-      }
-    });
+  const onActivationDone = useCallback(() => {
+    setActivationToken(null);
+    window.history.replaceState({}, '', '/');
+    refresh();
+  }, [refresh]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [attempt]);
+  const onMfaEnrollmentComplete = useCallback(() => {
+    refresh();
+  }, [refresh]);
+
+  if (activationToken !== null) {
+    return <ActivationPage token={activationToken} onDone={onActivationDone} />;
+  }
+
+  if (challenge !== null) {
+    return (
+      <MfaChallengePage
+        challenge={challenge}
+        onAuthenticated={onAuthenticated}
+        onStartOver={() => {
+          setChallenge(null);
+        }}
+      />
+    );
+  }
+
+  if (state.status === 'loading') {
+    return (
+      <main>
+        <h1>TaxDesk</h1>
+        <LoadingMessage>Loading your session…</LoadingMessage>
+      </main>
+    );
+  }
+
+  if (state.status === 'error') {
+    return (
+      <main>
+        <h1>TaxDesk</h1>
+        <ErrorAlert
+          notice={{
+            title: 'TaxDesk is temporarily unavailable',
+            message: state.message,
+            ...(state.requestId === undefined ? {} : { requestId: state.requestId }),
+          }}
+        />
+        <button type="button" onClick={refresh}>
+          Try again
+        </button>
+      </main>
+    );
+  }
+
+  if (state.status === 'anonymous') {
+    return (
+      <LoginPage
+        expired={state.expired}
+        onAuthenticated={onAuthenticated}
+        onMfaRequired={setChallenge}
+      />
+    );
+  }
+
+  if (!state.session.user.mfaEnrolled) {
+    return <MfaEnrollmentPage onComplete={onMfaEnrollmentComplete} />;
+  }
+
+  if (!state.session.session.mfaVerified) {
+    return (
+      <main>
+        <h1>Verify your session</h1>
+        <p>Sign in again to complete multi-factor verification.</p>
+        <button type="button" onClick={refresh}>
+          Refresh session
+        </button>
+      </main>
+    );
+  }
 
   return (
-    <main>
-      <h1>TaxDesk</h1>
-
-      {state.status === 'loading' && (
-        <p role="status" aria-live="polite">
-          Connecting to the TaxDesk service…
-        </p>
-      )}
-
-      {state.status === 'failure' && (
-        <section role="alert" className="error-panel" aria-labelledby="service-error-heading">
-          <h2 id="service-error-heading">TaxDesk is temporarily unavailable</h2>
-          <p>
-            We could not reach the TaxDesk service. Check your connection and try again. If the
-            problem continues, contact your administrator.
-          </p>
-          {state.requestId && (
-            <p>
-              Reference ID: <code>{state.requestId}</code>
-            </p>
-          )}
-          <button
-            type="button"
-            onClick={() => {
-              setAttempt((current) => current + 1);
-            }}
-          >
-            Try again
-          </button>
-        </section>
-      )}
-
-      {state.status === 'success' && <ServiceStatus health={state.health} />}
-    </main>
+    <AppShell view={view} onNavigate={setView}>
+      {view === 'dashboard' && <DashboardPage />}
+      {view === 'security' && <SecurityPage />}
+      {view === 'users' && (can('users.manage') ? <UsersPage /> : <PermissionDenied />)}
+      {view === 'firm' && (can('firm.settings.read') ? <FirmSettingsPage /> : <PermissionDenied />)}
+      {view === 'audit' && (can('audit.read') ? <AuditPage /> : <PermissionDenied />)}
+    </AppShell>
   );
 }
 
-function ServiceStatus({ health }: { health: Health }) {
+export function App() {
   return (
-    <section aria-labelledby="service-status-heading">
-      <h2 id="service-status-heading">Service status</h2>
-      <p>TaxDesk is connected to the {health.environment} environment.</p>
-      <dl>
-        <dt>Environment</dt>
-        <dd>{health.environment}</dd>
-        <dt>Version</dt>
-        <dd>{health.releaseVersion}</dd>
-        <dt>Request ID</dt>
-        <dd>
-          <code>{health.requestId}</code>
-        </dd>
-      </dl>
-    </section>
+    <SessionProvider>
+      <AppContent />
+    </SessionProvider>
   );
 }

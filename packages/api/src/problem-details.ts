@@ -11,6 +11,7 @@ export interface ProblemDetailsInput {
   detail: string;
   type?: string;
   errors?: FieldError[];
+  headers?: Record<string, string>;
 }
 
 export function problemTypeForCode(code: string): string {
@@ -40,5 +41,6 @@ export function problemDetailsResponse(c: Context<AppEnv>, input: ProblemDetails
     'Content-Type': 'application/problem+json; charset=UTF-8',
     'Cache-Control': 'no-store',
     [REQUEST_ID_HEADER]: requestId,
+    ...(input.headers ?? {}),
   });
 }

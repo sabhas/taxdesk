@@ -19,6 +19,17 @@ compatibility_flags = ["nodejs_compat"]
 [vars]
 ENVIRONMENT = "development"
 RELEASE_VERSION = "0.0.0"
+# Local Vite origin. Staging and production derive the public URL from the
+# Pages request origin; set APP_ORIGIN/APP_PUBLIC_URL only when a custom domain
+# or a separate admin origin requires it.
+APP_ORIGIN = "http://localhost:5173"
+APP_PUBLIC_URL = "http://localhost:5173"
+# Public Turnstile site key. Set per environment when Turnstile is enabled.
+# TURNSTILE_SITE_KEY = "REPLACE_WITH_TURNSTILE_SITE_KEY"
+#
+# Secret values are NOT placed here. Set them with `wrangler secret put`:
+#   MFA_ENCRYPTION_KEY   base64url 32-byte key (openssl rand -base64 32 | tr '+/' '-_' | tr -d '=')
+#   TURNSTILE_SECRET_KEY Turnstile Siteverify secret
 
 # `localConnectionString` is used only by `wrangler dev`; it is ignored on
 # deploy. Point it at the dedicated development database (or a local Postgres).

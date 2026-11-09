@@ -122,9 +122,24 @@ verification, add-a-migration steps, and the rollback policy.
 ## Secret sets
 
 Secrets are managed per environment with `wrangler secret put`; they are never
-committed and never returned by an API. At this story there are no application
-secrets yet (database access is supplied by the Hyperdrive binding). Future
-provider credentials such as OneDrive/Graph values are added here.
+committed and never returned by an API. Database access is supplied by the
+Hyperdrive binding. Epic 1 adds the identity values below; every environment
+gets its own values, and a missing value fails closed with `503` at the point of
+use instead of disabling the control.
+
+| Name | Kind | Purpose |
+| --- | --- | --- |
+| `MFA_ENCRYPTION_KEY` | Worker secret | base64url 32-byte AES-256-GCM key that encrypts TOTP secrets. Generate with `openssl rand -base64 32 \| tr '+/' '-_' \| tr -d '='`. Losing it forces every user through `disable-mfa` recovery. |
+| `TURNSTILE_SECRET_KEY` | Worker secret | Cloudflare Turnstile Siteverify secret, required once a login is throttled. |
+| `TURNSTILE_SITE_KEY` | `[vars]` | Public Turnstile site key returned to the browser with `turnstile_required`. |
+| `APP_ORIGIN` | `[vars]` | Optional comma-separated extra origins accepted by the mutation Origin check (the request origin is always allowed). |
+| `APP_PUBLIC_URL` | `[vars]` | Optional base URL for one-time activation/reset links; defaults to the request origin. |
+
+The first administrator is created with `pnpm auth:bootstrap`, and lockouts are
+recovered with `pnpm auth:recover`; both need the environment's `DATABASE_URL`.
+See [`../guides/administrator-recovery.md`](../guides/administrator-recovery.md).
+
+Future provider credentials such as OneDrive/Graph values are added here.
 
 The TD-005 OneDrive feasibility spike deliberately adds **no** Worker secret. It
 runs on an operator workstation as a local CLI, is a public client using

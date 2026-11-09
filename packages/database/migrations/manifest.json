@@ -4,6 +4,14 @@
     {
       "name": "0001_initial_baseline.sql",
       "checksum": "9696f8518afdd7736c75a50765a1c39d3b8e80d5c4e01643108a35530f443b29"
+    },
+    {
+      "name": "0002_identity_and_authorization.sql",
+      "checksum": "1559e24d8a3969ac8d4a354d772d71cd1faf03348cd04d1555ad3ec3acfc046d"
+    },
+    {
+      "name": "0003_consultant_assigned_case_work.sql",
+      "checksum": "d1c04ec526b54832386d504e037ef893133d3f0f26053dc5552750bb4c116078"
     }
   ]
 }

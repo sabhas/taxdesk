@@ -13,10 +13,15 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "build": "esbuild src/index.ts --bundle --format=esm --platform=neutral --outfile=dist/index.js",
-    "test": "vitest run"
+    "build": "esbuild src/index.ts --bundle --format=esm --platform=node --outfile=dist/index.js",
+    "test": "vitest run",
+    "build:cli": "esbuild src/cli/bootstrap.ts src/cli/recover.ts --bundle --platform=node --format=esm --target=node22 --outdir=dist/cli",
+    "auth:bootstrap": "pnpm run build:cli && node --env-file-if-exists=../../.env --env-file-if-exists=../../.env.local dist/cli/bootstrap.js",
+    "auth:recover": "pnpm run build:cli && node --env-file-if-exists=../../.env --env-file-if-exists=../../.env.local dist/cli/recover.js",
+    "test:db": "vitest run src/repositories/postgres.integration.test.ts"
   },
   "dependencies": {
+    "@taxdesk/database": "workspace:*",
     "@taxdesk/shared": "workspace:*",
     "hono": "^4.6.14",
     "zod": "^3.24.1"
@@ -25,6 +30,7 @@
     "@cloudflare/workers-types": "^4.20241224.0",
     "esbuild": "^0.24.2",
     "typescript": "^5.7.2",
-    "vitest": "^2.1.8"
+    "vitest": "^2.1.8",
+    "@types/node": "^22.10.2"
   }
 }

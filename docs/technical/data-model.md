@@ -3,7 +3,7 @@ title: TaxDesk domain model and invariants
 status: accepted
 version: 1.0
 owners: [engineering]
-last_reviewed: 2026-10-25
+last_reviewed: 2026-11-09
 related:
   - architecture.md
   - ../taxdesk-implementation-plan.md
@@ -39,6 +39,30 @@ duration, and applying database role of each forward-only migration. It is
 bootstrapped by the migration runner and is never edited by hand. See
 [migrations.md](migrations.md) for the schema, checksum rules, and rollback
 policy.
+
+## Identity tables
+
+Migration `0002_identity_and_authorization.sql` adds `firm_settings` (a
+singleton enforced by a constant unique index), `roles`, `permissions`,
+`role_permissions`, `users`, `user_roles`, `sessions`, `activation_tokens`,
+`login_challenges`, `mfa_credentials`, `mfa_recovery_codes`, `auth_attempts`,
+and `audit_events`. Migration `0003_consultant_assigned_case_work.sql` adds the
+`cases.work_assigned` permission. The role/permission matrix lives in
+`ROLE_DEFINITIONS` in `@taxdesk/shared`; a seed test fails if the SQL and the
+shared catalog drift.
+
+- Users are `invited` (no password hash), `active`, or `deactivated` (with
+  `deactivated_at`); database checks enforce both pairings. Deactivation never
+  deletes a user, so audit history keeps its actor references.
+- Sessions, activation/reset links, MFA login challenges, and recovery codes
+  store only SHA-256 digests of their random values. TOTP secrets are
+  AES-256-GCM ciphertext with a `key_version`. Password hashes are versioned
+  PBKDF2-HMAC-SHA-256 strings.
+- `auth_attempts` stores hashed account and network keys only, never an email
+  or IP address, and is pruned after 24 hours.
+- `audit_events` is append-only: a trigger rejects every `UPDATE` and `DELETE`.
+  Metadata is a flat object of scalar values and never holds credentials,
+  tokens, or secrets.
 
 ## Integrity rules
 
