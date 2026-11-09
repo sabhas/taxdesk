@@ -24,7 +24,9 @@ foundation and the reasons for it are in
 | `index.css` | Design tokens, base styles, the `ledger-rules` motif |
 | `components/ui/` | shadcn/ui components on Base UI (owned by this repo) |
 | `components/layout/` | `AuthLayout`, `PageHeader`, `BrandMark` |
-| `components/AppShell.tsx` | Signed-in shell: ink sidebar, mobile sheet navigation |
+| `components/AppShell.tsx` | Signed-in shell: ink sidebar, mobile sheet navigation, focus on navigation |
+| `routes.ts` | Route paths and the navigation table (label, title, icon, permission) |
+| `lib/document-title.ts` | `useDocumentTitle` / `DocumentTitle` ("Users · TaxDesk") |
 | `components/feedback.tsx` | `ErrorAlert`, `SuccessNotice`, `InfoNotice`, `LoadingMessage`, `PermissionDenied`, `EmptyState` |
 
 Add a base component with the shadcn CLI from `packages/web` (the pnpm store
@@ -81,6 +83,34 @@ Use sentence case everywhere. Do not use all-caps labels.
 - **Signed-in pages** render inside `AppShell` and start with `PageHeader`
   (title, one-line description, actions on the right). Content is cards and
   tables in a `max-w-6xl` column with `gap-5` between cards.
+- **Routes** use React Router v7 in declarative mode (`BrowserRouter`,
+  `Routes`, `NavLink`); there is no framework mode or file-based routing.
+
+  | Path | Page | Hidden without |
+  | --- | --- | --- |
+  | `/` | Dashboard | |
+  | `/security` | Security | |
+  | `/users` | Users | `users.manage` |
+  | `/firm-settings` | Firm settings | `firm.settings.read` |
+  | `/audit` | Audit history | `audit.read` |
+  | `/activate?token=…` | Activation (the URL shape the API builds for invitations) | |
+  | anything else | `NotFoundPage`, with a link to the dashboard | |
+
+  Opening a gated path without the permission renders `PermissionDenied`;
+  the API remains the enforcement point. Signed-out visitors see the sign-in
+  screen at the URL they opened and land on that page after signing in. An
+  activation token is read from the URL on load and removed (replace
+  navigation to `/`) once activation is done.
+- **Adding a page:** add its path to `ROUTE_PATHS` and an entry to
+  `NAV_ROUTES` in `routes.ts` (label, document title, icon, optional
+  permission), then map the path to the page component in `PAGES` in
+  `App.tsx`. The page starts with `PageHeader`; its `h1` receives focus after
+  client-side navigation (not on first load), and the route sets
+  `document.title` to "<title> · TaxDesk".
+- **Deep links in production:** Cloudflare Pages serves `index.html` for
+  unknown paths because the build has no top-level `404.html`; do not add
+  one. `public/_routes.json` sends only `/api/*` and `/health` to the Pages
+  Function, so app routes never reach it.
 - **Pre-sign-in screens** (sign-in, MFA, activation, session states) use
   `AuthLayout`: an ink brand panel with the ledger rules on wide screens, and
   the form on paper. Use `width="wide"` for content wider than a form, such as

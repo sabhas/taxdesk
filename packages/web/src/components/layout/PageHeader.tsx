@@ -18,7 +18,8 @@ export function PageHeader({
   return (
     <header className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0 space-y-1">
-        <h1 id={id} className="text-2xl font-semibold tracking-tight">
+        {/* tabIndex -1: AppShell focuses the h1 after client-side navigation. */}
+        <h1 id={id} tabIndex={-1} className="text-2xl font-semibold tracking-tight outline-none">
           {title}
         </h1>
         {description !== undefined && (

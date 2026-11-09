@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { axe } from 'vitest-axe';
 import { permissionsForRoles, type CurrentSession, type RoleKey } from '@taxdesk/shared';
 import { App } from './App.js';
@@ -7,6 +7,7 @@ import { App } from './App.js';
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  window.history.replaceState({}, '', '/');
 });
 
 const USER_ID = '0198a000-0000-7000-8000-000000000001';
@@ -243,9 +244,9 @@ describe('authorization and session lifecycle in the UI', () => {
     expect(
       await screen.findByRole('heading', { name: /Welcome, Test Person/ }),
     ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Security' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Users' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Audit history' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Security' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Users' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Audit history' })).not.toBeInTheDocument();
   });
 
   it('returns to the expired login state when the session is revoked mid-use', async () => {
@@ -255,7 +256,7 @@ describe('authorization and session lifecycle in the UI', () => {
     ]);
     render(<App />);
     await screen.findByRole('heading', { name: /Welcome, Test Person/ });
-    fireEvent.click(screen.getByRole('button', { name: 'Users' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Users' }));
     expect(await screen.findByText(/Your session expired/)).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Sign in to TaxDesk' })).toBeInTheDocument();
   });
@@ -267,7 +268,7 @@ describe('authorization and session lifecycle in the UI', () => {
     ]);
     render(<App />);
     await screen.findByRole('heading', { name: /Welcome, Test Person/ });
-    fireEvent.click(screen.getByRole('button', { name: 'Firm settings' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Firm settings' }));
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Access denied');
     expect(alert).toHaveTextContent('req-denied');
@@ -281,7 +282,7 @@ describe('authorization and session lifecycle in the UI', () => {
     ]);
     render(<App />);
     await screen.findByRole('heading', { name: /Welcome, Test Person/ });
-    fireEvent.click(screen.getByRole('button', { name: 'Security' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Security' }));
     await screen.findByRole('heading', { name: 'Security' });
     fireEvent.change(screen.getAllByLabelText('Password').at(-1)!, {
       target: { value: 'wrong password value' },
@@ -321,7 +322,7 @@ describe('authorization and session lifecycle in the UI', () => {
     vi.stubGlobal('fetch', fetchMock);
     render(<App />);
     await screen.findByRole('heading', { name: /Welcome, Test Person/ });
-    fireEvent.click(screen.getByRole('button', { name: 'Users' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Users' }));
     await screen.findByText('Staff Person');
     fireEvent.click(screen.getByRole('button', { name: 'Deactivate' }));
     const dialog = await screen.findByRole('alertdialog');
@@ -369,7 +370,7 @@ describe('authorization and session lifecycle in the UI', () => {
     vi.stubGlobal('fetch', fetchMock);
     render(<App />);
     await screen.findByRole('heading', { name: /Welcome, Test Person/ });
-    fireEvent.click(screen.getByRole('button', { name: 'Users' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Users' }));
     await screen.findByText('Staff Person');
     const deactivate = screen.getByRole('button', { name: 'Deactivate' });
     fireEvent.click(deactivate);
@@ -399,7 +400,7 @@ describe('authorization and session lifecycle in the UI', () => {
     ]);
     render(<App />);
     await screen.findByRole('heading', { name: /Welcome, Test Person/ });
-    fireEvent.click(screen.getByRole('button', { name: 'Firm settings' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Firm settings' }));
     expect(await screen.findByText(/Your session expired/)).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Sign in to TaxDesk' })).toBeInTheDocument();
   });
@@ -463,7 +464,7 @@ describe('Turnstile and user administration', () => {
     ]);
     render(<App />);
     await screen.findByRole('heading', { name: /Welcome, Test Person/ });
-    fireEvent.click(screen.getByRole('button', { name: 'Users' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Users' }));
     await screen.findByRole('heading', { name: 'Invite a user' });
     fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'new' } });
     fireEvent.change(screen.getByLabelText('Display name'), { target: { value: 'New Person' } });
@@ -491,6 +492,125 @@ describe('activation', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Activate account' }));
     expect(await screen.findByRole('heading', { name: 'Account activated' })).toBeInTheDocument();
-    window.history.replaceState({}, '', '/');
+    expect(document.title).toBe('Activate your account · TaxDesk');
+  });
+
+  it('clears the one-time token from the URL after activation', async () => {
+    window.history.replaceState({}, '', '/activate?token=activation-token-value-1234');
+    mockFetchSequence([
+      anonymous,
+      () => json({ status: 'activated', username: 'person' }),
+      anonymous,
+    ]);
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Activate your TaxDesk account' });
+    fireEvent.change(screen.getByLabelText('New password'), {
+      target: { value: 'correct horse battery staple' },
+    });
+    fireEvent.change(screen.getByLabelText('Confirm password'), {
+      target: { value: 'correct horse battery staple' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Activate account' }));
+    await screen.findByRole('heading', { name: 'Account activated' });
+    fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
+
+    expect(await screen.findByRole('heading', { name: 'Sign in to TaxDesk' })).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/');
+    expect(window.location.search).toBe('');
+  });
+});
+
+describe('URL routing', () => {
+  function dashboardSession(): Response {
+    return json(sessionFor());
+  }
+
+  it('opens a deep link once the session loads', async () => {
+    window.history.replaceState({}, '', '/users');
+    mockFetchSequence([dashboardSession, () => json({ users: [] })]);
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: 'Invite a user' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Users' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Dashboard' })).not.toHaveAttribute('aria-current');
+    expect(document.title).toBe('Users · TaxDesk');
+    // First load does not move focus.
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it('signs in at a deep link and then shows that page, not the dashboard', async () => {
+    window.history.replaceState({}, '', '/users');
+    mockFetchSequence([
+      anonymous,
+      () => json({ status: 'authenticated', session: sessionFor() }),
+      () => json({ users: [] }),
+    ]);
+    render(<App />);
+
+    await screen.findByRole('heading', { name: 'Sign in to TaxDesk' });
+    expect(window.location.pathname).toBe('/users');
+    expect(document.title).toBe('Sign in · TaxDesk');
+    await fillLogin();
+
+    expect(await screen.findByRole('heading', { name: 'Invite a user' })).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/users');
+    expect(screen.queryByRole('heading', { name: /Welcome, Test Person/ })).not.toBeInTheDocument();
+  });
+
+  it('shows a not-found page for an unknown path with a way back', async () => {
+    window.history.replaceState({}, '', '/no-such-page');
+    mockFetchSequence([dashboardSession]);
+    const rendered = render(<App />);
+
+    expect(await screen.findByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
+    expect(document.title).toBe('Page not found · TaxDesk');
+    const results = await axe(rendered.container);
+    expect(
+      results.violations.filter(
+        (violation) => violation.impact === 'serious' || violation.impact === 'critical',
+      ),
+    ).toHaveLength(0);
+
+    fireEvent.click(screen.getByRole('link', { name: 'Go to the dashboard' }));
+    expect(
+      await screen.findByRole('heading', { name: /Welcome, Test Person/ }),
+    ).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/');
+  });
+
+  it('moves focus to the page heading and returns on back navigation', async () => {
+    mockFetchSequence([dashboardSession]);
+    render(<App />);
+    await screen.findByRole('heading', { name: /Welcome, Test Person/ });
+
+    fireEvent.click(screen.getByRole('link', { name: 'Security' }));
+    const heading = await screen.findByRole('heading', { level: 1, name: 'Security' });
+    expect(window.location.pathname).toBe('/security');
+    expect(document.title).toBe('Security · TaxDesk');
+    expect(heading).toHaveFocus();
+    expect(screen.getByRole('link', { name: 'Security' })).toHaveAttribute('aria-current', 'page');
+
+    act(() => {
+      window.history.back();
+    });
+    await waitFor(() => {
+      expect(window.location.pathname).toBe('/');
+    });
+    expect(
+      await screen.findByRole('heading', { name: /Welcome, Test Person/ }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Dashboard' })).toHaveAttribute('aria-current', 'page');
+    expect(document.title).toBe('Dashboard · TaxDesk');
+  });
+
+  it('keeps permission gating on a deep link the role cannot use', async () => {
+    window.history.replaceState({}, '', '/audit');
+    mockFetchSequence([() => json(sessionFor({ roles: ['consultant'] }))]);
+    render(<App />);
+
+    expect(
+      await screen.findByRole('heading', { name: 'You do not have permission' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Audit history' })).not.toBeInTheDocument();
   });
 });

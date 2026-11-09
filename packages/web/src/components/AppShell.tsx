@@ -1,37 +1,13 @@
-import { useState, type ReactNode } from 'react';
-import {
-  Building2,
-  LayoutDashboard,
-  LogOut,
-  Menu,
-  ScrollText,
-  ShieldCheck,
-  Users,
-  type LucideIcon,
-} from 'lucide-react';
-import { ROLE_DEFINITIONS, type PermissionKey } from '@taxdesk/shared';
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { NavLink, useLocation } from 'react-router';
+import { LogOut, Menu } from 'lucide-react';
+import { ROLE_DEFINITIONS } from '@taxdesk/shared';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
+import { NAV_ROUTES } from '../routes.js';
 import { useSession } from '../session/session-context.js';
 import { Wordmark } from './layout/BrandMark.js';
-
-export type View = 'dashboard' | 'security' | 'users' | 'firm' | 'audit';
-
-interface NavItem {
-  readonly view: View;
-  readonly label: string;
-  readonly icon: LucideIcon;
-  readonly permission?: PermissionKey;
-}
-
-const NAV_ITEMS: readonly NavItem[] = [
-  { view: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { view: 'security', label: 'Security', icon: ShieldCheck },
-  { view: 'users', label: 'Users', icon: Users, permission: 'users.manage' },
-  { view: 'firm', label: 'Firm settings', icon: Building2, permission: 'firm.settings.read' },
-  { view: 'audit', label: 'Audit history', icon: ScrollText, permission: 'audit.read' },
-];
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/u);
@@ -40,10 +16,10 @@ function initials(name: string): string {
   return (first + last).toUpperCase();
 }
 
-function SidebarContent({ view, onNavigate }: { view: View; onNavigate: (view: View) => void }) {
+function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const { state, can, signOut } = useSession();
   const session = state.status === 'authenticated' ? state.session : null;
-  const items = NAV_ITEMS.filter((item) => item.permission === undefined || can(item.permission));
+  const items = NAV_ROUTES.filter((item) => item.permission === undefined || can(item.permission));
 
   return (
     <div className="flex h-full flex-col gap-6 bg-sidebar p-4 text-sidebar-foreground">
@@ -51,27 +27,27 @@ function SidebarContent({ view, onNavigate }: { view: View; onNavigate: (view: V
       <nav aria-label="Primary" className="flex-1">
         <ul className="space-y-1">
           {items.map((item) => {
-            const active = view === item.view;
             const Icon = item.icon;
             return (
-              <li key={item.view}>
-                <button
-                  type="button"
-                  aria-current={active ? 'page' : undefined}
-                  onClick={() => {
-                    onNavigate(item.view);
-                  }}
-                  className={cn(
-                    'relative flex h-10 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors',
-                    'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidebar-ring',
-                    active
-                      ? 'bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-sidebar-primary'
-                      : 'text-sidebar-muted hover:bg-sidebar-accent/60 hover:text-sidebar-foreground',
-                  )}
+              <li key={item.path}>
+                {/* NavLink sets aria-current="page" on the active route. */}
+                <NavLink
+                  to={item.path}
+                  end
+                  onClick={onNavigate}
+                  className={({ isActive }) =>
+                    cn(
+                      'relative flex h-10 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors',
+                      'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidebar-ring',
+                      isActive
+                        ? 'bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-sidebar-primary'
+                        : 'text-sidebar-muted hover:bg-sidebar-accent/60 hover:text-sidebar-foreground',
+                    )
+                  }
                 >
                   <Icon aria-hidden="true" className="size-4" />
                   {item.label}
-                </button>
+                </NavLink>
               </li>
             );
           })}
@@ -107,16 +83,35 @@ function SidebarContent({ view, onNavigate }: { view: View; onNavigate: (view: V
   );
 }
 
-export function AppShell({
-  view,
-  onNavigate,
-  children,
-}: {
-  view: View;
-  onNavigate: (view: View) => void;
-  children: ReactNode;
-}) {
+/**
+ * After a client-side navigation, moves focus to the new page's h1 (or the
+ * main region) so screen readers announce the change. The first render is
+ * skipped: on initial load focus stays at the top of the document.
+ */
+function useFocusOnNavigation(main: RefObject<HTMLElement | null>): void {
+  const { key } = useLocation();
+  // Compare against the last location instead of a "first render" flag so the
+  // StrictMode double-run of effects does not move focus on first load.
+  const lastKey = useRef(key);
+
+  useEffect(() => {
+    if (lastKey.current === key) {
+      return;
+    }
+    lastKey.current = key;
+    const region = main.current;
+    if (region === null) {
+      return;
+    }
+    const heading = region.querySelector<HTMLElement>('h1');
+    (heading ?? region).focus();
+  }, [key, main]);
+}
+
+export function AppShell({ children }: { children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const mainRef = useRef<HTMLElement>(null);
+  useFocusOnNavigation(mainRef);
 
   return (
     <div className="min-h-svh lg:grid lg:grid-cols-[15rem_minmax(0,1fr)]">
@@ -129,7 +124,7 @@ export function AppShell({
 
       {/* Wide screens: fixed ink sidebar. */}
       <aside className="sticky top-0 hidden h-svh lg:block">
-        <SidebarContent view={view} onNavigate={onNavigate} />
+        <SidebarContent />
       </aside>
 
       {/* Narrow screens: top bar with a sheet. The nav mounts only while open. */}
@@ -151,17 +146,20 @@ export function AppShell({
           <SheetContent side="left" className="w-72 border-none p-0" showCloseButton={false}>
             <SheetTitle className="sr-only">Navigation</SheetTitle>
             <SidebarContent
-              view={view}
-              onNavigate={(next) => {
+              onNavigate={() => {
                 setMenuOpen(false);
-                onNavigate(next);
               }}
             />
           </SheetContent>
         </Sheet>
       </div>
 
-      <main id="main-content" className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8 lg:py-10">
+      <main
+        ref={mainRef}
+        id="main-content"
+        tabIndex={-1}
+        className="mx-auto w-full max-w-6xl px-4 py-8 outline-none sm:px-8 lg:py-10"
+      >
         {children}
       </main>
     </div>
