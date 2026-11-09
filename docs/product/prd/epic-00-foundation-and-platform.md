@@ -86,6 +86,24 @@ staging-provider posture evidence are recorded in Sprint Review.
 - [ ] Confirm Hyperdrive uses TLS and a least-privilege credential, point-in-time recovery is enabled, independent exports leave the provider, and failed backup checks alert an operator. **Gate implemented and tested** in `pnpm ci:db-posture`, `pnpm ci:backup-check`, and `.github/workflows/platform-posture.yml`; the staging `PLATFORM_POSTURE_EVIDENCE_JSON` record and first successful scheduled run are still required from the operator before this is checked.
 - [x] Ensure pull-request builds cannot read production secrets. (`ci.yml` uses read-only permissions and no `secrets.*` or environment; `pnpm ci:workflows` rejects `pull_request` workflows that enter an environment or read secrets.)
 
+## Added after Sprint 1 planning
+
+### TD-007 — Web UI foundation and design system — 5 points
+
+**Added 2026-11-10; unscheduled, awaiting Sprint Review.** Cross-cutting
+foundation for every later web feature. The decision is recorded in
+[ADR 0003](../../adr/0003-ui-foundation.md) and the rules in
+[`docs/technical/design-system.md`](../../technical/design-system.md).
+
+**User story:** As a firm staff member, I want a clear and consistent interface so that I can find my way around TaxDesk and trust what each screen tells me.
+
+- [ ] Adopt a shared component library and design tokens that work under the production content security policy without exceptions.
+- [ ] Document the tokens, contrast ratios, typography, layout, and component usage rules.
+- [ ] Move the app shell and every existing screen onto the shared components with unchanged behavior and passing accessibility checks.
+- [ ] Give every signed-in screen its own URL so back/forward navigation and deep links work, including after sign-in.
+- [ ] Ask for confirmation before an action that revokes a user's access.
+- [ ] Validate the screens visually on staging at desktop and phone widths.
+
 ## Exit criteria
 
 - Staging loads a web shell that successfully receives an API health response.

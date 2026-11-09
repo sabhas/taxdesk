@@ -31,6 +31,8 @@ Implement in this order. Story points are relative sizing for one experienced en
 | 13 | TD-706–TD-710 | 18 | Sprint 12 | Production release candidate |
 | 14 | TD-801–TD-805 | 19 | Sprint 13 | Production launch |
 
+TD-007 (web UI foundation and design system, 5 points) was added to Epic 0 after Sprint 1 planning. It is unscheduled and awaits Sprint Review; see the Epic 0 PRD.
+
 ## Engineering build order
 
 Within every story, build in this order unless the PRD says otherwise:
