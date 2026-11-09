@@ -124,7 +124,7 @@ describe('route permission declarations', () => {
     const harness = createTestHarness();
     await seedFirm(harness);
     const { user } = await seedUser(harness, {
-      email: 'pending@example.test',
+      username: 'pending',
       password: PASSWORD,
       role: 'administrator',
     });
@@ -149,13 +149,13 @@ describe('route permission declarations', () => {
       const harness = createTestHarness();
       await seedFirm(harness);
       const { user } = await seedUser(harness, {
-        email: `${role}@example.test`,
+        username: role,
         password: PASSWORD,
         role,
         mfaEnrolled: true,
       });
       const { user: other } = await seedUser(harness, {
-        email: `other-${role}@example.test`,
+        username: `other-${role}`,
         password: PASSWORD,
         role: 'consultant',
       });

@@ -15,9 +15,9 @@ describe.each([true, false])('createPrompt (tty: %s)', (tty) => {
     const { input, output, written } = terminalPair(tty);
     const prompt = createPrompt(input, output);
 
-    const email = prompt.ask('Administrator email');
-    input.write('owner@example.test\r\n');
-    await expect(email).resolves.toBe('owner@example.test');
+    const username = prompt.ask('Administrator username');
+    input.write('owner\r\n');
+    await expect(username).resolves.toBe('owner');
 
     const secret = prompt.askSecret('Password');
     input.write('hunter2 is not a password\r\n');

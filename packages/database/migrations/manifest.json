@@ -12,6 +12,10 @@
     {
       "name": "0003_consultant_assigned_case_work.sql",
       "checksum": "d1c04ec526b54832386d504e037ef893133d3f0f26053dc5552750bb4c116078"
+    },
+    {
+      "name": "0004_username_sign_in.sql",
+      "checksum": "746ab913d4847e304cc6b67fd5394ba25b8d3e6506d686ff26c9842d483e7326"
     }
   ]
 }

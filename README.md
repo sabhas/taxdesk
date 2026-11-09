@@ -172,7 +172,7 @@ request reference ID when the health call fails.
 
 ## Identity and access
 
-Epic 1 adds custom staff accounts with mandatory TOTP MFA. There is no public
+Epic 1 adds custom staff accounts (username and password) with mandatory TOTP MFA. There is no public
 registration: the first administrator is created offline, and everyone else is
 invited by an administrator with a one-time 30-minute link that TaxDesk shows
 but never emails.

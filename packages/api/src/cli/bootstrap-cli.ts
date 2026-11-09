@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import {
   DisplayNameSchema,
-  EmailSchema,
+  UsernameSchema,
   PasswordPolicySchema,
   TimezoneSchema,
 } from '@taxdesk/shared';
@@ -17,7 +17,7 @@ Usage:
 
 Options:
   --firm-name <name>        Firm name (required when non-interactive)
-  --email <email>           Administrator email
+  --username <name>         Administrator username (3–32 letters, digits, . _ -)
   --display-name <name>     Administrator display name
   --password <password>     Password (omit to enter it without echo)
   --timezone <zone>         IANA timezone (default Asia/Karachi)
@@ -46,7 +46,7 @@ export interface BootstrapCliIo {
 
 interface BootstrapInput {
   readonly firmName: string;
-  readonly email: string;
+  readonly username: string;
   readonly displayName: string;
   readonly password: string;
   readonly timezone: string;
@@ -65,9 +65,9 @@ function validate(input: BootstrapInput): BootstrapInput {
   if (!firmName.success) {
     throw new CliUsageError('Enter a firm name between 1 and 160 characters.');
   }
-  const email = EmailSchema.safeParse(input.email);
-  if (!email.success) {
-    throw new CliUsageError('Enter a valid email address.');
+  const username = UsernameSchema.safeParse(input.username);
+  if (!username.success) {
+    throw new CliUsageError(username.error.issues[0]?.message ?? 'Enter a valid username.');
   }
   const displayName = DisplayNameSchema.safeParse(input.displayName);
   if (!displayName.success) {
@@ -83,7 +83,7 @@ function validate(input: BootstrapInput): BootstrapInput {
   }
   return {
     firmName: firmName.data,
-    email: email.data,
+    username: username.data,
     displayName: displayName.data,
     password: password.data,
     timezone: timezone.data,
@@ -137,7 +137,7 @@ async function collectInput(parsed: ParsedCliArgs, io: BootstrapCliIo): Promise<
   const nonInteractive = parsed.flags.has('non-interactive');
   const provided = {
     firmName: readValue(parsed, 'firm-name'),
-    email: readValue(parsed, 'email'),
+    username: readValue(parsed, 'username'),
     displayName: readValue(parsed, 'display-name'),
     password: readValue(parsed, 'password'),
     timezone: readValue(parsed, 'timezone') ?? 'Asia/Karachi',
@@ -146,17 +146,17 @@ async function collectInput(parsed: ParsedCliArgs, io: BootstrapCliIo): Promise<
   if (nonInteractive) {
     if (
       provided.firmName === undefined ||
-      provided.email === undefined ||
+      provided.username === undefined ||
       provided.displayName === undefined ||
       provided.password === undefined
     ) {
       throw new CliUsageError(
-        'Non-interactive bootstrap requires --firm-name, --email, --display-name, and --password.',
+        'Non-interactive bootstrap requires --firm-name, --username, --display-name, and --password.',
       );
     }
     return validate({
       firmName: provided.firmName,
-      email: provided.email,
+      username: provided.username,
       displayName: provided.displayName,
       password: provided.password,
       timezone: provided.timezone,
@@ -171,13 +171,13 @@ async function collectInput(parsed: ParsedCliArgs, io: BootstrapCliIo): Promise<
       FirmNameSchema,
       () => 'Enter a firm name between 1 and 160 characters.',
     ));
-  const email =
-    provided.email ??
+  const username =
+    provided.username ??
     (await askUntilValid(
       io,
-      () => io.prompt.ask('Administrator email'),
-      EmailSchema,
-      () => 'Enter a valid email address, such as admin@example.com.',
+      () => io.prompt.ask('Administrator username'),
+      UsernameSchema,
+      (issues) => issues[0]?.message ?? 'Enter a valid username.',
     ));
   const displayName =
     provided.displayName ??
@@ -191,7 +191,7 @@ async function collectInput(parsed: ParsedCliArgs, io: BootstrapCliIo): Promise<
 
   return validate({
     firmName,
-    email,
+    username,
     displayName,
     password,
     timezone: provided.timezone,
@@ -228,7 +228,7 @@ export async function runBootstrapCli(io: BootstrapCliIo): Promise<number> {
       status: 'created',
       firmId: result.firmId,
       userId: result.userId,
-      email: input.email.trim().toLowerCase(),
+      username: input.username,
     });
     return 0;
   } catch (error) {

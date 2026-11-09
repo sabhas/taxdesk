@@ -1,9 +1,8 @@
-import { AUDIT_ACTIONS, PasswordPolicySchema } from '@taxdesk/shared';
+import { AUDIT_ACTIONS, PasswordPolicySchema, normalizeUsername } from '@taxdesk/shared';
 import type { PasswordHasher } from '../../crypto/password.js';
 import type { Repositories, UnitOfWork } from '../../repositories/ports.js';
 import { appendAuditEvent } from './audit-service.js';
 import { AuthError } from './errors.js';
-import { normalizeEmail } from './session-view.js';
 
 export interface RecoveryDependencies {
   readonly repositories: Repositories;
@@ -20,7 +19,7 @@ export interface RecoveryDependencies {
 export class RecoveryService {
   constructor(private readonly dependencies: RecoveryDependencies) {}
 
-  async resetPassword(email: string, newPassword: string): Promise<void> {
+  async resetPassword(username: string, newPassword: string): Promise<void> {
     const policy = PasswordPolicySchema.safeParse(newPassword);
     if (!policy.success) {
       throw new AuthError(400, 'VALIDATION_FAILED', 'The password does not meet the policy.', {
@@ -30,7 +29,7 @@ export class RecoveryService {
         })),
       });
     }
-    const user = await this.requireUser(email);
+    const user = await this.requireUser(username);
     const now = this.dependencies.clock();
     const passwordHash = await this.dependencies.passwordHasher.hash(newPassword);
     const passwordHashVersion = this.dependencies.passwordHasher.currentParameters.version;
@@ -62,8 +61,8 @@ export class RecoveryService {
     });
   }
 
-  async disableMfa(email: string): Promise<void> {
-    const user = await this.requireUser(email);
+  async disableMfa(username: string): Promise<void> {
+    const user = await this.requireUser(username);
     const now = this.dependencies.clock();
     await this.dependencies.unitOfWork.run(async (repositories) => {
       await repositories.mfa.deleteForUser(user.id);
@@ -80,8 +79,8 @@ export class RecoveryService {
     });
   }
 
-  async reactivate(email: string): Promise<void> {
-    const user = await this.requireUser(email);
+  async reactivate(username: string): Promise<void> {
+    const user = await this.requireUser(username);
     const now = this.dependencies.clock();
     await this.dependencies.unitOfWork.run(async (repositories) => {
       if (user.status === 'deactivated') {
@@ -106,10 +105,12 @@ export class RecoveryService {
     });
   }
 
-  private async requireUser(email: string) {
-    const user = await this.dependencies.repositories.users.findByEmail(normalizeEmail(email));
+  private async requireUser(username: string) {
+    const user = await this.dependencies.repositories.users.findByUsername(
+      normalizeUsername(username),
+    );
     if (user === null) {
-      throw new AuthError(404, 'USER_NOT_FOUND', 'No user with that email exists.');
+      throw new AuthError(404, 'USER_NOT_FOUND', 'No user with that username exists.');
     }
     return user;
   }

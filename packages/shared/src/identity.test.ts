@@ -7,7 +7,13 @@ import {
   permissionsForRoles,
   roleHasPermission,
 } from './identity.js';
-import { LoginRequestSchema, CurrentSessionSchema, UserUpdateRequestSchema } from './auth.js';
+import {
+  CurrentSessionSchema,
+  LoginRequestSchema,
+  UserUpdateRequestSchema,
+  UsernameSchema,
+  normalizeUsername,
+} from './auth.js';
 import { newUuidV7, UuidV7Schema } from './id.js';
 import { AuditEventSchema } from './audit.js';
 
@@ -46,7 +52,7 @@ describe('identity contracts', () => {
   it('rejects a request-supplied role or permission in the login contract', () => {
     expect(
       LoginRequestSchema.safeParse({
-        email: 'person@example.test',
+        username: 'person',
         password: 'correct horse battery',
         roles: ['administrator'],
       }).success,
@@ -57,7 +63,7 @@ describe('identity contracts', () => {
     const parsed = CurrentSessionSchema.safeParse({
       user: {
         id: newUuidV7(),
-        email: 'person@example.test',
+        username: 'person',
         displayName: 'Test Person',
         status: 'active',
         mfaEnrolled: true,
@@ -78,6 +84,40 @@ describe('identity contracts', () => {
     expect(UserUpdateRequestSchema.safeParse({}).success).toBe(false);
     expect(UserUpdateRequestSchema.safeParse({ role: 'manager' }).success).toBe(true);
     expect(UserUpdateRequestSchema.safeParse({ status: 'invited' }).success).toBe(false);
+  });
+});
+
+describe('username contract', () => {
+  it('accepts 3–32 lowercase letters, digits, dots, underscores, and hyphens', () => {
+    for (const value of ['abc', 'muaaz.khalid', 'read_only', 'a-1', 'x'.repeat(32)]) {
+      expect(UsernameSchema.safeParse(value).success, value).toBe(true);
+    }
+  });
+
+  it('normalizes case and surrounding spaces', () => {
+    expect(UsernameSchema.parse('  Muaaz.Khalid ')).toBe('muaaz.khalid');
+    expect(normalizeUsername('  Muaaz ')).toBe('muaaz');
+  });
+
+  it('rejects emails, spaces, bad edges, and out-of-range lengths', () => {
+    for (const value of [
+      'ab',
+      'x'.repeat(33),
+      'owner@example.test',
+      'two words',
+      '.leading',
+      'trailing-',
+      '_under',
+      '',
+    ]) {
+      expect(UsernameSchema.safeParse(value).success, value).toBe(false);
+    }
+  });
+
+  it('keeps the login contract lenient so it never reveals the username policy', () => {
+    expect(
+      LoginRequestSchema.safeParse({ username: 'no', password: 'anything at all' }).success,
+    ).toBe(true);
   });
 });
 

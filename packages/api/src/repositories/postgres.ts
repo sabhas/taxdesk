@@ -67,8 +67,7 @@ function nullableIso(value: unknown): string | null {
 function mapUser(row: SqlRow): UserRecord {
   return {
     id: text(row, 'id'),
-    email: text(row, 'email'),
-    emailNormalized: text(row, 'email_normalized'),
+    username: text(row, 'username'),
     displayName: text(row, 'display_name'),
     passwordHash: nullableText(row, 'password_hash'),
     passwordHashVersion:
@@ -259,10 +258,8 @@ export function createPostgresRepositories(executor: SqlExecutor): Repositories 
         const rows = await executor.query('SELECT * FROM users WHERE id = $1', [id]);
         return rows[0] === undefined ? null : mapUser(rows[0]);
       },
-      findByEmail: async (normalizedEmail) => {
-        const rows = await executor.query('SELECT * FROM users WHERE email_normalized = $1', [
-          normalizedEmail,
-        ]);
+      findByUsername: async (username) => {
+        const rows = await executor.query('SELECT * FROM users WHERE username = $1', [username]);
         return rows[0] === undefined ? null : mapUser(rows[0]);
       },
       list: async () => {
@@ -272,15 +269,14 @@ export function createPostgresRepositories(executor: SqlExecutor): Repositories 
       create: async (input) => {
         const rows = await executor.query(
           `INSERT INTO users (
-             id, email, email_normalized, display_name, password_hash, password_hash_version,
+             id, username, display_name, password_hash, password_hash_version,
              status, mfa_enrolled_at, last_login_at, deactivated_at, created_at, updated_at, version
            )
-           VALUES ($1, $2, $3, $4, $5, $6, $7, NULL, NULL, NULL, $8, $8, 1)
+           VALUES ($1, $2, $3, $4, $5, $6, NULL, NULL, NULL, $7, $7, 1)
            RETURNING *`,
           [
             input.id,
-            input.email,
-            input.emailNormalized,
+            input.username,
             input.displayName,
             input.passwordHash,
             input.passwordHashVersion,

@@ -6,13 +6,31 @@ export const UserStatusSchema = z.enum(['invited', 'active', 'deactivated']);
 export type UserStatus = z.infer<typeof UserStatusSchema>;
 
 export const DisplayNameSchema = z.string().trim().min(1).max(120);
-export const EmailSchema = z.string().trim().email().max(254);
+/**
+ * Sign-in name. Stored and compared in lowercase: 3–32 characters of letters,
+ * digits, `.`, `_`, or `-`, starting and ending with a letter or digit.
+ * Usernames are permanent so audit history always names the same account.
+ */
+export const USERNAME_PATTERN = /^[a-z0-9](?:[a-z0-9._-]{1,30})[a-z0-9]$/u;
+
+export const UsernameSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .regex(
+    USERNAME_PATTERN,
+    'Use 3–32 letters, digits, dots, underscores, or hyphens, starting and ending with a letter or digit.',
+  );
+
+export function normalizeUsername(value: string): string {
+  return value.trim().toLowerCase();
+}
 
 /** Public user shape. Never includes password hashes, tokens, or MFA secrets. */
 export const PublicUserSchema = z
   .object({
     id: UuidV7Schema,
-    email: EmailSchema,
+    username: UsernameSchema,
     displayName: DisplayNameSchema,
     status: UserStatusSchema,
     mfaEnrolled: z.boolean(),
@@ -49,8 +67,8 @@ export type CurrentSession = z.infer<typeof CurrentSessionSchema>;
 
 export const LoginRequestSchema = z
   .object({
-    email: EmailSchema,
-    // Login never reveals the password policy; it only bounds the input.
+    // Login never reveals the username or password policy; it only bounds input.
+    username: z.string().trim().min(1).max(64),
     password: z.string().min(1).max(512),
     turnstileToken: z.string().min(1).max(4096).optional(),
   })
@@ -179,7 +197,7 @@ export type ActivationRequest = z.infer<typeof ActivationRequestSchema>;
 export const ActivationResponseSchema = z
   .object({
     status: z.literal('activated'),
-    email: EmailSchema,
+    username: UsernameSchema,
   })
   .strict();
 
@@ -188,7 +206,7 @@ export type ActivationResponse = z.infer<typeof ActivationResponseSchema>;
 export const UserSummarySchema = z
   .object({
     id: UuidV7Schema,
-    email: EmailSchema,
+    username: UsernameSchema,
     displayName: DisplayNameSchema,
     status: UserStatusSchema,
     roles: z.array(RoleKeySchema),
@@ -211,7 +229,7 @@ export type UserList = z.infer<typeof UserListSchema>;
 
 export const InviteUserRequestSchema = z
   .object({
-    email: EmailSchema,
+    username: UsernameSchema,
     displayName: DisplayNameSchema,
     role: RoleKeySchema,
   })

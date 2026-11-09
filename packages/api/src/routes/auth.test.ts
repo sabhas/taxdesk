@@ -69,19 +69,19 @@ async function json(response: Response): Promise<Record<string, unknown>> {
 const PASSWORD = 'correct horse battery staple';
 
 describe('login and session lifecycle', () => {
-  it('returns one generic failure for an unknown email and a wrong password', async () => {
+  it('returns one generic failure for an unknown username and a wrong password', async () => {
     const harness = createTestHarness();
     await seedFirm(harness);
-    await seedUser(harness, { email: 'person@example.test', password: PASSWORD });
+    await seedUser(harness, { username: 'person', password: PASSWORD });
     const app = appFor(harness);
 
     const unknown = await call(app, '/api/v1/auth/login', {
       method: 'POST',
-      body: { email: 'missing@example.test', password: PASSWORD },
+      body: { username: 'missing', password: PASSWORD },
     });
     const wrong = await call(app, '/api/v1/auth/login', {
       method: 'POST',
-      body: { email: 'person@example.test', password: 'wrong password' },
+      body: { username: 'person', password: 'wrong password' },
     });
 
     expect(unknown.status).toBe(401);
@@ -90,20 +90,33 @@ describe('login and session lifecycle', () => {
     const wrongBody = await json(wrong);
     expect(unknownBody['code']).toBe('INVALID_CREDENTIALS');
     expect(wrongBody['code']).toBe('INVALID_CREDENTIALS');
-    expect(unknownBody['detail']).toBe('The email or password is incorrect.');
+    expect(unknownBody['detail']).toBe('The username or password is incorrect.');
     expect(wrongBody['detail']).toBe(unknownBody['detail']);
     expect(unknown.headers.get('Set-Cookie')).toBeNull();
+  });
+
+  it('signs in regardless of username case or surrounding spaces', async () => {
+    const harness = createTestHarness();
+    await seedFirm(harness);
+    await seedUser(harness, { username: 'muaaz.khalid', password: PASSWORD });
+    const app = appFor(harness);
+    const login = await call(app, '/api/v1/auth/login', {
+      method: 'POST',
+      body: { username: '  Muaaz.Khalid ', password: PASSWORD },
+    });
+    expect(login.status).toBe(200);
+    expect((await json(login))['status']).toBe('mfa_enrollment_required');
   });
 
   it('issues a restricted session and requires MFA enrollment before application routes', async () => {
     const harness = createTestHarness();
     await seedFirm(harness);
-    await seedUser(harness, { email: 'admin@example.test', password: PASSWORD });
+    await seedUser(harness, { username: 'admin', password: PASSWORD });
     const app = appFor(harness);
 
     const login = await call(app, '/api/v1/auth/login', {
       method: 'POST',
-      body: { email: 'admin@example.test', password: PASSWORD },
+      body: { username: 'admin', password: PASSWORD },
     });
     expect(login.status).toBe(200);
     expect((await json(login))['status']).toBe('mfa_enrollment_required');
@@ -157,14 +170,14 @@ describe('login and session lifecycle', () => {
     const harness = createTestHarness();
     await seedFirm(harness);
     const { user } = await seedUser(harness, {
-      email: 'admin@example.test',
+      username: 'admin',
       password: PASSWORD,
       mfaEnrolled: true,
     });
     const app = appFor(harness);
     const login = await call(app, '/api/v1/auth/login', {
       method: 'POST',
-      body: { email: 'admin@example.test', password: PASSWORD },
+      body: { username: 'admin', password: PASSWORD },
     });
     const challengeToken = (await json(login))['challengeToken'] as string;
     const credential = await harness.repositories.mfa.getCredential(user.id);
@@ -190,14 +203,14 @@ describe('login and session lifecycle', () => {
     const harness = createTestHarness();
     await seedFirm(harness);
     const { user } = await seedUser(harness, {
-      email: 'admin@example.test',
+      username: 'admin',
       password: PASSWORD,
       mfaEnrolled: true,
     });
     const app = appFor(harness);
     const login = await call(app, '/api/v1/auth/login', {
       method: 'POST',
-      body: { email: 'admin@example.test', password: PASSWORD },
+      body: { username: 'admin', password: PASSWORD },
     });
     const challengeToken = (await json(login))['challengeToken'] as string;
     const credential = await harness.repositories.mfa.getCredential(user.id);
@@ -219,7 +232,7 @@ describe('login and session lifecycle', () => {
     const harness = createTestHarness();
     await seedFirm(harness);
     const { user } = await seedUser(harness, {
-      email: 'admin@example.test',
+      username: 'admin',
       password: PASSWORD,
       mfaEnrolled: true,
     });
@@ -229,7 +242,7 @@ describe('login and session lifecycle', () => {
 
     const firstLogin = await call(app, '/api/v1/auth/login', {
       method: 'POST',
-      body: { email: 'admin@example.test', password: PASSWORD },
+      body: { username: 'admin', password: PASSWORD },
     });
     const firstLoginBody = await json(firstLogin);
     expect(firstLoginBody['status']).toBe('mfa_required');
@@ -253,12 +266,12 @@ describe('login and session lifecycle', () => {
 
     // Enroll a fresh user to obtain recovery codes, then use one twice.
     await seedUser(harness, {
-      email: 'second@example.test',
+      username: 'second',
       password: PASSWORD,
     });
     const secondCookie = await call(app, '/api/v1/auth/login', {
       method: 'POST',
-      body: { email: 'second@example.test', password: PASSWORD },
+      body: { username: 'second', password: PASSWORD },
     });
     expect(secondCookie.status).toBe(200);
     const restricted = cookieFrom(secondCookie);
@@ -278,7 +291,7 @@ describe('login and session lifecycle', () => {
 
     const recoveryLogin = await call(app, '/api/v1/auth/login', {
       method: 'POST',
-      body: { email: 'second@example.test', password: PASSWORD },
+      body: { username: 'second', password: PASSWORD },
     });
     const recoveryChallenge = (await json(recoveryLogin))['challengeToken'] as string;
     const recovery = await call(app, '/api/v1/auth/mfa/recovery', {
@@ -289,7 +302,7 @@ describe('login and session lifecycle', () => {
 
     const replayLogin = await call(app, '/api/v1/auth/login', {
       method: 'POST',
-      body: { email: 'second@example.test', password: PASSWORD },
+      body: { username: 'second', password: PASSWORD },
     });
     const replayChallenge = (await json(replayLogin))['challengeToken'] as string;
     const replay = await call(app, '/api/v1/auth/mfa/recovery', {
@@ -306,14 +319,14 @@ describe('authentication defenses', () => {
     const harness = createTestHarness();
     await seedFirm(harness);
     const { user } = await seedUser(harness, {
-      email: 'guess@example.test',
+      username: 'guess',
       password: PASSWORD,
       mfaEnrolled: true,
     });
     const app = appFor(harness);
     const login = await call(app, '/api/v1/auth/login', {
       method: 'POST',
-      body: { email: 'guess@example.test', password: PASSWORD },
+      body: { username: 'guess', password: PASSWORD },
     });
     const challengeToken = (await json(login))['challengeToken'] as string;
 
@@ -347,11 +360,11 @@ describe('authentication defenses', () => {
   it('records MFA audit events with the caller request ID', async () => {
     const harness = createTestHarness();
     await seedFirm(harness);
-    await seedUser(harness, { email: 'enroll@example.test', password: PASSWORD });
+    await seedUser(harness, { username: 'enroll', password: PASSWORD });
     const app = appFor(harness);
     const login = await call(app, '/api/v1/auth/login', {
       method: 'POST',
-      body: { email: 'enroll@example.test', password: PASSWORD },
+      body: { username: 'enroll', password: PASSWORD },
     });
     const cookie = cookieFrom(login);
     const enrollment = await call(app, '/api/v1/auth/mfa/enroll', {
@@ -376,12 +389,12 @@ describe('authentication defenses', () => {
   it('requires a request ID on mutations and rejects a foreign origin', async () => {
     const harness = createTestHarness();
     await seedFirm(harness);
-    await seedUser(harness, { email: 'person@example.test', password: PASSWORD });
+    await seedUser(harness, { username: 'person', password: PASSWORD });
     const app = appFor(harness);
 
     const missingId = await call(app, '/api/v1/auth/login', {
       method: 'POST',
-      body: { email: 'person@example.test', password: PASSWORD },
+      body: { username: 'person', password: PASSWORD },
       requestId: null,
     });
     expect(missingId.status).toBe(400);
@@ -389,7 +402,7 @@ describe('authentication defenses', () => {
 
     const foreign = await call(app, '/api/v1/auth/login', {
       method: 'POST',
-      body: { email: 'person@example.test', password: PASSWORD },
+      body: { username: 'person', password: PASSWORD },
       origin: 'https://evil.example',
     });
     expect(foreign.status).toBe(403);
@@ -410,20 +423,20 @@ describe('authentication defenses', () => {
   it('escalates to Turnstile after repeated failures and then rate-limits', async () => {
     const harness = createTestHarness();
     await seedFirm(harness);
-    await seedUser(harness, { email: 'person@example.test', password: PASSWORD });
+    await seedUser(harness, { username: 'person', password: PASSWORD });
     const app = appFor(harness);
 
     for (let attempt = 0; attempt < 5; attempt += 1) {
       const response = await call(app, '/api/v1/auth/login', {
         method: 'POST',
-        body: { email: 'person@example.test', password: 'wrong password' },
+        body: { username: 'person', password: 'wrong password' },
       });
       expect(response.status).toBe(401);
     }
 
     const challenge = await call(app, '/api/v1/auth/login', {
       method: 'POST',
-      body: { email: 'person@example.test', password: PASSWORD },
+      body: { username: 'person', password: PASSWORD },
     });
     expect(challenge.status).toBe(200);
     const challengeBody = await json(challenge);
@@ -433,12 +446,12 @@ describe('authentication defenses', () => {
     for (let attempt = 0; attempt < 5; attempt += 1) {
       await call(app, '/api/v1/auth/login', {
         method: 'POST',
-        body: { email: 'person@example.test', password: 'wrong password' },
+        body: { username: 'person', password: 'wrong password' },
       });
     }
     const denied = await call(app, '/api/v1/auth/login', {
       method: 'POST',
-      body: { email: 'person@example.test', password: PASSWORD },
+      body: { username: 'person', password: PASSWORD },
     });
     expect(denied.status).toBe(429);
     expect((await json(denied))['code']).toBe('TOO_MANY_ATTEMPTS');
@@ -448,18 +461,18 @@ describe('authentication defenses', () => {
   it('accepts a verified Turnstile token after failures', async () => {
     const harness = createTestHarness({ turnstileValid: true });
     await seedFirm(harness);
-    await seedUser(harness, { email: 'person@example.test', password: PASSWORD });
+    await seedUser(harness, { username: 'person', password: PASSWORD });
     const app = appFor(harness);
     for (let attempt = 0; attempt < 5; attempt += 1) {
       await call(app, '/api/v1/auth/login', {
         method: 'POST',
-        body: { email: 'person@example.test', password: 'wrong password' },
+        body: { username: 'person', password: 'wrong password' },
       });
     }
     const accepted = await call(app, '/api/v1/auth/login', {
       method: 'POST',
       body: {
-        email: 'person@example.test',
+        username: 'person',
         password: PASSWORD,
         turnstileToken: 'verified-token',
       },

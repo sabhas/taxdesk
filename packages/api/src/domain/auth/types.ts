@@ -2,8 +2,7 @@ import type { UserStatus } from '@taxdesk/shared';
 
 export interface UserRecord {
   readonly id: string;
-  readonly email: string;
-  readonly emailNormalized: string;
+  readonly username: string;
   readonly displayName: string;
   readonly passwordHash: string | null;
   readonly passwordHashVersion: number | null;

@@ -1,15 +1,20 @@
-import { AUDIT_ACTIONS, PasswordPolicySchema, newUuidV7, type UuidV7 } from '@taxdesk/shared';
+import {
+  AUDIT_ACTIONS,
+  PasswordPolicySchema,
+  newUuidV7,
+  normalizeUsername,
+  type UuidV7,
+} from '@taxdesk/shared';
 import type { PasswordHasher } from '../../crypto/password.js';
 import type { TokenHasher } from '../../crypto/token.js';
 import type { Repositories, UnitOfWork } from '../../repositories/ports.js';
 import { appendAuditEvent } from './audit-service.js';
 import { AuthError } from './errors.js';
 import { isUniqueViolation } from '../../repositories/postgres.js';
-import { normalizeEmail } from './session-view.js';
 
 export interface BootstrapInput {
   readonly firmName: string;
-  readonly email: string;
+  readonly username: string;
   readonly displayName: string;
   readonly password: string;
   readonly timezone?: string;
@@ -30,7 +35,7 @@ export interface BootstrapDependencies {
 
 /**
  * First-administrator bootstrap. There is no default credential: the operator
- * supplies the firm name, email, display name, and password interactively (or
+ * supplies the firm name, username, display name, and password interactively (or
  * through explicit CLI flags). The operation refuses to run when setup has
  * already completed or any administrator already exists.
  */
@@ -65,9 +70,9 @@ export class BootstrapService {
       );
     }
 
-    const normalizedEmail = normalizeEmail(input.email);
-    if ((await this.dependencies.repositories.users.findByEmail(normalizedEmail)) !== null) {
-      throw new AuthError(409, 'EMAIL_IN_USE', 'A user with that email already exists.');
+    const username = normalizeUsername(input.username);
+    if ((await this.dependencies.repositories.users.findByUsername(username)) !== null) {
+      throw new AuthError(409, 'USERNAME_IN_USE', 'A user with that username already exists.');
     }
 
     const passwordHash = await this.dependencies.passwordHasher.hash(input.password);
@@ -89,8 +94,7 @@ export class BootstrapService {
         }
         await repositories.users.create({
           id: userId,
-          email: input.email.trim(),
-          emailNormalized: normalizedEmail,
+          username,
           displayName: input.displayName.trim(),
           passwordHash,
           passwordHashVersion,

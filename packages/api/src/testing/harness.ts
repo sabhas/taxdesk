@@ -79,7 +79,7 @@ export function createTestHarness(options: TestHarnessOptions = {}): TestHarness
 }
 
 export interface SeedUserInput {
-  readonly email: string;
+  readonly username: string;
   readonly password: string;
   readonly role?: RoleKey;
   readonly roles?: readonly RoleKey[];
@@ -102,8 +102,7 @@ export async function seedUser(harness: TestHarness, input: SeedUserInput): Prom
   const passwordHash = await harness.dependencies.passwordHasher.hash(input.password);
   const user = await harness.repositories.users.create({
     id: newUuidV7(now.getTime()),
-    email: input.email,
-    emailNormalized: input.email.trim().toLowerCase(),
+    username: input.username.trim().toLowerCase(),
     displayName: input.displayName ?? 'Test User',
     passwordHash: input.status === 'invited' ? null : passwordHash,
     passwordHashVersion: input.status === 'invited' ? null : 1,

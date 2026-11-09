@@ -1,4 +1,4 @@
-import { EmailSchema, PasswordPolicySchema } from '@taxdesk/shared';
+import { PasswordPolicySchema, UsernameSchema } from '@taxdesk/shared';
 import { AuthError } from '../domain/auth/errors.js';
 import { CliUsageError, parseCliArgs, readValue, type ParsedCliArgs } from './args.js';
 import type { CliServices } from './services.js';
@@ -7,7 +7,7 @@ import type { Prompt } from './prompt.js';
 export const RECOVERY_USAGE = `TaxDesk offline account recovery
 
 Usage:
-  taxdesk-auth-recover [--non-interactive] --email <email> --action <action> [options]
+  taxdesk-auth-recover [--non-interactive] --username <name> --action <action> [options]
 
 Actions:
   reset-password    Set a new password, revoke sessions, invalidate reset links
@@ -15,10 +15,10 @@ Actions:
   reactivate        Reactivate a deactivated account, revoke sessions
 
 Options:
-  --email <email>          Account email
+  --username <name>        Account username
   --action <action>        Recovery action
   --password <password>    New password for reset-password (omit to enter without echo)
-  --confirm <email>        Required confirmation when non-interactive
+  --confirm <name>         Required confirmation (the username) when non-interactive
   --database-url <url>     PostgreSQL URL (default DATABASE_URL)
   --non-interactive        Fail instead of prompting
   --help                   Show this help
@@ -39,7 +39,7 @@ export interface RecoveryCliIo {
 }
 
 interface RecoveryInput {
-  readonly email: string;
+  readonly username: string;
   readonly action: RecoveryAction;
   readonly password: string | undefined;
 }
@@ -50,15 +50,15 @@ function isAction(value: string): value is RecoveryAction {
 
 async function collectInput(parsed: ParsedCliArgs, io: RecoveryCliIo): Promise<RecoveryInput> {
   const nonInteractive = parsed.flags.has('non-interactive');
-  const rawEmail =
-    readValue(parsed, 'email') ??
-    (nonInteractive ? undefined : await io.prompt.ask('Account email'));
-  if (rawEmail === undefined) {
-    throw new CliUsageError('--email is required.');
+  const rawUsername =
+    readValue(parsed, 'username') ??
+    (nonInteractive ? undefined : await io.prompt.ask('Account username'));
+  if (rawUsername === undefined) {
+    throw new CliUsageError('--username is required.');
   }
-  const email = EmailSchema.safeParse(rawEmail);
-  if (!email.success) {
-    throw new CliUsageError('Enter a valid email address.');
+  const username = UsernameSchema.safeParse(rawUsername);
+  if (!username.success) {
+    throw new CliUsageError('Enter a valid username.');
   }
 
   const rawAction =
@@ -90,20 +90,22 @@ async function collectInput(parsed: ParsedCliArgs, io: RecoveryCliIo): Promise<R
     }
   }
 
-  return { email: email.data, action: rawAction, password };
+  return { username: username.data, action: rawAction, password };
 }
 
-async function confirm(io: RecoveryCliIo, parsed: ParsedCliArgs, email: string): Promise<void> {
+async function confirm(io: RecoveryCliIo, parsed: ParsedCliArgs, username: string): Promise<void> {
   const nonInteractive = parsed.flags.has('non-interactive');
   if (nonInteractive) {
     const supplied = readValue(parsed, 'confirm');
-    if (supplied?.trim().toLowerCase() !== email.toLowerCase()) {
-      throw new CliUsageError('Non-interactive recovery requires --confirm with the exact email.');
+    if (supplied?.trim().toLowerCase() !== username) {
+      throw new CliUsageError(
+        'Non-interactive recovery requires --confirm with the exact username.',
+      );
     }
     return;
   }
-  const answer = await io.prompt.ask(`Type ${email} to confirm`);
-  if (answer.trim().toLowerCase() !== email.toLowerCase()) {
+  const answer = await io.prompt.ask(`Type ${username} to confirm`);
+  if (answer.trim().toLowerCase() !== username) {
     throw new CliUsageError('Confirmation did not match; no changes were made.');
   }
 }
@@ -129,21 +131,21 @@ export async function runRecoveryCli(io: RecoveryCliIo): Promise<number> {
   let services: CliServices | undefined;
   try {
     const input = await collectInput(parsed, io);
-    await confirm(io, parsed, input.email);
+    await confirm(io, parsed, input.username);
     services = io.createServices(databaseUrl);
     if (input.action === 'reset-password') {
-      await services.recovery.resetPassword(input.email, input.password ?? '');
+      await services.recovery.resetPassword(input.username, input.password ?? '');
     } else if (input.action === 'disable-mfa') {
-      await services.recovery.disableMfa(input.email);
+      await services.recovery.disableMfa(input.username);
     } else {
-      await services.recovery.reactivate(input.email);
+      await services.recovery.reactivate(input.username);
     }
     io.stdout(
       JSON.stringify({
         command: 'auth:recover',
         status: 'completed',
         action: input.action,
-        email: input.email.trim().toLowerCase(),
+        username: input.username,
       }),
     );
     return 0;

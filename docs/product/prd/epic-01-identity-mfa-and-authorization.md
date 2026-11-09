@@ -41,7 +41,7 @@ Create custom TaxDesk accounts with role- and permission-based access, secure se
 
 **User story:** As the firm owner, I want to create the first administrator securely so that no default credential exists in source code.
 
-- [x] Provide an interactive CLI bootstrap command requiring explicit firm name, email, and password.
+- [x] Provide an interactive CLI bootstrap command requiring explicit firm name, username, and password.
 - [x] Store only the versioned password hash and write an audit event.
 - [x] Refuse to bootstrap another initial administrator after setup completes.
 
@@ -58,7 +58,7 @@ Create custom TaxDesk accounts with role- and permission-based access, secure se
 
 **User story:** As an invited user, I want to sign in and out of TaxDesk so that I can access only my firm’s records.
 
-- [x] Validate email/password server-side with generic failure messages.
+- [x] Validate username/password server-side with generic failure messages.
 - [x] Create a session after verified credentials and clear it on logout.
 - [x] Display loading, invalid credential, expired-session, and server-error states in the web application.
 - [x] Verify state-changing routes reject absent or expired sessions.
@@ -134,6 +134,7 @@ Create custom TaxDesk accounts with role- and permission-based access, secure se
 - Second-factor guesses share the login throttle; a denied MFA challenge is burned.
 - PBKDF2 uses 100,000 iterations, the Cloudflare Workers Web Crypto maximum.
 - Browser tests are the React Testing Library suite in `packages/web/src/App.test.tsx`.
+- Staff sign in with a permanent username, not an email ([ADR 0002](../../adr/0002-username-sign-in.md), migration `0004`).
 - Decisions: [ADR 0001](../../adr/0001-custom-identity-sessions-and-mfa.md). Recovery:
   [administrator recovery runbook](../../guides/administrator-recovery.md).
 - Remaining for done: deploy to staging with `MFA_ENCRYPTION_KEY` and Turnstile

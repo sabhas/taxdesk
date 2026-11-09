@@ -113,9 +113,9 @@ export function createInMemoryRepositories(): InMemoryRepositories {
         const user = state.users.get(id);
         return user === undefined ? null : { ...user };
       },
-      findByEmail: async (normalizedEmail) => {
+      findByUsername: async (username) => {
         for (const user of state.users.values()) {
-          if (user.emailNormalized === normalizedEmail) {
+          if (user.username === username) {
             return { ...user };
           }
         }
@@ -124,14 +124,13 @@ export function createInMemoryRepositories(): InMemoryRepositories {
       list: async () => [...state.users.values()].map((user) => ({ ...user })),
       create: async (input) => {
         for (const user of state.users.values()) {
-          if (user.emailNormalized === input.emailNormalized) {
-            throw new Error('A user with that email already exists.');
+          if (user.username === input.username) {
+            throw new Error('A user with that username already exists.');
           }
         }
         const user: UserRecord = {
           id: input.id,
-          email: input.email,
-          emailNormalized: input.emailNormalized,
+          username: input.username,
           displayName: input.displayName,
           passwordHash: input.passwordHash,
           passwordHashVersion: input.passwordHashVersion,

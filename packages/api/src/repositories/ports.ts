@@ -37,12 +37,11 @@ export interface FirmRepository {
 
 export interface UserRepository {
   findById(id: string): Promise<UserRecord | null>;
-  findByEmail(normalizedEmail: string): Promise<UserRecord | null>;
+  findByUsername(username: string): Promise<UserRecord | null>;
   list(): Promise<UserRecord[]>;
   create(input: {
     readonly id: string;
-    readonly email: string;
-    readonly emailNormalized: string;
+    readonly username: string;
     readonly displayName: string;
     readonly passwordHash: string | null;
     readonly passwordHashVersion: number | null;

@@ -13,7 +13,7 @@ export class CliUsageError extends Error {
 
 const VALUE_FLAGS = new Set([
   'firm-name',
-  'email',
+  'username',
   'display-name',
   'password',
   'timezone',

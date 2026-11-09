@@ -98,7 +98,7 @@ describe('server-side permission enforcement', () => {
       const harness = createTestHarness();
       await seedFirm(harness);
       const { user } = await seedUser(harness, {
-        email: `${role}@example.test`,
+        username: role,
         password: PASSWORD,
         role,
         mfaEnrolled: true,
@@ -134,19 +134,19 @@ describe('server-side permission enforcement', () => {
     const harness = createTestHarness();
     await seedFirm(harness);
     const consultant = await seedUser(harness, {
-      email: 'consultant@example.test',
+      username: 'consultant',
       password: PASSWORD,
       role: 'consultant',
       mfaEnrolled: true,
     });
     const other = await seedUser(harness, {
-      email: 'other-manager@example.test',
+      username: 'other-manager',
       password: PASSWORD,
       role: 'manager',
       mfaEnrolled: true,
     });
     const admin = await seedUser(harness, {
-      email: 'admin@example.test',
+      username: 'admin',
       password: PASSWORD,
       role: 'administrator',
       mfaEnrolled: true,
@@ -165,7 +165,7 @@ describe('server-side permission enforcement', () => {
     expect(guessed.status).toBe(403);
     const guessedBody = await body(guessed);
     expect(guessedBody['code']).toBe('FORBIDDEN');
-    expect(JSON.stringify(guessedBody)).not.toContain('other-manager@example.test');
+    expect(JSON.stringify(guessedBody)).not.toContain('other-manager');
 
     expect(
       (await call(app, `/api/v1/users/${other.user.id}`, { cookie: adminCookie })).status,
@@ -176,13 +176,13 @@ describe('server-side permission enforcement', () => {
     const harness = createTestHarness();
     await seedFirm(harness);
     const billing = await seedUser(harness, {
-      email: 'billing@example.test',
+      username: 'billing',
       password: PASSWORD,
       role: 'billing',
       mfaEnrolled: true,
     });
     const admin = await seedUser(harness, {
-      email: 'admin@example.test',
+      username: 'admin',
       password: PASSWORD,
       role: 'administrator',
       mfaEnrolled: true,
@@ -195,14 +195,14 @@ describe('server-side permission enforcement', () => {
       body: {},
     });
     expect(response.status).toBe(403);
-    expect(await response.text()).not.toContain(admin.user.email);
+    expect(await response.text()).not.toContain(admin.user.username);
   });
 
   it('blocks a session created before MFA enrollment from permission routes', async () => {
     const harness = createTestHarness();
     await seedFirm(harness);
     const { user } = await seedUser(harness, {
-      email: 'admin@example.test',
+      username: 'admin',
       password: PASSWORD,
       role: 'administrator',
     });

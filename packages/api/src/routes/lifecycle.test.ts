@@ -58,7 +58,7 @@ const NEW_PASSWORD = 'another correct horse battery';
 
 async function adminSession(harness: TestHarness) {
   const admin = await seedUser(harness, {
-    email: 'admin@example.test',
+    username: 'admin',
     password: PASSWORD,
     role: 'administrator',
     mfaEnrolled: true,
@@ -77,7 +77,7 @@ describe('administrator user lifecycle', () => {
     const invitation = await call(app, '/api/v1/admin/users/invitations', {
       method: 'POST',
       cookie,
-      body: { email: 'consultant@example.test', displayName: 'New Consultant', role: 'consultant' },
+      body: { username: 'consultant', displayName: 'New Consultant', role: 'consultant' },
     });
     expect(invitation.status).toBe(200);
     const invitationBody = await body(invitation);
@@ -89,10 +89,26 @@ describe('administrator user lifecycle', () => {
     const duplicate = await call(app, '/api/v1/admin/users/invitations', {
       method: 'POST',
       cookie,
-      body: { email: 'consultant@example.test', displayName: 'Again', role: 'consultant' },
+      body: { username: 'consultant', displayName: 'Again', role: 'consultant' },
     });
     expect(duplicate.status).toBe(409);
-    expect((await body(duplicate))['code']).toBe('EMAIL_IN_USE');
+    expect((await body(duplicate))['code']).toBe('USERNAME_IN_USE');
+
+    // Usernames are case-insensitive, so a differently cased duplicate is refused.
+    const cased = await call(app, '/api/v1/admin/users/invitations', {
+      method: 'POST',
+      cookie,
+      body: { username: 'Consultant', displayName: 'Again', role: 'consultant' },
+    });
+    expect(cased.status).toBe(409);
+
+    const emailStyle = await call(app, '/api/v1/admin/users/invitations', {
+      method: 'POST',
+      cookie,
+      body: { username: 'someone@example.test', displayName: 'Someone', role: 'consultant' },
+    });
+    expect(emailStyle.status).toBe(400);
+    expect((await body(emailStyle))['code']).toBe('VALIDATION_FAILED');
 
     const token = new URL(activationUrl).searchParams.get('token') ?? '';
     const activated = await call(app, '/api/v1/auth/activate', {
@@ -111,7 +127,7 @@ describe('administrator user lifecycle', () => {
 
     const login = await call(app, '/api/v1/auth/login', {
       method: 'POST',
-      body: { email: 'consultant@example.test', password: NEW_PASSWORD },
+      body: { username: 'consultant', password: NEW_PASSWORD },
     });
     expect(login.status).toBe(200);
     expect((await body(login))['status']).toBe('mfa_enrollment_required');
@@ -122,7 +138,7 @@ describe('administrator user lifecycle', () => {
     await seedFirm(harness);
     const { cookie } = await adminSession(harness);
     const target = await seedUser(harness, {
-      email: 'target@example.test',
+      username: 'target',
       password: PASSWORD,
       role: 'manager',
       mfaEnrolled: true,
@@ -149,12 +165,12 @@ describe('administrator user lifecycle', () => {
 
     const oldPassword = await call(app, '/api/v1/auth/login', {
       method: 'POST',
-      body: { email: 'target@example.test', password: PASSWORD },
+      body: { username: 'target', password: PASSWORD },
     });
     expect(oldPassword.status).toBe(401);
     const newPassword = await call(app, '/api/v1/auth/login', {
       method: 'POST',
-      body: { email: 'target@example.test', password: NEW_PASSWORD },
+      body: { username: 'target', password: NEW_PASSWORD },
     });
     expect(newPassword.status).toBe(200);
   });
@@ -164,7 +180,7 @@ describe('administrator user lifecycle', () => {
     await seedFirm(harness);
     const { cookie } = await adminSession(harness);
     const target = await seedUser(harness, {
-      email: 'target@example.test',
+      username: 'target',
       password: PASSWORD,
       role: 'manager',
       mfaEnrolled: true,
@@ -207,7 +223,7 @@ describe('administrator user lifecycle', () => {
     await seedFirm(harness);
     const { cookie } = await adminSession(harness);
     const target = await seedUser(harness, {
-      email: 'target@example.test',
+      username: 'target',
       password: PASSWORD,
       role: 'manager',
       mfaEnrolled: true,
@@ -228,10 +244,10 @@ describe('administrator user lifecycle', () => {
 
     const login = await call(app, '/api/v1/auth/login', {
       method: 'POST',
-      body: { email: 'target@example.test', password: PASSWORD },
+      body: { username: 'target', password: PASSWORD },
     });
     expect(login.status).toBe(401);
-    expect((await body(login))['detail']).toBe('The email or password is incorrect.');
+    expect((await body(login))['detail']).toBe('The username or password is incorrect.');
 
     const resetForDeactivated = await call(
       app,

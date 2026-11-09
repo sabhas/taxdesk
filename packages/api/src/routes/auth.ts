@@ -42,7 +42,7 @@ authRoutes.post('/login', protect({ access: 'public' }), async (c) => {
   const body = await parseJsonBody(c, LoginRequestSchema);
   const remoteIp = clientIp(c);
   const outcome = await c.get('dependencies').authService.login({
-    email: body.email,
+    username: body.username,
     password: body.password,
     ...(body.turnstileToken === undefined ? {} : { turnstileToken: body.turnstileToken }),
     ...(remoteIp === undefined ? {} : { remoteIp }),
@@ -109,7 +109,7 @@ authRoutes.post('/activate', protect({ access: 'public' }), async (c) => {
     password: body.password,
     requestId: c.get('requestId'),
   });
-  return c.json(ActivationResponseSchema.parse({ status: 'activated', email: result.email }));
+  return c.json(ActivationResponseSchema.parse({ status: 'activated', username: result.username }));
 });
 
 authRoutes.get('/session', protect({ access: 'session' }), (c) => {
