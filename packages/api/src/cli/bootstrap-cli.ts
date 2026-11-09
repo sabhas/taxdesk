@@ -90,6 +90,49 @@ function validate(input: BootstrapInput): BootstrapInput {
   };
 }
 
+const MAX_PROMPT_ATTEMPTS = 3;
+
+/**
+ * Re-asks one interactive field until it is valid, so a typo is caught where it
+ * was made instead of after the password prompts. Gives up after a few tries.
+ */
+async function askUntilValid(
+  io: BootstrapCliIo,
+  ask: () => Promise<string>,
+  schema: z.ZodType<unknown>,
+  message: (issues: readonly z.ZodIssue[]) => string,
+): Promise<string> {
+  let lastMessage = '';
+  for (let attempt = 0; attempt < MAX_PROMPT_ATTEMPTS; attempt += 1) {
+    const answer = await ask();
+    const parsed = schema.safeParse(answer);
+    if (parsed.success) {
+      return answer;
+    }
+    lastMessage = message(parsed.error.issues);
+    io.stderr(lastMessage);
+  }
+  throw new CliUsageError(lastMessage);
+}
+
+/** Asks for a new password and its confirmation, re-asking both on a mismatch. */
+async function askNewPassword(io: BootstrapCliIo): Promise<string> {
+  for (let attempt = 0; attempt < MAX_PROMPT_ATTEMPTS; attempt += 1) {
+    const password = await askUntilValid(
+      io,
+      () => io.prompt.askSecret('Password (minimum 12 characters)'),
+      PasswordPolicySchema,
+      (issues) => issues[0]?.message ?? 'The password is too weak.',
+    );
+    const confirmation = await io.prompt.askSecret('Confirm password');
+    if (confirmation === password) {
+      return password;
+    }
+    io.stderr('The passwords do not match. Enter them again.');
+  }
+  throw new CliUsageError('The passwords do not match.');
+}
+
 async function collectInput(parsed: ParsedCliArgs, io: BootstrapCliIo): Promise<BootstrapInput> {
   const nonInteractive = parsed.flags.has('non-interactive');
   const provided = {
@@ -120,17 +163,31 @@ async function collectInput(parsed: ParsedCliArgs, io: BootstrapCliIo): Promise<
     });
   }
 
-  const firmName = provided.firmName ?? (await io.prompt.ask('Firm name'));
-  const email = provided.email ?? (await io.prompt.ask('Administrator email'));
-  const displayName = provided.displayName ?? (await io.prompt.ask('Administrator display name'));
-  const password =
-    provided.password ?? (await io.prompt.askSecret('Password (minimum 12 characters)'));
-  if (provided.password === undefined) {
-    const confirmation = await io.prompt.askSecret('Confirm password');
-    if (confirmation !== password) {
-      throw new CliUsageError('The passwords do not match.');
-    }
-  }
+  const firmName =
+    provided.firmName ??
+    (await askUntilValid(
+      io,
+      () => io.prompt.ask('Firm name'),
+      FirmNameSchema,
+      () => 'Enter a firm name between 1 and 160 characters.',
+    ));
+  const email =
+    provided.email ??
+    (await askUntilValid(
+      io,
+      () => io.prompt.ask('Administrator email'),
+      EmailSchema,
+      () => 'Enter a valid email address, such as admin@example.com.',
+    ));
+  const displayName =
+    provided.displayName ??
+    (await askUntilValid(
+      io,
+      () => io.prompt.ask('Administrator display name'),
+      DisplayNameSchema,
+      () => 'Enter a display name between 1 and 120 characters.',
+    ));
+  const password = provided.password ?? (await askNewPassword(io));
 
   return validate({
     firmName,
