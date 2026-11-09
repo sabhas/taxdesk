@@ -162,7 +162,12 @@ export async function createDefaultDependencies(
   if (connectionString === undefined || connectionString.length === 0) {
     throw new DependencyConfigurationError('The database binding is not configured.');
   }
-  const executor = createSqlExecutor(connectionString);
+  // Hyperdrive terminates TLS to the managed database in staging/production.
+  // Under `wrangler dev` the binding is a local proxy to a developer Postgres
+  // that usually has no TLS, so only the development environment may skip it.
+  const executor = createSqlExecutor(connectionString, {
+    requireTls: env.ENVIRONMENT !== 'development',
+  });
   try {
     return buildDependencies({
       executor,
