@@ -1,8 +1,10 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
+import { BrowserRouter, Navigate, Route, Routes, useNavigate } from 'react-router';
 import type { CurrentSession } from '@taxdesk/shared';
 import { CSPProvider } from '@base-ui/react/csp-provider';
 import { Button } from '@/components/ui/button';
-import { AppShell, type View } from './components/AppShell.js';
+import { DocumentTitle } from '@/lib/document-title';
+import { AppShell } from './components/AppShell.js';
 import { ErrorAlert, LoadingMessage, PermissionDenied } from './components/feedback.js';
 import { AuthHeading, AuthLayout } from './components/layout/AuthLayout.js';
 import { ActivationPage } from './pages/ActivationPage.js';
@@ -12,10 +14,24 @@ import { FirmSettingsPage } from './pages/FirmSettingsPage.js';
 import { LoginPage, type MfaChallengeState } from './pages/LoginPage.js';
 import { MfaChallengePage } from './pages/MfaChallengePage.js';
 import { MfaEnrollmentPage } from './pages/MfaEnrollmentPage.js';
+import { NotFoundPage } from './pages/NotFoundPage.js';
 import { SecurityPage } from './pages/SecurityPage.js';
 import { UsersPage } from './pages/UsersPage.js';
+import { NAV_ROUTES, ROUTE_PATHS } from './routes.js';
 import { SessionProvider, useSession } from './session/session-context.js';
 
+const PAGES: Readonly<Record<string, ReactNode>> = {
+  [ROUTE_PATHS.dashboard]: <DashboardPage />,
+  [ROUTE_PATHS.security]: <SecurityPage />,
+  [ROUTE_PATHS.users]: <UsersPage />,
+  [ROUTE_PATHS.firmSettings]: <FirmSettingsPage />,
+  [ROUTE_PATHS.audit]: <AuditPage />,
+};
+
+/**
+ * Reads the one-time token from an activation link. The API builds these as
+ * `/activate?token=…`; any path with a token is accepted, as before routing.
+ */
 function activationTokenFromLocation(): string | null {
   const parameters = new URLSearchParams(window.location.search);
   const token = parameters.get('token');
@@ -28,7 +44,7 @@ function AppContent() {
   const [activationToken, setActivationToken] = useState<string | null>(
     activationTokenFromLocation,
   );
-  const [view, setView] = useState<View>('dashboard');
+  const navigate = useNavigate();
 
   const onAuthenticated = useCallback(
     (session: CurrentSession) => {
@@ -40,33 +56,43 @@ function AppContent() {
 
   const onActivationDone = useCallback(() => {
     setActivationToken(null);
-    window.history.replaceState({}, '', '/');
+    // Drop the one-time token from the address bar and history entry.
+    void navigate(ROUTE_PATHS.dashboard, { replace: true });
     refresh();
-  }, [refresh]);
+  }, [navigate, refresh]);
 
   const onMfaEnrollmentComplete = useCallback(() => {
     refresh();
   }, [refresh]);
 
   if (activationToken !== null) {
-    return <ActivationPage token={activationToken} onDone={onActivationDone} />;
+    return (
+      <>
+        <DocumentTitle title="Activate your account" />
+        <ActivationPage token={activationToken} onDone={onActivationDone} />
+      </>
+    );
   }
 
   if (challenge !== null) {
     return (
-      <MfaChallengePage
-        challenge={challenge}
-        onAuthenticated={onAuthenticated}
-        onStartOver={() => {
-          setChallenge(null);
-        }}
-      />
+      <>
+        <DocumentTitle title="Verify sign-in" />
+        <MfaChallengePage
+          challenge={challenge}
+          onAuthenticated={onAuthenticated}
+          onStartOver={() => {
+            setChallenge(null);
+          }}
+        />
+      </>
     );
   }
 
   if (state.status === 'loading') {
     return (
       <AuthLayout>
+        <DocumentTitle />
         <AuthHeading title="TaxDesk" />
         <LoadingMessage>Loading your session…</LoadingMessage>
       </AuthLayout>
@@ -76,6 +102,7 @@ function AppContent() {
   if (state.status === 'error') {
     return (
       <AuthLayout>
+        <DocumentTitle />
         <AuthHeading title="TaxDesk" />
         <ErrorAlert
           notice={{
@@ -92,22 +119,33 @@ function AppContent() {
   }
 
   if (state.status === 'anonymous') {
+    // The URL is left untouched, so a deep link such as /users opens that page
+    // once sign-in completes.
     return (
-      <LoginPage
-        expired={state.expired}
-        onAuthenticated={onAuthenticated}
-        onMfaRequired={setChallenge}
-      />
+      <>
+        <DocumentTitle title="Sign in" />
+        <LoginPage
+          expired={state.expired}
+          onAuthenticated={onAuthenticated}
+          onMfaRequired={setChallenge}
+        />
+      </>
     );
   }
 
   if (!state.session.user.mfaEnrolled) {
-    return <MfaEnrollmentPage onComplete={onMfaEnrollmentComplete} />;
+    return (
+      <>
+        <DocumentTitle title="Set up multi-factor authentication" />
+        <MfaEnrollmentPage onComplete={onMfaEnrollmentComplete} />
+      </>
+    );
   }
 
   if (!state.session.session.mfaVerified) {
     return (
       <AuthLayout>
+        <DocumentTitle title="Verify your session" />
         <AuthHeading
           title="Verify your session"
           description="Sign in again to complete multi-factor verification."
@@ -120,12 +158,40 @@ function AppContent() {
   }
 
   return (
-    <AppShell view={view} onNavigate={setView}>
-      {view === 'dashboard' && <DashboardPage />}
-      {view === 'security' && <SecurityPage />}
-      {view === 'users' && (can('users.manage') ? <UsersPage /> : <PermissionDenied />)}
-      {view === 'firm' && (can('firm.settings.read') ? <FirmSettingsPage /> : <PermissionDenied />)}
-      {view === 'audit' && (can('audit.read') ? <AuditPage /> : <PermissionDenied />)}
+    <AppShell>
+      <Routes>
+        {NAV_ROUTES.map((route) => (
+          <Route
+            key={route.path}
+            path={route.path}
+            element={
+              <>
+                <DocumentTitle title={route.title} />
+                {/* UI gating only: the API enforces every permission. */}
+                {route.permission === undefined || can(route.permission) ? (
+                  PAGES[route.path]
+                ) : (
+                  <PermissionDenied />
+                )}
+              </>
+            }
+          />
+        ))}
+        {/* An activation link opened without a token, or after activation. */}
+        <Route
+          path={ROUTE_PATHS.activate}
+          element={<Navigate to={ROUTE_PATHS.dashboard} replace />}
+        />
+        <Route
+          path="*"
+          element={
+            <>
+              <DocumentTitle title="Page not found" />
+              <NotFoundPage />
+            </>
+          }
+        />
+      </Routes>
     </AppShell>
   );
 }
@@ -134,10 +200,12 @@ export function App() {
   return (
     // The content security policy allows only same-origin stylesheets
     // (style-src 'self'), so Base UI must not inject <style> elements.
-    <CSPProvider disableStyleElements>
-      <SessionProvider>
-        <AppContent />
-      </SessionProvider>
-    </CSPProvider>
+    <BrowserRouter>
+      <CSPProvider disableStyleElements>
+        <SessionProvider>
+          <AppContent />
+        </SessionProvider>
+      </CSPProvider>
+    </BrowserRouter>
   );
 }
