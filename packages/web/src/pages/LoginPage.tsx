@@ -1,4 +1,4 @@
-import { useCallback, useState, type FormEvent } from 'react';
+import { useCallback, useState, type SubmitEvent } from 'react';
 import type { CurrentSession } from '@taxdesk/shared';
 import { login } from '../auth-client.js';
 import { LoaderCircle } from 'lucide-react';
@@ -35,7 +35,7 @@ export function LoginPage({
     setTurnstileToken(token);
   }, []);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
+  async function handleSubmit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (siteKey !== null && turnstileToken.length === 0) {
       setNotice({

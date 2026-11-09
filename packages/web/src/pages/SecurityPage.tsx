@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type SubmitEvent } from 'react';
 import { LoaderCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -26,7 +26,7 @@ export function SecurityPage() {
     return null;
   }
 
-  async function regenerate(event: FormEvent<HTMLFormElement>): Promise<void> {
+  async function regenerate(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setSubmitting('regenerate');
     setNotice(null);
@@ -44,7 +44,7 @@ export function SecurityPage() {
     }
   }
 
-  async function disable(event: FormEvent<HTMLFormElement>): Promise<void> {
+  async function disable(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (!confirmDisable) {
       setNotice({

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type SubmitEvent } from 'react';
 import { Check, Copy, LoaderCircle, UserPlus } from 'lucide-react';
 import { ROLE_DEFINITIONS, ROLE_KEYS, type RoleKey, type UserSummary } from '@taxdesk/shared';
 import {
@@ -65,7 +65,9 @@ export function UsersPage() {
   const [deactivationOpen, setDeactivationOpen] = useState(false);
   // The dialog opens from state, not a Trigger, so focus return is explicit:
   // back to the row's status button (Deactivate, or Reactivate after success).
-  const statusButtons = useRef(new Map<string, HTMLButtonElement>());
+  // The button is looked up in the DOM when the dialog closes: a callback-ref
+  // map is briefly empty while React re-attaches refs during that render.
+  const focusReturnUserId = useRef<string | null>(null);
 
   const load = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -93,7 +95,7 @@ export function UsersPage() {
     return <PermissionDenied />;
   }
 
-  async function invite(event: FormEvent<HTMLFormElement>): Promise<void> {
+  async function invite(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setInviting(true);
     setNotice(null);
@@ -160,6 +162,7 @@ export function UsersPage() {
   }
 
   function requestDeactivation(user: UserSummary): void {
+    focusReturnUserId.current = user.id;
     setPendingDeactivation(user);
     setDeactivationOpen(true);
   }
@@ -348,13 +351,7 @@ export function UsersPage() {
                           </Button>
                           {!isSelf && (
                             <Button
-                              ref={(element) => {
-                                if (element === null) {
-                                  statusButtons.current.delete(user.id);
-                                } else {
-                                  statusButtons.current.set(user.id, element);
-                                }
-                              }}
+                              data-status-action={user.id}
                               type="button"
                               variant="outline"
                               size="sm"
@@ -470,11 +467,14 @@ export function UsersPage() {
         }}
       >
         <AlertDialogContent
-          finalFocus={() =>
-            pendingDeactivation === null
-              ? true
-              : (statusButtons.current.get(pendingDeactivation.id) ?? true)
-          }
+          finalFocus={() => {
+            const userId = focusReturnUserId.current;
+            const button =
+              userId === null
+                ? null
+                : document.querySelector<HTMLElement>(`[data-status-action="${userId}"]`);
+            return button ?? true;
+          }}
         >
           {pendingDeactivation !== null && (
             <>
