@@ -122,6 +122,9 @@ jobs:
       - name: Run the PostgreSQL migration integration suite
         run: pnpm test:migrations
 
+      - name: Run the identity repository integration suite
+        run: pnpm test:api-db
+
   secret-history:
     name: Secret history scan
     runs-on: ubuntu-latest

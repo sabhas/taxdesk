@@ -12,6 +12,11 @@ export interface ApiBindings {
   HYPERDRIVE?: {
     connectionString: string;
   };
+  MFA_ENCRYPTION_KEY?: string;
+  TURNSTILE_SECRET_KEY?: string;
+  TURNSTILE_SITE_KEY?: string;
+  APP_ORIGIN?: string;
+  APP_PUBLIC_URL?: string;
   [key: string]: unknown;
 }
 
@@ -35,5 +40,37 @@ export function resolveRuntimeConfig(env: ApiBindings): RuntimeConfig {
   return {
     environment: parsed.ENVIRONMENT,
     releaseVersion: parsed.RELEASE_VERSION,
+  };
+}
+
+export interface AuthRuntimeConfig {
+  readonly mfaEncryptionKey: string | undefined;
+  readonly turnstileSecretKey: string | undefined;
+  readonly turnstileSiteKey: string | undefined;
+  readonly allowedOrigins: readonly string[];
+  readonly appPublicUrl: string | undefined;
+}
+
+function optionalString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+/**
+ * Identity/MFA configuration. Missing MFA and Turnstile secrets are surfaced as
+ * explicit service-unavailable responses at the point of use; they never
+ * silently disable a required security control.
+ */
+export function resolveAuthConfig(env: ApiBindings): AuthRuntimeConfig {
+  const allowedOrigins = (optionalString(env.APP_ORIGIN) ?? '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0);
+
+  return {
+    mfaEncryptionKey: optionalString(env.MFA_ENCRYPTION_KEY),
+    turnstileSecretKey: optionalString(env.TURNSTILE_SECRET_KEY),
+    turnstileSiteKey: optionalString(env.TURNSTILE_SITE_KEY),
+    allowedOrigins,
+    appPublicUrl: optionalString(env.APP_PUBLIC_URL),
   };
 }

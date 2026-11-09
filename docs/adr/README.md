@@ -12,3 +12,9 @@ ADRs preserve decisions that are expensive to reverse. Once accepted, do not rew
 The currently accepted decisions are documented in [the implementation plan](../taxdesk-implementation-plan.md): React on Cloudflare Pages, Hono on Cloudflare Workers with Hyperdrive and separate managed PostgreSQL databases for development, staging, and production, one firm per deployment, custom application login with MFA, and a provider-neutral document interface with OneDrive first.
 
 When implementation begins, create separate ADRs for decisions that change cost, data isolation, security posture, or public contracts.
+
+## Index
+
+| ADR | Title | Status |
+| --- | --- | --- |
+| [0001](0001-custom-identity-sessions-and-mfa.md) | Custom identity, opaque sessions, mandatory TOTP MFA, and declared route policies | accepted |

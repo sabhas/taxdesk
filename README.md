@@ -170,6 +170,34 @@ endpoints are added story by story. The React shell calls `/health`, shows
 loading and success states, and presents a friendly retryable error with the
 request reference ID when the health call fails.
 
+## Identity and access
+
+Epic 1 adds custom staff accounts with mandatory TOTP MFA. There is no public
+registration: the first administrator is created offline, and everyone else is
+invited by an administrator with a one-time 30-minute link that TaxDesk shows
+but never emails.
+
+| Task                                                               | Command               |
+| ------------------------------------------------------------------ | --------------------- |
+| Create the firm and first administrator (refuses a second run)     | `pnpm auth:bootstrap` |
+| Offline lockout recovery (reset password, disable MFA, reactivate) | `pnpm auth:recover`   |
+| Run the identity repository integration suite                      | `pnpm test:api-db`    |
+
+Both CLIs need deployment-level `DATABASE_URL` access and write audit events;
+see [`docs/guides/administrator-recovery.md`](docs/guides/administrator-recovery.md).
+`pnpm test:api-db` needs `TAXDESK_API_TEST_DATABASE_URL` (or
+`TAXDESK_MIGRATIONS_TEST_DATABASE_URL`) pointing at a disposable `_test`
+database and is skipped otherwise.
+
+Every `/api/v1` route declares one access policy with `protect()` in
+`packages/api/src/middleware/auth.ts` (`public`, `session`, `self_service`,
+`permission`, or `self_or_permission`). A route-registry test fails if a route
+has no policy and drives every built-in role against every declared
+permission. The role/permission catalog lives in `@taxdesk/shared`
+(`ROLE_DEFINITIONS`). The decisions are recorded in
+[ADR 0001](docs/adr/0001-custom-identity-sessions-and-mfa.md); identity secrets
+are listed in [`docs/technical/environments.md`](docs/technical/environments.md).
+
 ## API error contract
 
 Every API failure returns RFC 9457-style Problem Details with the
