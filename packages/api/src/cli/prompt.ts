@@ -1,5 +1,5 @@
 import { createInterface } from 'node:readline/promises';
-import type { Readable, Writable } from 'node:stream';
+import { Writable, type Readable } from 'node:stream';
 
 export interface Prompt {
   ask(question: string, defaultValue?: string): Promise<string>;
@@ -8,15 +8,53 @@ export interface Prompt {
 }
 
 /**
- * Interactive prompt for the operator CLIs. Secrets are read without echo when
- * stdin is a TTY; a piped invocation reads a line so the command stays scriptable
- * without printing the secret.
+ * Forwards readline's output to the real terminal except while muted. Secrets
+ * are read by the same readline interface as every other answer, with its echo
+ * (typed characters, cursor redraws) swallowed here. A second reader on stdin
+ * would race readline for keystrokes, and readline would echo the secret.
+ */
+class MutableOutput extends Writable {
+  muted = false;
+
+  constructor(private readonly target: Writable & { isTTY?: boolean; columns?: number }) {
+    super();
+  }
+
+  get isTTY(): boolean {
+    return this.target.isTTY === true;
+  }
+
+  get columns(): number | undefined {
+    return this.target.columns;
+  }
+
+  override _write(
+    chunk: Buffer | string,
+    encoding: BufferEncoding,
+    callback: (error?: Error | null) => void,
+  ): void {
+    if (!this.muted) {
+      this.target.write(chunk, encoding);
+    }
+    callback();
+  }
+}
+
+/**
+ * Interactive prompt for the operator CLIs. Secrets are never echoed: on a TTY
+ * the terminal shows nothing while the secret is typed, and a piped invocation
+ * reads a line without printing it, so the command stays scriptable.
  */
 export function createPrompt(
-  input: Readable & { isTTY?: boolean; setRawMode?: (mode: boolean) => void },
-  output: Writable,
+  input: Readable & { isTTY?: boolean },
+  output: Writable & { isTTY?: boolean; columns?: number },
 ): Prompt {
-  const readline = createInterface({ input, output });
+  const mutable = new MutableOutput(output);
+  const readline = createInterface({
+    input,
+    output: mutable,
+    terminal: input.isTTY === true && output.isTTY === true,
+  });
 
   return {
     async ask(question, defaultValue) {
@@ -25,48 +63,14 @@ export function createPrompt(
       return answer.length === 0 ? (defaultValue ?? '') : answer;
     },
     async askSecret(question) {
-      if (input.isTTY !== true || typeof input.setRawMode !== 'function') {
-        const answer = await readline.question(`${question}: `);
-        return answer.trim();
-      }
-
       output.write(`${question}: `);
-      input.setRawMode(true);
-      input.resume();
-      input.setEncoding('utf8');
-
-      return await new Promise<string>((resolve, reject) => {
-        let value = '';
-        const finish = (error?: Error): void => {
-          input.setRawMode?.(false);
-          input.pause();
-          input.removeListener('data', onData);
-          output.write('\n');
-          if (error) {
-            reject(error);
-          } else {
-            resolve(value);
-          }
-        };
-        const onData = (chunk: string): void => {
-          for (const character of chunk) {
-            if (character === '\r' || character === '\n') {
-              finish();
-              return;
-            }
-            if (character === '\u0003') {
-              finish(new Error('Cancelled.'));
-              return;
-            }
-            if (character === '\u007f') {
-              value = value.slice(0, -1);
-              continue;
-            }
-            value += character;
-          }
-        };
-        input.on('data', onData);
-      });
+      mutable.muted = true;
+      try {
+        return await readline.question('');
+      } finally {
+        mutable.muted = false;
+        output.write('\n');
+      }
     },
     close() {
       readline.close();

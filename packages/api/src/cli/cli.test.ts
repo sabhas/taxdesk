@@ -155,6 +155,33 @@ describe('bootstrap CLI', () => {
     expect(io.stderr.join('\n')).toContain('do not match');
   });
 
+  it('re-asks an invalid email instead of failing after the password prompts', async () => {
+    const io = recorder();
+    const created = services();
+    const prompt = fakePrompt(
+      ['Example Firm', 'owner', 'owner@example.test', 'Owner'],
+      ['correct horse battery staple', 'correct horse battery staple'],
+    );
+    const code = await runBootstrapCli({
+      argv: [],
+      env,
+      prompt,
+      stdout: (line) => io.stdout.push(line),
+      stderr: (line) => io.stderr.push(line),
+      now: () => new Date('2026-01-01T00:00:00Z'),
+      createServices: () => created.value,
+    });
+    expect(code).toBe(0);
+    expect(io.stderr.join('\n')).toContain('valid email address');
+    expect(prompt.asked).toEqual([
+      'Firm name',
+      'Administrator email',
+      'Administrator email',
+      'Administrator display name',
+    ]);
+    expect(io.stdout.join('\n')).toContain('"status":"created"');
+  });
+
   it('refuses to run without a database URL', async () => {
     const io = recorder();
     const code = await runBootstrapCli({
