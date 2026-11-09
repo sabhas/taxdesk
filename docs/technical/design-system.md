@@ -109,6 +109,26 @@ Use sentence case everywhere. Do not use all-caps labels.
 Every button keeps a visible text label, or an `aria-label` when it shows
 only an icon. Icons are decorative (`aria-hidden="true"`).
 
+### Confirming an action
+
+Ask for confirmation only when an action revokes access or can't be undone in
+one step, such as deactivating a user (it signs them out of every session).
+Actions that are safe or reversible with one click, such as reactivating a
+user, run immediately.
+
+- Use one `AlertDialog` per page, opened from state (for example
+  `pendingDeactivation`), not one per row. Without a `Trigger`, set
+  `finalFocus` so focus returns to the row button that opened it.
+- The title asks the question with its object: "Deactivate Staff Person?".
+  The description says what happens and what is kept.
+- The confirm button repeats the action and its object ("Deactivate Staff
+  Person") and uses the `destructive` variant; `Cancel` comes first. Escape
+  and `Cancel` never perform the action.
+- While the request runs, the confirm button shows the busy spinner with
+  `aria-busy` and both buttons are disabled. Close the dialog when the request
+  finishes and report the result with the page's `SuccessNotice` or
+  `ErrorAlert`.
+
 ## Local changes to generated components
 
 Re-apply these after regenerating a component with the CLI:
