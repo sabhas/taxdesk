@@ -1,6 +1,16 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Check, Copy, LoaderCircle, UserPlus } from 'lucide-react';
 import { ROLE_DEFINITIONS, ROLE_KEYS, type RoleKey, type UserSummary } from '@taxdesk/shared';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -49,6 +59,13 @@ export function UsersPage() {
   const [displayName, setDisplayName] = useState('');
   const [role, setRole] = useState<RoleKey>('consultant');
   const [inviting, setInviting] = useState(false);
+  // The dialog keeps showing the pending user while it animates closed, so
+  // whether it is open is tracked separately from who it is about.
+  const [pendingDeactivation, setPendingDeactivation] = useState<UserSummary | null>(null);
+  const [deactivationOpen, setDeactivationOpen] = useState(false);
+  // The dialog opens from state, not a Trigger, so focus return is explicit:
+  // back to the row's status button (Deactivate, or Reactivate after success).
+  const statusButtons = useRef(new Map<string, HTMLButtonElement>());
 
   const load = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -69,6 +86,8 @@ export function UsersPage() {
       controller.abort();
     };
   }, [load]);
+
+  const deactivating = pendingDeactivation !== null && busyUserId === pendingDeactivation.id;
 
   if (!can('users.manage')) {
     return <PermissionDenied />;
@@ -138,6 +157,20 @@ export function UsersPage() {
     } finally {
       setBusyUserId(null);
     }
+  }
+
+  function requestDeactivation(user: UserSummary): void {
+    setPendingDeactivation(user);
+    setDeactivationOpen(true);
+  }
+
+  async function confirmDeactivation(): Promise<void> {
+    if (pendingDeactivation === null) {
+      return;
+    }
+    // toggleStatus reports success or failure in the page notices.
+    await toggleStatus(pendingDeactivation);
+    setDeactivationOpen(false);
   }
 
   async function resetLink(user: UserSummary): Promise<void> {
@@ -315,11 +348,24 @@ export function UsersPage() {
                           </Button>
                           {!isSelf && (
                             <Button
+                              ref={(element) => {
+                                if (element === null) {
+                                  statusButtons.current.delete(user.id);
+                                } else {
+                                  statusButtons.current.set(user.id, element);
+                                }
+                              }}
                               type="button"
                               variant="outline"
                               size="sm"
                               disabled={busyUserId !== null}
-                              onClick={() => void toggleStatus(user)}
+                              onClick={() => {
+                                if (deactivated) {
+                                  void toggleStatus(user);
+                                } else {
+                                  requestDeactivation(user);
+                                }
+                              }}
                             >
                               {deactivated ? 'Reactivate' : 'Deactivate'}
                             </Button>
@@ -409,6 +455,54 @@ export function UsersPage() {
           </CardContent>
         </Card>
       </div>
+
+      <AlertDialog
+        open={deactivationOpen}
+        onOpenChange={(open) => {
+          if (!open && !deactivating) {
+            setDeactivationOpen(false);
+          }
+        }}
+        onOpenChangeComplete={(open) => {
+          if (!open) {
+            setPendingDeactivation(null);
+          }
+        }}
+      >
+        <AlertDialogContent
+          finalFocus={() =>
+            pendingDeactivation === null
+              ? true
+              : (statusButtons.current.get(pendingDeactivation.id) ?? true)
+          }
+        >
+          {pendingDeactivation !== null && (
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Deactivate {pendingDeactivation.displayName}?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {pendingDeactivation.displayName} will be signed out of every session and
+                  can&apos;t sign in until an administrator reactivates them. Their records and
+                  audit history are kept.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={deactivating}>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  type="button"
+                  variant="destructive"
+                  disabled={deactivating}
+                  aria-busy={deactivating}
+                  onClick={() => void confirmDeactivation()}
+                >
+                  {deactivating && <LoaderCircle aria-hidden="true" className="animate-spin" />}
+                  Deactivate {pendingDeactivation.displayName}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </>
+          )}
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }

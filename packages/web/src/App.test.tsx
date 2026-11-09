@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { axe } from 'vitest-axe';
 import { permissionsForRoles, type CurrentSession, type RoleKey } from '@taxdesk/shared';
 import { App } from './App.js';
@@ -296,7 +296,7 @@ describe('authorization and session lifecycle in the UI', () => {
     expect(screen.queryByRole('heading', { name: 'Sign in to TaxDesk' })).not.toBeInTheDocument();
   });
 
-  it('deactivates a user and reports that their sessions were revoked', async () => {
+  it('deactivates a user after confirmation and reports that their sessions were revoked', async () => {
     const staff = {
       id: '0198a000-0000-7000-8000-000000000003',
       username: 'staff',
@@ -324,15 +324,72 @@ describe('authorization and session lifecycle in the UI', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Users' }));
     await screen.findByText('Staff Person');
     fireEvent.click(screen.getByRole('button', { name: 'Deactivate' }));
+    const dialog = await screen.findByRole('alertdialog');
+    expect(
+      within(dialog).getByRole('heading', { name: 'Deactivate Staff Person?' }),
+    ).toBeInTheDocument();
+    expect(dialog).toHaveTextContent(/signed out of every session/);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Deactivate Staff Person' }));
     expect(
       await screen.findByText('Deactivated staff. Their sessions were revoked.'),
     ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Reactivate' })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    });
+    const reactivate = screen.getByRole('button', { name: 'Reactivate' });
+    await waitFor(() => {
+      expect(reactivate).toHaveFocus();
+    });
     const [url, init] = fetchMock.mock.calls[2] as [string, RequestInit];
     expect(url).toBe(`/api/v1/admin/users/${staff.id}`);
     expect(init.method).toBe('PATCH');
     expect((init.headers as Record<string, string>)['If-Match']).toBe('"1"');
     expect(JSON.parse(init.body as string)).toEqual({ status: 'deactivated' });
+  });
+
+  it('cancels deactivation without sending an update', async () => {
+    const staff = {
+      id: '0198a000-0000-7000-8000-000000000003',
+      username: 'staff',
+      displayName: 'Staff Person',
+      status: 'active' as const,
+      roles: ['consultant' as const],
+      mfaEnrolled: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+      version: 1,
+    };
+    const fetchMock = vi.fn();
+    const sequence = [() => json(sessionFor()), () => json({ users: [staff] })];
+    fetchMock.mockImplementation(async () => {
+      const next = sequence.shift();
+      return next === undefined ? problem(500, 'INTERNAL_ERROR', 'No more responses.') : next();
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    render(<App />);
+    await screen.findByRole('heading', { name: /Welcome, Test Person/ });
+    fireEvent.click(screen.getByRole('button', { name: 'Users' }));
+    await screen.findByText('Staff Person');
+    const deactivate = screen.getByRole('button', { name: 'Deactivate' });
+    fireEvent.click(deactivate);
+    const dialog = await screen.findByRole('alertdialog');
+    const results = await axe(document.body);
+    expect(
+      results.violations.filter(
+        (violation) => violation.impact === 'serious' || violation.impact === 'critical',
+      ),
+    ).toHaveLength(0);
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(deactivate).toHaveFocus();
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(screen.queryByText(/Deactivated staff/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Deactivate' })).toBeInTheDocument();
   });
 
   it('sends a deactivated user back to sign in on their next request', async () => {
