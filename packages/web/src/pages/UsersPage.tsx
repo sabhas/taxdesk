@@ -1,23 +1,35 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { ROLE_KEYS, type RoleKey, type UserSummary } from '@taxdesk/shared';
+import { Check, Copy, LoaderCircle, UserPlus } from 'lucide-react';
+import { ROLE_DEFINITIONS, ROLE_KEYS, type RoleKey, type UserSummary } from '@taxdesk/shared';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { createResetLink, inviteUser, listUsers, updateUser } from '../auth-client.js';
 import { useSession } from '../session/session-context.js';
 import {
+  EmptyState,
   ErrorAlert,
   LoadingMessage,
   PermissionDenied,
   SuccessNotice,
   type ErrorNotice,
 } from '../components/feedback.js';
+import { PageHeader } from '../components/layout/PageHeader.js';
 import { toErrorNotice } from './error-notice.js';
 
-const ROLE_LABELS: Record<RoleKey, string> = {
-  administrator: 'Administrator',
-  manager: 'Manager',
-  consultant: 'Consultant',
-  billing: 'Billing',
-  read_only: 'Read-only',
-};
+const roleName = (role: RoleKey): string => ROLE_DEFINITIONS[role].name;
 
 interface OneTimeLink {
   readonly url: string;
@@ -96,7 +108,7 @@ export function UsersPage() {
       setUsers((current) =>
         current === null ? null : current.map((item) => (item.id === updated.id ? updated : item)),
       );
-      setSuccess(`Updated ${updated.username} to ${ROLE_LABELS[nextRole]}.`);
+      setSuccess(`Updated ${updated.username} to ${roleName(nextRole)}.`);
     } catch (error) {
       setNotice(toErrorNotice(error, 'Could not change the role'));
       await load();
@@ -160,182 +172,243 @@ export function UsersPage() {
 
   return (
     <section aria-labelledby="users-heading">
-      <h1 id="users-heading">Users</h1>
-      <p className="muted small">
-        Activation and reset links are shown once for you to deliver. TaxDesk does not send email
-        automatically.
-      </p>
+      <PageHeader
+        id="users-heading"
+        title="Users"
+        description="Activation and reset links are shown once for you to deliver. TaxDesk does not send email automatically."
+      />
       {notice !== null && <ErrorAlert notice={notice} />}
       {success !== null && <SuccessNotice>{success}</SuccessNotice>}
       {link !== null && (
-        <section className="card" aria-labelledby="one-time-link-heading">
-          <h2 id="one-time-link-heading">One-time link</h2>
-          <p>{link.label}</p>
-          <p className="break-all">
-            <a href={link.url}>{link.url}</a>
-          </p>
-          <p className="muted small">
-            Expires {new Date(link.expiresAt).toLocaleString()}. The link works once.
-          </p>
-          <div className="button-row">
-            <button type="button" onClick={() => void copyLink()}>
-              Copy link
-            </button>
-            <button
-              type="button"
-              className="secondary"
-              onClick={() => {
-                setLink(null);
-                setCopyStatus(null);
-              }}
-            >
-              Dismiss
-            </button>
-          </div>
-          {copyStatus !== null && (
-            <p role="status" className="muted small">
-              {copyStatus}
+        <Card aria-labelledby="one-time-link-heading" className="mb-6 ring-primary/30">
+          <CardHeader>
+            <CardTitle>
+              <h2 id="one-time-link-heading">One-time link</h2>
+            </CardTitle>
+            <CardDescription>
+              {link.label}. Expires {new Date(link.expiresAt).toLocaleString()}. The link works
+              once.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="rounded-md bg-muted px-3 py-2 font-mono text-sm break-all">
+              <a href={link.url} className="text-primary underline-offset-4 hover:underline">
+                {link.url}
+              </a>
             </p>
-          )}
-        </section>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button type="button" onClick={() => void copyLink()}>
+                {copyStatus === 'Link copied.' ? (
+                  <Check aria-hidden="true" />
+                ) : (
+                  <Copy aria-hidden="true" />
+                )}
+                Copy link
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setLink(null);
+                  setCopyStatus(null);
+                }}
+              >
+                Dismiss
+              </Button>
+              {copyStatus !== null && (
+                <p role="status" className="text-sm text-muted-foreground">
+                  {copyStatus}
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
-      <section className="card" aria-labelledby="invite-heading">
-        <h2 id="invite-heading">Invite a user</h2>
-        <form onSubmit={(event) => void invite(event)}>
-          <div className="field">
-            <label htmlFor="invite-username">Username</label>
-            <input
-              id="invite-username"
-              type="text"
-              autoComplete="off"
-              autoCapitalize="none"
-              spellCheck={false}
-              required
-              minLength={3}
-              maxLength={32}
-              pattern="[A-Za-z0-9][A-Za-z0-9._\-]{1,30}[A-Za-z0-9]"
-              aria-describedby="invite-username-help"
-              value={username}
-              onChange={(event) => {
-                setUsername(event.target.value);
-              }}
-            />
-            <p id="invite-username-help" className="muted small">
-              3–32 letters, digits, dots, underscores, or hyphens. Usernames are permanent.
-            </p>
-          </div>
-          <div className="field">
-            <label htmlFor="invite-name">Display name</label>
-            <input
-              id="invite-name"
-              autoComplete="off"
-              required
-              value={displayName}
-              onChange={(event) => {
-                setDisplayName(event.target.value);
-              }}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="invite-role">Role</label>
-            <select
-              id="invite-role"
-              value={role}
-              onChange={(event) => {
-                setRole(event.target.value as RoleKey);
-              }}
-            >
-              {ROLE_KEYS.map((key) => (
-                <option key={key} value={key}>
-                  {ROLE_LABELS[key]}
-                </option>
-              ))}
-            </select>
-          </div>
-          <button type="submit" disabled={inviting} aria-busy={inviting}>
-            {inviting ? 'Inviting…' : 'Send invitation'}
-          </button>
-        </form>
-      </section>
-
-      {users === null ? (
-        <LoadingMessage>Loading users…</LoadingMessage>
-      ) : users.length === 0 ? (
-        <p className="muted">No users yet.</p>
-      ) : (
-        <div className="table-wrap">
-          <table>
-            <caption className="muted small">Firm users and their current access</caption>
-            <thead>
-              <tr>
-                <th scope="col">Name</th>
-                <th scope="col">Role</th>
-                <th scope="col">Status</th>
-                <th scope="col">MFA</th>
-                <th scope="col">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((user) => {
-                const isSelf =
-                  state.status === 'authenticated' && state.session.user.id === user.id;
-                return (
-                  <tr key={user.id}>
-                    <td>
-                      <strong>{user.displayName}</strong>
-                      <div className="muted small">{user.username}</div>
-                    </td>
-                    <td>
-                      <label className="visually-hidden" htmlFor={`role-${user.id}`}>
-                        Role for {user.displayName}
-                      </label>
-                      <select
-                        id={`role-${user.id}`}
-                        value={user.roles[0] ?? 'read_only'}
-                        disabled={busyUserId !== null}
-                        onChange={(event) => {
-                          void changeRole(user, event.target.value as RoleKey);
-                        }}
-                      >
-                        {ROLE_KEYS.map((key) => (
-                          <option key={key} value={key}>
-                            {ROLE_LABELS[key]}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td>{user.status}</td>
-                    <td>{user.mfaEnrolled ? 'Enabled' : 'Not set up'}</td>
-                    <td>
-                      <div className="button-row">
-                        {!isSelf && (
-                          <button
-                            type="button"
-                            className="secondary"
-                            disabled={busyUserId !== null}
-                            onClick={() => void toggleStatus(user)}
-                          >
-                            {user.status === 'deactivated' ? 'Reactivate' : 'Deactivate'}
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          className="secondary"
-                          disabled={busyUserId !== null || user.status === 'deactivated'}
-                          onClick={() => void resetLink(user)}
+      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
+        <Card className="gap-0 py-0">
+          {users === null ? (
+            <div className="px-4">
+              <LoadingMessage>Loading users…</LoadingMessage>
+            </div>
+          ) : users.length === 0 ? (
+            <EmptyState title="No users yet">
+              Invite the first staff member with the form.
+            </EmptyState>
+          ) : (
+            <Table>
+              <TableCaption className="sr-only">Firm users and their current access</TableCaption>
+              <TableHeader>
+                <TableRow>
+                  <TableHead scope="col">Name</TableHead>
+                  <TableHead scope="col">Role</TableHead>
+                  <TableHead scope="col">Status</TableHead>
+                  <TableHead scope="col">MFA</TableHead>
+                  <TableHead scope="col" className="text-right">
+                    Actions
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {users.map((user) => {
+                  const isSelf =
+                    state.status === 'authenticated' && state.session.user.id === user.id;
+                  const deactivated = user.status === 'deactivated';
+                  return (
+                    <TableRow
+                      key={user.id}
+                      className={deactivated ? 'text-muted-foreground' : undefined}
+                    >
+                      <TableCell>
+                        <span className="block font-medium text-foreground">
+                          {user.displayName}
+                        </span>
+                        <span className="block text-xs text-muted-foreground">{user.username}</span>
+                      </TableCell>
+                      <TableCell>
+                        <label className="sr-only" htmlFor={`role-${user.id}`}>
+                          Role for {user.displayName}
+                        </label>
+                        <NativeSelect
+                          id={`role-${user.id}`}
+                          size="sm"
+                          className="min-w-36"
+                          value={user.roles[0] ?? 'read_only'}
+                          disabled={busyUserId !== null}
+                          onChange={(event) => {
+                            void changeRole(user, event.target.value as RoleKey);
+                          }}
                         >
-                          Reset link
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+                          {ROLE_KEYS.map((key) => (
+                            <NativeSelectOption key={key} value={key}>
+                              {roleName(key)}
+                            </NativeSelectOption>
+                          ))}
+                        </NativeSelect>
+                      </TableCell>
+                      <TableCell>
+                        {deactivated ? (
+                          <Badge variant="outline">Deactivated</Badge>
+                        ) : user.status === 'active' ? (
+                          <Badge variant="success">Active</Badge>
+                        ) : (
+                          <Badge variant="warning">Invited</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {user.mfaEnrolled ? (
+                          <Badge variant="success">Enabled</Badge>
+                        ) : (
+                          <Badge variant="warning">Not set up</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex justify-end gap-1.5">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={busyUserId !== null || deactivated}
+                            onClick={() => void resetLink(user)}
+                          >
+                            Reset link
+                          </Button>
+                          {!isSelf && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={busyUserId !== null}
+                              onClick={() => void toggleStatus(user)}
+                            >
+                              {deactivated ? 'Reactivate' : 'Deactivate'}
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </Card>
+
+        <Card aria-labelledby="invite-heading">
+          <CardHeader>
+            <CardTitle>
+              <h2 id="invite-heading">Invite a user</h2>
+            </CardTitle>
+            <CardDescription>You get a one-time activation link to share.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={(event) => void invite(event)}>
+              <FieldGroup>
+                <Field>
+                  <FieldLabel htmlFor="invite-username">Username</FieldLabel>
+                  <Input
+                    id="invite-username"
+                    type="text"
+                    autoComplete="off"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    required
+                    minLength={3}
+                    maxLength={32}
+                    pattern="[A-Za-z0-9][A-Za-z0-9._\-]{1,30}[A-Za-z0-9]"
+                    aria-describedby="invite-username-help"
+                    value={username}
+                    onChange={(event) => {
+                      setUsername(event.target.value);
+                    }}
+                  />
+                  <FieldDescription id="invite-username-help">
+                    3–32 letters, digits, dots, underscores, or hyphens. Usernames are permanent.
+                  </FieldDescription>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="invite-name">Display name</FieldLabel>
+                  <Input
+                    id="invite-name"
+                    autoComplete="off"
+                    required
+                    value={displayName}
+                    onChange={(event) => {
+                      setDisplayName(event.target.value);
+                    }}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="invite-role">Role</FieldLabel>
+                  <NativeSelect
+                    id="invite-role"
+                    className="w-full"
+                    value={role}
+                    onChange={(event) => {
+                      setRole(event.target.value as RoleKey);
+                    }}
+                  >
+                    {ROLE_KEYS.map((key) => (
+                      <NativeSelectOption key={key} value={key}>
+                        {roleName(key)}
+                      </NativeSelectOption>
+                    ))}
+                  </NativeSelect>
+                  <FieldDescription>{ROLE_DEFINITIONS[role].description}</FieldDescription>
+                </Field>
+                <Button type="submit" disabled={inviting} aria-busy={inviting}>
+                  {inviting ? (
+                    <LoaderCircle aria-hidden="true" className="animate-spin" />
+                  ) : (
+                    <UserPlus aria-hidden="true" />
+                  )}
+                  {inviting ? 'Inviting…' : 'Send invitation'}
+                </Button>
+              </FieldGroup>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
     </section>
   );
 }

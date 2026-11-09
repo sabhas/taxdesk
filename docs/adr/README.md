@@ -19,3 +19,4 @@ When implementation begins, create separate ADRs for decisions that change cost,
 | --- | --- | --- |
 | [0001](0001-custom-identity-sessions-and-mfa.md) | Custom identity, opaque sessions, mandatory TOTP MFA, and declared route policies | accepted (sign-in identifier superseded by 0002) |
 | [0002](0002-username-sign-in.md) | Sign in with a permanent username instead of an email | accepted |
+| [0003](0003-ui-foundation.md) | shadcn/ui on Base UI and Tailwind CSS as the web UI foundation | accepted |

@@ -1,12 +1,27 @@
 import { useCallback, useEffect, useState } from 'react';
+import { LoaderCircle } from 'lucide-react';
 import type { AuditEvent } from '@taxdesk/shared';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { listAuditEvents } from '../auth-client.js';
 import {
+  EmptyState,
   ErrorAlert,
   LoadingMessage,
   PermissionDenied,
   type ErrorNotice,
 } from '../components/feedback.js';
+import { PageHeader } from '../components/layout/PageHeader.js';
 import { useSession } from '../session/session-context.js';
 import { toErrorNotice } from './error-notice.js';
 
@@ -63,58 +78,75 @@ export function AuditPage() {
 
   return (
     <section aria-labelledby="audit-heading">
-      <h1 id="audit-heading">Audit history</h1>
-      <p className="muted small">
-        Audit events are append-only. They do not include passwords, tokens, or MFA secrets.
-      </p>
+      <PageHeader
+        id="audit-heading"
+        title="Audit history"
+        description="Audit events are append-only. They do not include passwords, tokens, or MFA secrets."
+      />
       {notice !== null && <ErrorAlert notice={notice} />}
       {events === null ? (
-        <LoadingMessage>Loading audit history…</LoadingMessage>
-      ) : events.length === 0 ? (
-        <p className="muted">No audit events yet.</p>
+        notice === null && <LoadingMessage>Loading audit history…</LoadingMessage>
       ) : (
-        <>
-          <div className="table-wrap">
-            <table>
-              <caption className="muted small">Most recent first</caption>
-              <thead>
-                <tr>
-                  <th scope="col">When</th>
-                  <th scope="col">Action</th>
-                  <th scope="col">Entity</th>
-                  <th scope="col">Request</th>
-                </tr>
-              </thead>
-              <tbody>
+        <Card className="gap-0 py-0">
+          {events.length === 0 ? (
+            <EmptyState title="No audit events yet">
+              Sign-ins, user changes and setting changes will appear here.
+            </EmptyState>
+          ) : (
+            <Table>
+              <TableCaption className="sr-only">Audit events, most recent first</TableCaption>
+              <TableHeader>
+                <TableRow>
+                  <TableHead scope="col">When</TableHead>
+                  <TableHead scope="col">Action</TableHead>
+                  <TableHead scope="col">Entity</TableHead>
+                  <TableHead scope="col">Request</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {events.map((event) => (
-                  <tr key={event.id}>
-                    <td>{new Date(event.occurredAt).toLocaleString()}</td>
-                    <td>
-                      <code>{event.action}</code>
-                    </td>
-                    <td>
+                  <TableRow key={event.id}>
+                    <TableCell className="whitespace-nowrap text-muted-foreground">
+                      {new Date(event.occurredAt).toLocaleString()}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="font-mono font-normal">
+                        {event.action}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
                       {event.entityType}
-                      {event.entityId === null ? '' : ` · ${event.entityId}`}
-                    </td>
-                    <td>
-                      <code className="break-all">{event.requestId}</code>
-                    </td>
-                  </tr>
+                      {event.entityId !== null && (
+                        <span className="block font-mono text-xs text-muted-foreground">
+                          {event.entityId}
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <code className="text-xs break-all text-muted-foreground">
+                        {event.requestId}
+                      </code>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
-          </div>
-          {cursor !== null && (
-            <button
-              type="button"
-              disabled={loadingMore}
-              aria-busy={loadingMore}
-              onClick={() => void loadMore()}
-            >
-              {loadingMore ? 'Loading…' : 'Load more'}
-            </button>
+              </TableBody>
+            </Table>
           )}
-        </>
+          {cursor !== null && (
+            <div className="flex justify-center border-t p-3">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={loadingMore}
+                aria-busy={loadingMore}
+                onClick={() => void loadMore()}
+              >
+                {loadingMore && <LoaderCircle aria-hidden="true" className="animate-spin" />}
+                {loadingMore ? 'Loading…' : 'Load more'}
+              </Button>
+            </div>
+          )}
+        </Card>
       )}
     </section>
   );

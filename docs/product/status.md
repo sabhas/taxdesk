@@ -12,6 +12,8 @@ last_reviewed: 2026-11-09
 
 **Epic 1:** identity, MFA, and authorization (TD-101–TD-111) are implemented and pass every local gate. They await staging configuration, a staging demonstration, and Sprint Review before the epic is marked done.
 
+**UI foundation (cross-cutting, not a backlog story):** the web app now uses shadcn/ui on Base UI with Tailwind CSS and the "ledger" design tokens ([ADR 0003](../adr/0003-ui-foundation.md), [design system](../technical/design-system.md)). The app shell and all existing Epic 1 screens were migrated with unchanged behavior; the production build was checked against the real content security policy with no violations. It still needs a staging visual check and a backlog entry so Sprint Review can accept it.
+
 Update this file when an epic or sprint starts, becomes blocked, or completes.
 
 | Epic | Name | Status | Sprint(s) | Blocked by | Notes |

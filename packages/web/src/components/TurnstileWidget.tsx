@@ -96,15 +96,15 @@ export function TurnstileWidget({
   }, [siteKey, onToken]);
 
   return (
-    <div className="turnstile">
+    <div className="space-y-2">
       <div ref={container} />
       {status === 'loading' && (
-        <p role="status" className="muted">
+        <p role="status" className="text-sm text-muted-foreground">
           Loading verification…
         </p>
       )}
       {status === 'error' && (
-        <p role="alert" className="field-error">
+        <p role="alert" className="text-sm font-medium text-destructive">
           Verification could not load. Refresh the page and try again.
         </p>
       )}
