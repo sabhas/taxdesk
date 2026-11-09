@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type SubmitEvent } from 'react';
 import { Copy, LoaderCircle } from 'lucide-react';
 import type { MfaEnrollment } from '@taxdesk/shared';
 import { Button } from '@/components/ui/button';
@@ -48,7 +48,7 @@ export function MfaEnrollmentPage({ onComplete }: { onComplete: () => void }) {
   }, [onComplete]);
 
   const confirm = useCallback(
-    async (event: FormEvent<HTMLFormElement>) => {
+    async (event: SubmitEvent<HTMLFormElement>) => {
       event.preventDefault();
       setSubmitting(true);
       setNotice(null);

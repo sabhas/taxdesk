@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type SubmitEvent } from 'react';
 import { KeyRound, LoaderCircle, Smartphone } from 'lucide-react';
 import type { CurrentSession } from '@taxdesk/shared';
 import { Button } from '@/components/ui/button';
@@ -28,7 +28,7 @@ export function MfaChallengePage({
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState<ErrorNotice | null>(null);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
+  async function handleSubmit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setSubmitting(true);
     setNotice(null);

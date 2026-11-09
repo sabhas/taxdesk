@@ -1,4 +1,3 @@
-import { forwardRef } from 'react';
 import { Button as ButtonPrimitive } from '@base-ui/react/button';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from 'cn';
@@ -40,25 +39,19 @@ const buttonVariants = cva(
   },
 );
 
-type ButtonProps = ButtonPrimitive.Props & VariantProps<typeof buttonVariants>;
-
-/*
- * forwardRef keeps `render={<Button />}` working on React 18: Base UI triggers
- * attach a ref to the rendered element for focus return and positioning.
- * Remove the wrapper after upgrading to React 19, where ref is a plain prop.
- */
-const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { className, variant = 'default', size = 'default', ...props },
-  ref,
-) {
+function Button({
+  className,
+  variant = 'default',
+  size = 'default',
+  ...props
+}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
   return (
     <ButtonPrimitive
-      ref={ref}
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
     />
   );
-});
+}
 
 export { Button, buttonVariants };

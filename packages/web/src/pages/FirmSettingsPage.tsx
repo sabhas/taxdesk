@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type SubmitEvent } from 'react';
 import { LoaderCircle } from 'lucide-react';
 import type { FirmSettings } from '@taxdesk/shared';
 import { Button } from '@/components/ui/button';
@@ -54,7 +54,7 @@ export function FirmSettingsPage() {
     return <PermissionDenied />;
   }
 
-  async function save(event: FormEvent<HTMLFormElement>): Promise<void> {
+  async function save(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (settings === null) {
       return;

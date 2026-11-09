@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type SubmitEvent } from 'react';
 import { LoaderCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field';
@@ -15,7 +15,7 @@ export function ActivationPage({ token, onDone }: { token: string; onDone: () =>
   const [notice, setNotice] = useState<ErrorNotice | null>(null);
   const [complete, setComplete] = useState(false);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
+  async function handleSubmit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (password !== confirmation) {
       setNotice({ title: 'Passwords do not match', message: 'Enter the same password twice.' });

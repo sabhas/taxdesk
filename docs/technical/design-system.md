@@ -118,7 +118,11 @@ user, run immediately.
 
 - Use one `AlertDialog` per page, opened from state (for example
   `pendingDeactivation`), not one per row. Without a `Trigger`, set
-  `finalFocus` so focus returns to the row button that opened it.
+  `finalFocus` so focus returns to the row button that opened it. Find that
+  button in the DOM when the dialog closes (for example by a
+  `data-status-action` attribute), not through a map of callback refs: React
+  19 re-attaches those refs during the closing render, so the map is briefly
+  empty.
 - The title asks the question with its object: "Deactivate Staff Person?".
   The description says what happens and what is kept.
 - The confirm button repeats the action and its object ("Deactivate Staff
@@ -133,8 +137,8 @@ user, run immediately.
 
 Re-apply these after regenerating a component with the CLI:
 
-- `button.tsx`: `forwardRef` for React 18; default height `h-9`, `sm` `h-8`,
-  `lg` `h-10`, `icon` `size-9`; primary hover `bg-primary/90`.
+- `button.tsx`: default height `h-9`, `sm` `h-8`, `lg` `h-10`, `icon` `size-9`;
+  primary hover `bg-primary/90`.
 - `input.tsx`, `native-select.tsx`: `h-9`, `bg-card`, `px-3`.
 - `toggle.tsx`: default `h-9`.
 - `alert.tsx`: roomier padding; `destructive` uses the subtle background;
