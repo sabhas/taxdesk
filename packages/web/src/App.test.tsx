@@ -214,6 +214,15 @@ describe('MFA enrollment', () => {
       await screen.findByRole('heading', { name: 'Set up multi-factor authentication' }),
     ).toBeInTheDocument();
     expect(await screen.findByText('JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP')).toBeInTheDocument();
+    expect(
+      screen.getByRole('img', { name: /QR code that adds TaxDesk to your authenticator app/ }),
+    ).toBeInTheDocument();
+    const results = await axe(document.body);
+    expect(
+      results.violations.filter(
+        (violation) => violation.impact === 'serious' || violation.impact === 'critical',
+      ),
+    ).toHaveLength(0);
     fireEvent.change(screen.getByLabelText('Six-digit code'), { target: { value: '123456' } });
     fireEvent.click(screen.getByRole('button', { name: 'Enable MFA' }));
 

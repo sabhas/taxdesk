@@ -4,6 +4,7 @@ import { confirmMfa, enrollMfa } from '../auth-client.js';
 import { useSession } from '../session/session-context.js';
 import { ErrorAlert, LoadingMessage, type ErrorNotice } from '../components/feedback.js';
 import { toErrorNotice } from './error-notice.js';
+import { QrCode } from '../components/QrCode.js';
 
 export function MfaEnrollmentPage({ onComplete }: { onComplete: () => void }) {
   const { signOut } = useSession();
@@ -82,8 +83,8 @@ export function MfaEnrollmentPage({ onComplete }: { onComplete: () => void }) {
     <main>
       <h1>Set up multi-factor authentication</h1>
       <p>
-        TaxDesk requires an authenticator app before you can use firm records. Add the secret below
-        to your app, then enter the six-digit code.
+        TaxDesk requires an authenticator app before you can use firm records. Scan the QR code with
+        your app (or enter the secret by hand), then enter the six-digit code it shows.
       </p>
       {notice !== null && <ErrorAlert notice={notice} />}
       {enrollment === null ? (
@@ -92,8 +93,20 @@ export function MfaEnrollmentPage({ onComplete }: { onComplete: () => void }) {
         <section aria-labelledby="mfa-secret-heading">
           <h2 id="mfa-secret-heading">Authenticator setup</h2>
           <p className="muted small">{enrollment.issuer}</p>
+          <ol className="steps">
+            <li>Open your authenticator app and choose to add an account.</li>
+            <li>Scan this QR code with the app&apos;s camera.</li>
+          </ol>
+          <div className="qr-frame">
+            <QrCode
+              value={enrollment.otpauthUri}
+              label={`QR code that adds TaxDesk to your authenticator app for ${enrollment.issuer}`}
+            />
+          </div>
+          <p className="muted small">Keep this screen private: the QR code contains your secret.</p>
           <p>
-            Manual secret: <code className="secret-value">{enrollment.secret}</code>
+            Can&apos;t scan? Enter this secret instead:{' '}
+            <code className="secret-value">{enrollment.secret}</code>
           </p>
           <details>
             <summary>Use a setup link instead</summary>
