@@ -1,6 +1,11 @@
 import { useState, type FormEvent } from 'react';
+import { LoaderCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
 import { activate } from '../auth-client.js';
 import { ErrorAlert, SuccessNotice, type ErrorNotice } from '../components/feedback.js';
+import { AuthHeading, AuthLayout } from '../components/layout/AuthLayout.js';
 import { toErrorNotice } from './error-notice.js';
 
 export function ActivationPage({ token, onDone }: { token: string; onDone: () => void }) {
@@ -30,61 +35,71 @@ export function ActivationPage({ token, onDone }: { token: string; onDone: () =>
 
   if (complete) {
     return (
-      <main>
-        <h1>Account activated</h1>
+      <AuthLayout>
+        <AuthHeading title="Account activated" />
         <SuccessNotice>Your password is set. You can now sign in.</SuccessNotice>
-        <button type="button" onClick={onDone}>
+        <Button type="button" size="lg" className="w-full" onClick={onDone}>
           Go to sign in
-        </button>
-      </main>
+        </Button>
+      </AuthLayout>
     );
   }
 
   return (
-    <main>
-      <h1>Activate your TaxDesk account</h1>
-      <p>
-        Choose a password with at least 12 characters. The link works once and expires after 30
-        minutes.
-      </p>
+    <AuthLayout>
+      <AuthHeading
+        title="Activate your TaxDesk account"
+        description="The link works once and expires 30 minutes after it was created."
+      />
       {notice !== null && <ErrorAlert notice={notice} />}
       <form onSubmit={(event) => void handleSubmit(event)}>
-        <div className="field">
-          <label htmlFor="new-password">New password</label>
-          <input
-            id="new-password"
-            name="password"
-            type="password"
-            autoComplete="new-password"
-            minLength={12}
-            maxLength={128}
-            required
-            value={password}
-            onChange={(event) => {
-              setPassword(event.target.value);
-            }}
-          />
-        </div>
-        <div className="field">
-          <label htmlFor="confirm-password">Confirm password</label>
-          <input
-            id="confirm-password"
-            name="confirmation"
-            type="password"
-            autoComplete="new-password"
-            minLength={12}
-            maxLength={128}
-            required
-            value={confirmation}
-            onChange={(event) => {
-              setConfirmation(event.target.value);
-            }}
-          />
-        </div>
-        <button type="submit" disabled={submitting} aria-busy={submitting}>
-          {submitting ? 'Activating…' : 'Activate account'}
-        </button>
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="new-password">New password</FieldLabel>
+            <Input
+              id="new-password"
+              name="password"
+              type="password"
+              autoComplete="new-password"
+              minLength={12}
+              maxLength={128}
+              required
+              aria-describedby="new-password-help"
+              value={password}
+              onChange={(event) => {
+                setPassword(event.target.value);
+              }}
+            />
+            <FieldDescription id="new-password-help">At least 12 characters.</FieldDescription>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="confirm-password">Confirm password</FieldLabel>
+            <Input
+              id="confirm-password"
+              name="confirmation"
+              type="password"
+              autoComplete="new-password"
+              minLength={12}
+              maxLength={128}
+              required
+              value={confirmation}
+              onChange={(event) => {
+                setConfirmation(event.target.value);
+              }}
+            />
+          </Field>
+          <Button
+            type="submit"
+            size="lg"
+            className="w-full"
+            disabled={submitting}
+            aria-busy={submitting}
+          >
+            {submitting && <LoaderCircle aria-hidden="true" className="animate-spin" />}
+            {submitting ? 'Activating…' : 'Activate account'}
+          </Button>
+        </FieldGroup>
       </form>
-    </main>
+    </AuthLayout>
   );
 }

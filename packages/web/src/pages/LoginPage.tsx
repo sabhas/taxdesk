@@ -1,7 +1,12 @@
 import { useCallback, useState, type FormEvent } from 'react';
 import type { CurrentSession } from '@taxdesk/shared';
 import { login } from '../auth-client.js';
-import { ErrorAlert, type ErrorNotice } from '../components/feedback.js';
+import { LoaderCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { ErrorAlert, InfoNotice, type ErrorNotice } from '../components/feedback.js';
+import { AuthHeading, AuthLayout } from '../components/layout/AuthLayout.js';
 import { TurnstileWidget } from '../components/TurnstileWidget.js';
 import { toErrorNotice } from './error-notice.js';
 
@@ -70,53 +75,63 @@ export function LoginPage({
   }
 
   return (
-    <main>
-      <h1>Sign in to TaxDesk</h1>
+    <AuthLayout>
+      <AuthHeading
+        title="Sign in to TaxDesk"
+        description="Use the username your firm administrator gave you."
+      />
       {expired && (
-        <p role="status" className="notice-panel">
-          Your session expired. Sign in again to continue.
-        </p>
+        <InfoNotice tone="warning">Your session expired. Sign in again to continue.</InfoNotice>
       )}
       {notice !== null && <ErrorAlert notice={notice} />}
       <form onSubmit={(event) => void handleSubmit(event)} aria-describedby="login-help">
-        <div className="field">
-          <label htmlFor="username">Username</label>
-          <input
-            id="username"
-            name="username"
-            type="text"
-            autoComplete="username"
-            autoCapitalize="none"
-            spellCheck={false}
-            required
-            value={username}
-            onChange={(event) => {
-              setUsername(event.target.value);
-            }}
-          />
-        </div>
-        <div className="field">
-          <label htmlFor="password">Password</label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(event) => {
-              setPassword(event.target.value);
-            }}
-          />
-        </div>
-        {siteKey !== null && <TurnstileWidget siteKey={siteKey} onToken={onToken} />}
-        <p id="login-help" className="muted small">
-          Accounts are created by a firm administrator. There is no public registration.
-        </p>
-        <button type="submit" disabled={submitting} aria-busy={submitting}>
-          {submitting ? 'Signing in…' : 'Sign in'}
-        </button>
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="username">Username</FieldLabel>
+            <Input
+              id="username"
+              name="username"
+              type="text"
+              autoComplete="username"
+              autoCapitalize="none"
+              spellCheck={false}
+              required
+              value={username}
+              onChange={(event) => {
+                setUsername(event.target.value);
+              }}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="password">Password</FieldLabel>
+            <Input
+              id="password"
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(event) => {
+                setPassword(event.target.value);
+              }}
+            />
+          </Field>
+          {siteKey !== null && <TurnstileWidget siteKey={siteKey} onToken={onToken} />}
+          <Button
+            type="submit"
+            size="lg"
+            className="w-full"
+            disabled={submitting}
+            aria-busy={submitting}
+          >
+            {submitting && <LoaderCircle aria-hidden="true" className="animate-spin" />}
+            {submitting ? 'Signing in…' : 'Sign in'}
+          </Button>
+          <p id="login-help" className="text-center text-sm text-muted-foreground">
+            Accounts are created by a firm administrator. There is no public registration.
+          </p>
+        </FieldGroup>
       </form>
-    </main>
+    </AuthLayout>
   );
 }

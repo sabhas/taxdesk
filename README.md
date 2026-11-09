@@ -75,6 +75,9 @@ packages/
                wrangler.toml Pages/service-binding config
 ```
 
+The web UI uses shadcn/ui components on Base UI with Tailwind CSS and shared
+design tokens. See `docs/technical/design-system.md` before adding UI.
+
 ## Environments
 
 `development`, `staging`, and `production` each use a separate managed

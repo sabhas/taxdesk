@@ -1,7 +1,10 @@
 import { useCallback, useState } from 'react';
 import type { CurrentSession } from '@taxdesk/shared';
+import { CSPProvider } from '@base-ui/react/csp-provider';
+import { Button } from '@/components/ui/button';
 import { AppShell, type View } from './components/AppShell.js';
 import { ErrorAlert, LoadingMessage, PermissionDenied } from './components/feedback.js';
+import { AuthHeading, AuthLayout } from './components/layout/AuthLayout.js';
 import { ActivationPage } from './pages/ActivationPage.js';
 import { AuditPage } from './pages/AuditPage.js';
 import { DashboardPage } from './pages/DashboardPage.js';
@@ -63,17 +66,17 @@ function AppContent() {
 
   if (state.status === 'loading') {
     return (
-      <main>
-        <h1>TaxDesk</h1>
+      <AuthLayout>
+        <AuthHeading title="TaxDesk" />
         <LoadingMessage>Loading your session…</LoadingMessage>
-      </main>
+      </AuthLayout>
     );
   }
 
   if (state.status === 'error') {
     return (
-      <main>
-        <h1>TaxDesk</h1>
+      <AuthLayout>
+        <AuthHeading title="TaxDesk" />
         <ErrorAlert
           notice={{
             title: 'TaxDesk is temporarily unavailable',
@@ -81,10 +84,10 @@ function AppContent() {
             ...(state.requestId === undefined ? {} : { requestId: state.requestId }),
           }}
         />
-        <button type="button" onClick={refresh}>
+        <Button type="button" size="lg" className="w-full" onClick={refresh}>
           Try again
-        </button>
-      </main>
+        </Button>
+      </AuthLayout>
     );
   }
 
@@ -104,13 +107,15 @@ function AppContent() {
 
   if (!state.session.session.mfaVerified) {
     return (
-      <main>
-        <h1>Verify your session</h1>
-        <p>Sign in again to complete multi-factor verification.</p>
-        <button type="button" onClick={refresh}>
+      <AuthLayout>
+        <AuthHeading
+          title="Verify your session"
+          description="Sign in again to complete multi-factor verification."
+        />
+        <Button type="button" size="lg" className="w-full" onClick={refresh}>
           Refresh session
-        </button>
-      </main>
+        </Button>
+      </AuthLayout>
     );
   }
 
@@ -127,8 +132,12 @@ function AppContent() {
 
 export function App() {
   return (
-    <SessionProvider>
-      <AppContent />
-    </SessionProvider>
+    // The content security policy allows only same-origin stylesheets
+    // (style-src 'self'), so Base UI must not inject <style> elements.
+    <CSPProvider disableStyleElements>
+      <SessionProvider>
+        <AppContent />
+      </SessionProvider>
+    </CSPProvider>
   );
 }

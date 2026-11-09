@@ -1,12 +1,18 @@
+import type { ReactNode } from 'react';
+import { ROLE_DEFINITIONS } from '@taxdesk/shared';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { PageHeader } from '../components/layout/PageHeader.js';
 import { useSession } from '../session/session-context.js';
 
-const ROLE_NAMES: Record<string, string> = {
-  administrator: 'Administrator',
-  manager: 'Manager',
-  consultant: 'Consultant',
-  billing: 'Billing',
-  read_only: 'Read-only',
-};
+function StatusRow({ term, children }: { term: string; children: ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-4 py-2.5 first:pt-0 last:pb-0">
+      <dt className="text-sm text-muted-foreground">{term}</dt>
+      <dd className="text-right text-sm font-medium tabular-nums">{children}</dd>
+    </div>
+  );
+}
 
 export function DashboardPage() {
   const { state } = useSession();
@@ -14,40 +20,64 @@ export function DashboardPage() {
     return null;
   }
   const session = state.session;
+  const roleNames = session.roles.map((role) => ROLE_DEFINITIONS[role].name).join(', ');
+
   return (
     <section aria-labelledby="dashboard-heading">
-      <h1 id="dashboard-heading">Welcome, {session.user.displayName}</h1>
-      <p>
-        You are signed in as{' '}
-        {session.roles.map((role) => ROLE_NAMES[role] ?? role).join(', ') || 'a staff user'}.
-      </p>
-      <div className="card-grid">
-        <section className="card" aria-labelledby="security-status-heading">
-          <h2 id="security-status-heading">Account security</h2>
-          <dl>
-            <dt>Multi-factor authentication</dt>
-            <dd>{session.user.mfaEnrolled ? 'Enabled' : 'Setup required'}</dd>
-            <dt>Session verified</dt>
-            <dd>{session.session.mfaVerified ? 'Yes' : 'No'}</dd>
-            <dt>Idle session ends</dt>
-            <dd>{new Date(session.session.idleExpiresAt).toLocaleString()}</dd>
-            <dt>Absolute session ends</dt>
-            <dd>{new Date(session.session.absoluteExpiresAt).toLocaleString()}</dd>
-          </dl>
-        </section>
-        <section className="card" aria-labelledby="access-heading">
-          <h2 id="access-heading">Your access</h2>
-          <p className="muted small">
-            Navigation reflects these permissions; the API enforces them.
-          </p>
-          <ul className="permission-list">
-            {session.permissions.map((permission) => (
-              <li key={permission}>
-                <code>{permission}</code>
-              </li>
-            ))}
-          </ul>
-        </section>
+      <PageHeader
+        id="dashboard-heading"
+        title={`Welcome, ${session.user.displayName}`}
+        description={`You are signed in as ${roleNames || 'a staff user'}.`}
+      />
+      <div className="grid gap-5 lg:grid-cols-2">
+        <Card aria-labelledby="security-status-heading">
+          <CardHeader>
+            <CardTitle>
+              <h2 id="security-status-heading">Account security</h2>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <dl className="divide-y">
+              <StatusRow term="Multi-factor authentication">
+                {session.user.mfaEnrolled ? (
+                  <Badge variant="success">Enabled</Badge>
+                ) : (
+                  <Badge variant="warning">Setup required</Badge>
+                )}
+              </StatusRow>
+              <StatusRow term="Session verified">
+                {session.session.mfaVerified ? 'Yes' : 'No'}
+              </StatusRow>
+              <StatusRow term="Idle session ends">
+                {new Date(session.session.idleExpiresAt).toLocaleString()}
+              </StatusRow>
+              <StatusRow term="Absolute session ends">
+                {new Date(session.session.absoluteExpiresAt).toLocaleString()}
+              </StatusRow>
+            </dl>
+          </CardContent>
+        </Card>
+        <Card aria-labelledby="access-heading">
+          <CardHeader>
+            <CardTitle>
+              <h2 id="access-heading">Your access</h2>
+            </CardTitle>
+            <CardDescription>
+              Navigation reflects these permissions; the API enforces them.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="flex flex-wrap gap-1.5">
+              {session.permissions.map((permission) => (
+                <li key={permission}>
+                  <Badge variant="secondary" className="font-mono font-normal">
+                    {permission}
+                  </Badge>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
       </div>
     </section>
   );

@@ -40,7 +40,7 @@ export function QrCode({ value, label, size = 192 }: QrCodeProps) {
   const { path, dimension } = useMemo(() => qrPath(value), [value]);
   return (
     <svg
-      className="qr-code"
+      className="block h-auto max-w-full"
       role="img"
       aria-label={label}
       width={size}

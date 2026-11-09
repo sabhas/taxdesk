@@ -1,7 +1,15 @@
 import { useState, type FormEvent } from 'react';
+import { LoaderCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
 import { disableMfa, regenerateRecoveryCodes } from '../auth-client.js';
 import { useSession } from '../session/session-context.js';
 import { ErrorAlert, SuccessNotice, type ErrorNotice } from '../components/feedback.js';
+import { PageHeader } from '../components/layout/PageHeader.js';
+import { RecoveryCodeList } from '../components/RecoveryCodeList.js';
 import { toErrorNotice } from './error-notice.js';
 
 export function SecurityPage() {
@@ -58,128 +66,143 @@ export function SecurityPage() {
     }
   }
 
+  const credentialFields = (prefix: 'regen' | 'disable') => (
+    <>
+      <Field>
+        <FieldLabel htmlFor={`${prefix}-password`}>Password</FieldLabel>
+        <Input
+          id={`${prefix}-password`}
+          type="password"
+          autoComplete="current-password"
+          required
+          value={password}
+          onChange={(event) => {
+            setPassword(event.target.value);
+          }}
+        />
+      </Field>
+      <Field>
+        <FieldLabel htmlFor={`${prefix}-code`}>Authenticator code</FieldLabel>
+        <Input
+          id={`${prefix}-code`}
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          pattern="[0-9]{6}"
+          maxLength={6}
+          required
+          className="font-mono tracking-[0.2em]"
+          value={code}
+          onChange={(event) => {
+            setCode(event.target.value.replace(/\D/gu, ''));
+          }}
+        />
+      </Field>
+    </>
+  );
+
   return (
     <section aria-labelledby="security-heading">
-      <h1 id="security-heading">Security</h1>
-      <p>
-        Multi-factor authentication is{' '}
-        {state.session.user.mfaEnrolled ? <strong>enabled</strong> : <strong>not enabled</strong>}.
-      </p>
+      <PageHeader
+        id="security-heading"
+        title="Security"
+        description={
+          <span className="inline-flex items-center gap-2">
+            Multi-factor authentication is
+            {state.session.user.mfaEnrolled ? (
+              <Badge variant="success">enabled</Badge>
+            ) : (
+              <Badge variant="warning">not enabled</Badge>
+            )}
+          </span>
+        }
+      />
       {notice !== null && <ErrorAlert notice={notice} />}
       {success !== null && <SuccessNotice>{success}</SuccessNotice>}
       {regenerated !== null && (
-        <section aria-labelledby="codes-heading">
-          <h2 id="codes-heading">New recovery codes</h2>
-          <p>These codes are shown once. Store them securely.</p>
-          <ul className="recovery-codes" aria-label="New recovery codes">
-            {regenerated.map((recoveryCode) => (
-              <li key={recoveryCode}>
-                <code>{recoveryCode}</code>
-              </li>
-            ))}
-          </ul>
+        <section aria-labelledby="codes-heading" className="mb-6 space-y-3">
+          <div>
+            <h2 id="codes-heading" className="text-base font-semibold">
+              New recovery codes
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              These codes are shown once. Store them securely.
+            </p>
+          </div>
+          <RecoveryCodeList codes={regenerated} label="New recovery codes" />
         </section>
       )}
-      <div className="card-grid">
-        <section className="card" aria-labelledby="regenerate-heading">
-          <h2 id="regenerate-heading">Regenerate recovery codes</h2>
-          <p className="muted small">
-            Confirm your password and a current authenticator code. Other sessions are signed out.
-          </p>
-          <form onSubmit={(event) => void regenerate(event)}>
-            <div className="field">
-              <label htmlFor="regen-password">Password</label>
-              <input
-                id="regen-password"
-                type="password"
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(event) => {
-                  setPassword(event.target.value);
-                }}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="regen-code">Authenticator code</label>
-              <input
-                id="regen-code"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                pattern="[0-9]{6}"
-                maxLength={6}
-                required
-                value={code}
-                onChange={(event) => {
-                  setCode(event.target.value.replace(/\D/gu, ''));
-                }}
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={submitting !== null}
-              aria-busy={submitting === 'regenerate'}
-            >
-              Regenerate codes
-            </button>
-          </form>
-        </section>
-        <section className="card" aria-labelledby="disable-heading">
-          <h2 id="disable-heading">Disable multi-factor authentication</h2>
-          <p className="muted small">
-            After disabling MFA you must set it up again before you can use firm records.
-          </p>
-          <form onSubmit={(event) => void disable(event)}>
-            <div className="field">
-              <label htmlFor="disable-password">Password</label>
-              <input
-                id="disable-password"
-                type="password"
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(event) => {
-                  setPassword(event.target.value);
-                }}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="disable-code">Authenticator code</label>
-              <input
-                id="disable-code"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                pattern="[0-9]{6}"
-                maxLength={6}
-                required
-                value={code}
-                onChange={(event) => {
-                  setCode(event.target.value.replace(/\D/gu, ''));
-                }}
-              />
-            </div>
-            <div className="checkbox">
-              <input
-                id="confirm-disable"
-                type="checkbox"
-                checked={confirmDisable}
-                onChange={(event) => {
-                  setConfirmDisable(event.target.checked);
-                }}
-              />
-              <label htmlFor="confirm-disable">
-                I understand that MFA will be removed from my account.
-              </label>
-            </div>
-            <button
-              type="submit"
-              disabled={submitting !== null}
-              aria-busy={submitting === 'disable'}
-            >
-              Disable MFA
-            </button>
-          </form>
-        </section>
+      <div className="grid items-start gap-5 lg:grid-cols-2">
+        <Card aria-labelledby="regenerate-heading">
+          <CardHeader>
+            <CardTitle>
+              <h2 id="regenerate-heading">Regenerate recovery codes</h2>
+            </CardTitle>
+            <CardDescription>
+              Confirm your password and a current authenticator code. Other sessions are signed out.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={(event) => void regenerate(event)}>
+              <FieldGroup>
+                {credentialFields('regen')}
+                <Button
+                  type="submit"
+                  className="self-start"
+                  disabled={submitting !== null}
+                  aria-busy={submitting === 'regenerate'}
+                >
+                  {submitting === 'regenerate' && (
+                    <LoaderCircle aria-hidden="true" className="animate-spin" />
+                  )}
+                  Regenerate codes
+                </Button>
+              </FieldGroup>
+            </form>
+          </CardContent>
+        </Card>
+        <Card aria-labelledby="disable-heading" className="ring-destructive/25">
+          <CardHeader>
+            <CardTitle>
+              <h2 id="disable-heading">Disable multi-factor authentication</h2>
+            </CardTitle>
+            <CardDescription>
+              After disabling MFA you must set it up again before you can use firm records.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={(event) => void disable(event)}>
+              <FieldGroup>
+                {credentialFields('disable')}
+                <div className="flex items-start gap-2.5">
+                  <input
+                    id="confirm-disable"
+                    type="checkbox"
+                    className="mt-0.5 size-4 shrink-0 accent-primary"
+                    checked={confirmDisable}
+                    onChange={(event) => {
+                      setConfirmDisable(event.target.checked);
+                    }}
+                  />
+                  <label htmlFor="confirm-disable" className="text-sm">
+                    I understand that MFA will be removed from my account.
+                  </label>
+                </div>
+                <Button
+                  type="submit"
+                  variant="destructive"
+                  className="self-start"
+                  disabled={submitting !== null}
+                  aria-busy={submitting === 'disable'}
+                >
+                  {submitting === 'disable' && (
+                    <LoaderCircle aria-hidden="true" className="animate-spin" />
+                  )}
+                  Disable MFA
+                </Button>
+              </FieldGroup>
+            </form>
+          </CardContent>
+        </Card>
       </div>
     </section>
   );
