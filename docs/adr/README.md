@@ -21,3 +21,4 @@ When implementation begins, create separate ADRs for decisions that change cost,
 | [0002](0002-username-sign-in.md) | Sign in with a permanent username instead of an email | accepted |
 | [0003](0003-ui-foundation.md) | shadcn/ui on Base UI and Tailwind CSS as the web UI foundation | accepted |
 | [0004](0004-client-identifier-protection-and-visibility.md) | Client identifier protection and assignment-scoped client visibility | proposed |
+| [0005](0005-case-workflow-integrity-and-authorization.md) | Tax-case workflow integrity and case authorization | proposed |

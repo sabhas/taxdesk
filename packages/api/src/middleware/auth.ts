@@ -3,6 +3,7 @@ import type { PermissionKey } from '@taxdesk/shared';
 import type { AppEnv } from '../types.js';
 import { AuthError } from '../domain/auth/errors.js';
 import {
+  assertAnyPermission,
   assertMfaReady,
   assertPermission,
   assertSelfOrPermission,
@@ -20,6 +21,9 @@ import { serializeClearedSessionCookie, sessionTokenFromCookie } from '../transp
  * - `self_service`: the caller's own account after MFA (disable MFA,
  *   regenerate recovery codes). No permission is needed to act on yourself.
  * - `permission`: MFA-verified session holding the named permission.
+ * - `any_permission`: MFA-verified session holding at least one of the named
+ *   permissions (e.g. case reads: `cases.read_all` or `cases.read_assigned`).
+ *   Record-level rules (assignment) are then applied by the domain service.
  * - `self_or_permission`: the path parameter names the caller, or the caller
  *   holds the named permission.
  */
@@ -28,6 +32,7 @@ export type RoutePolicy =
   | { readonly access: 'session' }
   | { readonly access: 'self_service' }
   | { readonly access: 'permission'; readonly permission: PermissionKey }
+  | { readonly access: 'any_permission'; readonly permissions: readonly PermissionKey[] }
   | {
       readonly access: 'self_or_permission';
       readonly permission: PermissionKey;
@@ -70,6 +75,8 @@ export function protect(policy: RoutePolicy): PolicyMiddleware {
         assertMfaReady(actor);
         if (policy.access === 'permission') {
           assertPermission(actor, policy.permission);
+        } else if (policy.access === 'any_permission') {
+          assertAnyPermission(actor, policy.permissions);
         } else if (policy.access === 'self_or_permission') {
           assertSelfOrPermission(actor, c.req.param(policy.param) ?? '', policy.permission);
         }

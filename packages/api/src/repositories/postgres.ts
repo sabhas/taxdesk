@@ -15,6 +15,11 @@ import type {
 } from '../domain/auth/types.js';
 import type { PaginatedAuditEvents, Repositories, UnitOfWork } from './ports.js';
 import { createPostgresClientRepository } from './postgres-clients.js';
+import {
+  createPostgresCaseRepository,
+  createPostgresServiceTypeRepository,
+  createPostgresWorkflowTemplateRepository,
+} from './postgres-cases.js';
 
 function text(row: SqlRow, key: string): string {
   const value = row[key];
@@ -688,6 +693,9 @@ export function createPostgresRepositories(executor: SqlExecutor): Repositories 
       },
     },
     clients: createPostgresClientRepository(executor),
+    serviceTypes: createPostgresServiceTypeRepository(executor),
+    workflowTemplates: createPostgresWorkflowTemplateRepository(executor),
+    cases: createPostgresCaseRepository(executor),
     loginAttempts: {
       record: async (record) => {
         await executor.query(

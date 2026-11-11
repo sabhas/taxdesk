@@ -1,6 +1,9 @@
 import {
   BookUser,
+  Briefcase,
   Building2,
+  ListChecks,
+  Tags,
   LayoutDashboard,
   ScrollText,
   ShieldCheck,
@@ -18,6 +21,10 @@ export const ROUTE_PATHS = {
   audit: '/audit',
   clients: '/clients',
   newClient: '/clients/new',
+  cases: '/cases',
+  newCase: '/cases/new',
+  services: '/services',
+  workflows: '/workflows',
   /** Built by the API (`activationUrl`) as `/activate?token=…`. */
   activate: '/activate',
 } as const;
@@ -29,8 +36,11 @@ export interface NavRoute {
   /** `document.title` prefix, shown as "<title> · TaxDesk". */
   readonly title: string;
   readonly icon: LucideIcon;
-  /** Hides the link without this permission. The API still enforces access. */
-  readonly permission?: PermissionKey;
+  /**
+   * Hides the link unless the user holds this permission (or, for a list, any
+   * of them). The API still enforces access.
+   */
+  readonly permission?: PermissionKey | readonly PermissionKey[];
   /** `false` keeps the link active on nested pages (e.g. a client record). */
   readonly end?: boolean;
 }
@@ -43,6 +53,35 @@ export function editClientPath(clientId: string): string {
   return `${clientPath(clientId)}/edit`;
 }
 
+export function casePath(caseId: string): string {
+  return `${ROUTE_PATHS.cases}/${encodeURIComponent(caseId)}`;
+}
+
+export function newCasePath(clientId?: string): string {
+  return clientId === undefined
+    ? ROUTE_PATHS.newCase
+    : `${ROUTE_PATHS.newCase}?client=${encodeURIComponent(clientId)}`;
+}
+
+export function workflowPath(templateId: string): string {
+  return `${ROUTE_PATHS.workflows}/${encodeURIComponent(templateId)}`;
+}
+
+/** UI gating only: whether the navigation shows a route to this user. */
+export function canSeeRoute(route: NavRoute, can: (permission: PermissionKey) => boolean): boolean {
+  const required = route.permission;
+  if (required === undefined) {
+    return true;
+  }
+  return typeof required === 'string' ? can(required) : required.some((key) => can(key));
+}
+
+/** Case work is visible with either case-read permission. */
+export const CASE_READ_PERMISSIONS: readonly PermissionKey[] = [
+  'cases.read_all',
+  'cases.read_assigned',
+];
+
 export const NAV_ROUTES: readonly NavRoute[] = [
   { path: ROUTE_PATHS.dashboard, label: 'Dashboard', title: 'Dashboard', icon: LayoutDashboard },
   {
@@ -51,6 +90,29 @@ export const NAV_ROUTES: readonly NavRoute[] = [
     title: 'Clients',
     icon: BookUser,
     permission: 'clients.read',
+    end: false,
+  },
+  {
+    path: ROUTE_PATHS.cases,
+    label: 'Cases',
+    title: 'Cases',
+    icon: Briefcase,
+    permission: CASE_READ_PERMISSIONS,
+    end: false,
+  },
+  {
+    path: ROUTE_PATHS.services,
+    label: 'Services',
+    title: 'Services',
+    icon: Tags,
+    permission: 'services.manage',
+  },
+  {
+    path: ROUTE_PATHS.workflows,
+    label: 'Workflows',
+    title: 'Workflows',
+    icon: ListChecks,
+    permission: 'services.manage',
     end: false,
   },
   { path: ROUTE_PATHS.security, label: 'Security', title: 'Security', icon: ShieldCheck },

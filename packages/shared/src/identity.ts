@@ -32,6 +32,9 @@ export interface RoleDefinition {
  * `clients.read` opens the client area; `clients.read_all` widens it to every
  * client. Without it (consultants) only clients assigned to the user are
  * visible.
+ *
+ * `services.manage` configures the service catalog and the workflow/checklist
+ * templates that cases follow.
  */
 export const PERMISSION_KEYS = [
   'firm.settings.read',
@@ -42,6 +45,7 @@ export const PERMISSION_KEYS = [
   'clients.read',
   'clients.read_all',
   'clients.manage',
+  'services.manage',
   'cases.read_all',
   'cases.read_assigned',
   'cases.manage',
@@ -82,6 +86,7 @@ export const ROLE_DEFINITIONS: Readonly<Record<RoleKey, RoleDefinition>> = {
       'clients.read',
       'clients.read_all',
       'clients.manage',
+      'services.manage',
       'cases.read_all',
       'cases.manage',
       'cases.assign',

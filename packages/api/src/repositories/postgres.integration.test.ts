@@ -13,6 +13,8 @@ import { createPasswordHasher } from '../crypto/password.js';
 import { createSecretCipher } from '../crypto/cipher.js';
 import { buildDependencies, type AppDependencies } from '../dependencies.js';
 import { BootstrapService } from '../domain/auth/bootstrap-service.js';
+import { matchesCaseFilter, type CaseQueryFilter } from '../domain/cases/types.js';
+import { CASE_VIEWS, STARTER_WORKFLOW_DEFINITION } from '@taxdesk/shared';
 
 const connectionString =
   process.env['TAXDESK_API_TEST_DATABASE_URL'] ??
@@ -420,6 +422,293 @@ describeWithDatabase('identity repositories against PostgreSQL', () => {
       await expect(
         executor.query("UPDATE audit_events SET action = 'x.y' WHERE entity_type = 'client'"),
       ).rejects.toThrow();
+    });
+  });
+
+  describe('tax-case workflow repositories', () => {
+    function tick(): void {
+      clockNow = new Date(clockNow.getTime() + 1_000);
+    }
+
+    async function actorFor(username: string) {
+      const user = await dependencies.repositories.users.findByUsername(username);
+      const session = await dependencies.sessionService.issue(user!, {
+        mfaVerified: true,
+        requestId: `db-case-session-${username}`,
+      });
+      return (await dependencies.sessionService.validate(session.token))!;
+    }
+
+    async function fixture() {
+      const owner = await actorFor('owner');
+      if ((await dependencies.repositories.users.findByUsername('db-reviewer')) === null) {
+        const reviewer = await dependencies.repositories.users.create({
+          id: '0198a000-0000-7000-8000-0000000000aa',
+          username: 'db-reviewer',
+          displayName: 'Database Reviewer',
+          passwordHash: await dependencies.passwordHasher.hash(PASSWORD),
+          passwordHashVersion: 1,
+          status: 'active',
+          createdAt: clockNow.toISOString(),
+        });
+        await dependencies.repositories.roles.replaceRoles({
+          userId: reviewer.id,
+          roleKeys: ['consultant'],
+          assignedAt: clockNow.toISOString(),
+          assignedBy: null,
+        });
+      }
+      const reviewer = await actorFor('db-reviewer');
+      tick();
+      const template = await dependencies.workflowTemplateService.create({
+        actor: owner,
+        requestId: 'db-template',
+        request: {
+          name: `Database workflow ${String(clockNow.getTime())}`,
+          description: '',
+          definition: STARTER_WORKFLOW_DEFINITION,
+        },
+      });
+      tick();
+      const version = await dependencies.workflowTemplateService.publish({
+        actor: owner,
+        templateId: template.id,
+        versionId: template.draft!.id,
+        expectedVersion: 1,
+        requestId: 'db-publish',
+      });
+      tick();
+      const service = await dependencies.serviceTypeService.create({
+        actor: owner,
+        requestId: 'db-service',
+        request: {
+          name: `Database service ${String(clockNow.getTime())}`,
+          description: '',
+          defaultFeeMinor: 2_500_000,
+          defaultDeadlineOffsetDays: 30,
+          duplicateCasePolicy: 'block',
+          defaultWorkflowTemplateId: template.id,
+        },
+      });
+      tick();
+      const client = await dependencies.clientService.createClient({
+        actor: owner,
+        requestId: 'db-case-client',
+        request: {
+          type: 'business',
+          legalName: `Database Case Client ${String(clockNow.getTime())}`,
+          ntn: String(1_000_000 + (clockNow.getTime() % 8_000_000)).slice(0, 7),
+          contacts: [],
+          assignedManagerUserId: owner.userId,
+        },
+      });
+      return { owner, reviewer, version, service, client };
+    }
+
+    async function openCase(
+      f: Awaited<ReturnType<typeof fixture>>,
+      taxYear: number,
+      dueDate = '2026-09-30',
+    ) {
+      tick();
+      return await dependencies.caseService.createCase({
+        actor: f.owner,
+        requestId: `db-case-${String(taxYear)}`,
+        request: {
+          clientId: f.client.id,
+          serviceTypeId: f.service.id,
+          taxYear,
+          workflowVersionId: f.version.id,
+          dueDate,
+          primaryConsultantUserId: f.owner.userId,
+          reviewerUserId: f.reviewer.userId,
+          notes: '',
+        },
+      });
+    }
+
+    it('runs a case from creation through completion and archive', async () => {
+      const f = await fixture();
+      let taxCase = await openCase(f, 2026);
+      expect(taxCase.caseCode).toMatch(/^TC-\d{5}$/u);
+      expect(taxCase.dueDate).toBe('2026-09-30');
+      expect(taxCase.checklist).toHaveLength(4);
+
+      for (const item of taxCase.checklist.filter((entry) => entry.required)) {
+        tick();
+        taxCase = await dependencies.caseService.checklistAction({
+          actor: f.owner,
+          caseId: taxCase.id,
+          itemId: item.id,
+          action: 'complete',
+          comment: '',
+          expectedVersion: 1,
+          requestId: 'db-complete',
+        });
+        if (item.reviewRequired) {
+          tick();
+          taxCase = await dependencies.caseService.checklistAction({
+            actor: f.reviewer,
+            caseId: taxCase.id,
+            itemId: item.id,
+            action: 'verify',
+            comment: 'Checked',
+            expectedVersion: 2,
+            requestId: 'db-verify',
+          });
+        }
+      }
+      expect(taxCase.checklistProgress.requiredOutstanding).toBe(0);
+      for (const toStatus of [
+        'collecting_documents',
+        'in_preparation',
+        'in_review',
+        'filed',
+        'completed',
+      ]) {
+        tick();
+        taxCase = await dependencies.caseService.transitionCase({
+          actor: f.reviewer,
+          caseId: taxCase.id,
+          request: { toStatus, note: '' },
+          expectedVersion: taxCase.version,
+          requestId: `db-move-${toStatus}`,
+        });
+      }
+      tick();
+      const archived = await dependencies.caseService.archiveCase({
+        actor: f.owner,
+        caseId: taxCase.id,
+        expectedVersion: taxCase.version,
+        requestId: 'db-archive',
+      });
+      expect(archived.state).toBe('archived');
+      const history = await dependencies.caseService.statusHistory(f.owner, taxCase.id);
+      expect(history.entries.map((entry) => entry.to.key)).toEqual([
+        'intake',
+        'collecting_documents',
+        'in_preparation',
+        'in_review',
+        'filed',
+        'completed',
+      ]);
+      await expect(
+        executor.query("UPDATE tax_cases SET notes = 'x' WHERE id = $1", [taxCase.id]),
+      ).rejects.toThrow(/read-only/u);
+    });
+
+    it('rejects direct status updates, history edits, and changes to published versions', async () => {
+      const f = await fixture();
+      const taxCase = await openCase(f, 2025);
+      await expect(
+        executor.query(
+          "UPDATE tax_cases SET current_status_key = 'completed', current_status_name = 'Completed', current_status_kind = 'completed' WHERE id = $1",
+          [taxCase.id],
+        ),
+      ).rejects.toThrow(/recorded transition/u);
+      await expect(
+        executor.query("UPDATE case_status_history SET note = 'x' WHERE case_id = $1", [
+          taxCase.id,
+        ]),
+      ).rejects.toThrow(/append-only/u);
+      await expect(
+        executor.query('DELETE FROM case_status_history WHERE case_id = $1', [taxCase.id]),
+      ).rejects.toThrow(/append-only/u);
+      await expect(
+        executor.query('DELETE FROM tax_cases WHERE id = $1', [taxCase.id]),
+      ).rejects.toThrow(/never deleted/u);
+      await expect(
+        executor.query('UPDATE tax_cases SET service_fee_minor = 1 WHERE id = $1', [taxCase.id]),
+      ).rejects.toThrow(/immutable/u);
+      await expect(
+        executor.query(
+          "UPDATE workflow_template_versions SET definition = '{}'::jsonb WHERE id = $1",
+          [f.version.id],
+        ),
+      ).rejects.toThrow(/immutable/u);
+      await expect(
+        executor.query(
+          `UPDATE case_checklist_items
+           SET state = 'verified', completed_by = $2, completed_at = now(), reviewed_by = $2, reviewed_at = now()
+           WHERE case_id = $1 AND review_required`,
+          [taxCase.id, f.owner.userId],
+        ),
+      ).rejects.toThrow();
+      await expect(
+        executor.query('UPDATE tax_cases SET deleted_at = now() WHERE id = $1', [taxCase.id]),
+      ).rejects.toThrow();
+    });
+
+    it('lets exactly one of two concurrent transitions and duplicate creates win', async () => {
+      const f = await fixture();
+      const taxCase = await openCase(f, 2024);
+      tick();
+      const results = await Promise.allSettled(
+        (['collecting_documents', 'cancelled'] as const).map((toStatus) =>
+          dependencies.caseService.transitionCase({
+            actor: f.owner,
+            caseId: taxCase.id,
+            request: { toStatus, note: '' },
+            expectedVersion: 1,
+            requestId: `db-race-${toStatus}`,
+          }),
+        ),
+      );
+      expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+      const rejected = results.find((result) => result.status === 'rejected');
+      expect(rejected?.status === 'rejected' ? rejected.reason : null).toMatchObject({
+        status: 412,
+      });
+      const rows = await executor.query(
+        'SELECT count(*)::int AS n FROM case_status_history WHERE case_id = $1',
+        [taxCase.id],
+      );
+      expect(rows[0]?.['n']).toBe(2);
+
+      tick();
+      const creates = await Promise.allSettled([openCase(f, 2023), openCase(f, 2023)]);
+      expect(creates.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+      const blocked = creates.find((result) => result.status === 'rejected');
+      expect(blocked?.status === 'rejected' ? blocked.reason : null).toMatchObject({
+        code: 'CASE_DUPLICATE_BLOCKED',
+      });
+    });
+
+    it('computes queues in SQL exactly as the reference predicate does', async () => {
+      const f = await fixture();
+      await openCase(f, 2019, '2025-12-01');
+      await openCase(f, 2018, '2026-01-03');
+      const all = await executor.query('SELECT id FROM tax_cases');
+      const records = await Promise.all(
+        all.map(
+          async (row) => (await dependencies.repositories.cases.findById(String(row['id'])))!,
+        ),
+      );
+      for (const view of CASE_VIEWS) {
+        for (const restrict of [null, f.reviewer.userId]) {
+          const filter: CaseQueryFilter = {
+            view,
+            today: '2026-01-01',
+            dueSoonUntil: '2026-01-08',
+            actorUserId: f.owner.userId,
+            restrictToAssignedUserId: restrict,
+            serviceTypeId: null,
+            statusKey: null,
+            primaryConsultantUserId: null,
+            reviewerUserId: null,
+            taxYear: null,
+            clientId: null,
+          };
+          const expected = records.filter((record) => matchesCaseFilter(record, filter)).length;
+          expect(await dependencies.repositories.cases.count(filter), view).toBe(expected);
+          const page = await dependencies.repositories.cases.list({
+            ...filter,
+            limit: 100,
+            after: null,
+          });
+          expect(page.cases.length, view).toBe(expected);
+        }
+      }
     });
   });
 });

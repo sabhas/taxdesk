@@ -3,7 +3,7 @@ title: TaxDesk domain model and invariants
 status: accepted
 version: 1.0
 owners: [engineering]
-last_reviewed: 2026-11-10
+last_reviewed: 2026-11-11
 related:
   - architecture.md
   - ../taxdesk-implementation-plan.md
@@ -96,6 +96,55 @@ See [ADR 0004](../adr/0004-client-identifier-protection-and-visibility.md).
   `client.restored`, `client.duplicate_override`) record changed field names,
   masked identifiers, and override reasons only, never field values, notes,
   or contact details.
+
+## Tax-case workflow tables
+
+Migration `0006_tax_case_workflow.sql` adds `service_types`,
+`workflow_templates`, `workflow_template_versions`, `tax_cases`,
+`tax_case_code_seq`, `case_status_history`, `case_checklist_items`, and the
+`services.manage` permission (administrator, manager). See
+[ADR 0005](../adr/0005-case-workflow-integrity-and-authorization.md).
+
+- `service_types` hold a name (unique among active services), a default fee in
+  integer minor units (`default_fee_minor`, paisa), a default deadline offset
+  in days after the case is opened, a duplicate-case policy (`warn` or
+  `block`), and an optional default workflow template. `deleted_at` archives a
+  service; archived services keep their cases and cannot be chosen for new ones.
+- A `workflow_template_versions.definition` is one JSON document with ordered
+  `statuses` (key, name, kind `open`/`filed`/`completed`/`cancelled`, initial
+  flag, checklist gate), allowed `transitions`, and ordered `checklist` items
+  (key, label, document type, required, review required, instructions). The
+  shared `WorkflowDefinitionSchema` validates its shape and
+  `validateWorkflowDefinition` its rules (one open initial status, every
+  status reachable, Filed/Completed gate on the checklist, terminal statuses
+  have no way out, every other status has one). A template has at most one
+  `draft`; `published` versions are immutable and never deleted (trigger).
+- `tax_cases` copy the service name and fee, the template name and version
+  number, and the version's statuses and transitions (`workflow_snapshot`)
+  when opened. A trigger rejects changes to those columns, to `client_id`, and
+  to `tax_year`. `case_code` (`TC-00001`) comes from `tax_case_code_seq` and is
+  never reused. `due_date` is a calendar date; queues compare it with "today"
+  in the firm timezone. `primary_consultant_user_id` may be null (unassigned
+  queue); the reviewer is optional and never the primary consultant.
+- The current status (`current_status_key`, `_name`, `_kind`) changes only by
+  pointing `current_status_history_id` at a new `case_status_history` row that
+  records exactly that change and is the case's newest row (trigger).
+  `case_status_history` is append-only and keeps the note, actor, request ID,
+  and time of every move, including the initial status.
+- `case_checklist_items` are copied from the version and keep their own
+  `version` for `If-Match`. States are `open` → `completed` → (`verified` |
+  `rejected`); verification is only for review-required items and
+  `reviewed_by` can never equal `completed_by` (check constraint). Items are
+  never deleted. The checklist is locked once a case leaves an open status.
+- Only `completed` or `cancelled` cases can be archived (`deleted_at`, check
+  constraint); archived cases are read-only and cases are never deleted.
+- Case audit events (`case.created`, `case.updated`, `case.status_changed`,
+  `case.archived`, `case.duplicate_override`, `case.checklist_*`) record
+  changed field names, new due dates, assignee IDs, status names, and
+  checklist item labels. They never record notes or comments, which stay on
+  the case.
+- Queue lists and counts share one filter (`matchesCaseFilter` in memory,
+  `caseFilterSql` in PostgreSQL); an integration test checks they agree.
 
 ## Integrity rules
 

@@ -9,6 +9,9 @@ import {
 } from './crypto/identifier-protection.js';
 import { AuthService } from './domain/auth/auth-service.js';
 import { ClientService } from './domain/clients/client-service.js';
+import { CaseService } from './domain/cases/case-service.js';
+import { ServiceTypeService } from './domain/catalog/service-type-service.js';
+import { WorkflowTemplateService } from './domain/catalog/workflow-template-service.js';
 import { FirmService } from './domain/auth/firm-service.js';
 import { LoginThrottle } from './domain/auth/login-throttle-service.js';
 import { MfaService } from './domain/auth/mfa-service.js';
@@ -34,6 +37,9 @@ export interface AppDependencies {
   readonly userService: UserLifecycleService;
   readonly firmService: FirmService;
   readonly clientService: ClientService;
+  readonly serviceTypeService: ServiceTypeService;
+  readonly workflowTemplateService: WorkflowTemplateService;
+  readonly caseService: CaseService;
   readonly clock: () => Date;
   readonly close: () => Promise<void>;
 }
@@ -156,6 +162,9 @@ export function composeDependencies(options: ComposeDependenciesOptions): AppDep
           : identifierProtectorFromConfig(options.authConfig),
       clock,
     }),
+    serviceTypeService: new ServiceTypeService({ repositories, unitOfWork, clock }),
+    workflowTemplateService: new WorkflowTemplateService({ repositories, unitOfWork, clock }),
+    caseService: new CaseService({ repositories, unitOfWork, clock }),
     clock,
     close: options.close ?? (() => Promise.resolve()),
   };

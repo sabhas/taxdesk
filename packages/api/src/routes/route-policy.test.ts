@@ -179,6 +179,14 @@ describe('route permission declarations', () => {
           } else {
             expect(result, label).toEqual({ status: 403, code: 'FORBIDDEN' });
           }
+        } else if (policy.access === 'any_permission') {
+          const result = await call(app, route.method, concrete(route.path, other.id), cookie);
+          if (policy.permissions.some((permission) => roleHasPermission(role, permission))) {
+            expect(result.status, label).not.toBe(401);
+            expect(result.code, label).not.toBe('FORBIDDEN');
+          } else {
+            expect(result, label).toEqual({ status: 403, code: 'FORBIDDEN' });
+          }
         } else if (policy.access === 'self_or_permission') {
           const self = await call(app, route.method, concrete(route.path, user.id), cookie);
           expect(self.status, `${label} (self)`).toBe(200);

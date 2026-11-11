@@ -27,6 +27,7 @@ import {
   type ErrorNotice,
 } from '../../components/feedback.js';
 import { PageHeader } from '../../components/layout/PageHeader.js';
+import { ClientCasesCard } from '../cases/ClientCasesCard.js';
 import { ROUTE_PATHS, editClientPath } from '../../routes.js';
 import { useSession } from '../../session/session-context.js';
 import { toErrorNotice } from '../error-notice.js';
@@ -337,6 +338,8 @@ export function ClientDetailPage() {
               )}
             </CardContent>
           </Card>
+
+          <ClientCasesCard clientId={client.id} archived={archived} />
         </div>
 
         <Card className="self-start">
