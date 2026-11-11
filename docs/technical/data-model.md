@@ -3,7 +3,7 @@ title: TaxDesk domain model and invariants
 status: accepted
 version: 1.0
 owners: [engineering]
-last_reviewed: 2026-11-09
+last_reviewed: 2026-11-10
 related:
   - architecture.md
   - ../taxdesk-implementation-plan.md
@@ -64,6 +64,38 @@ shared catalog drift.
 - `audit_events` is append-only: a trigger rejects every `UPDATE` and `DELETE`.
   Metadata is a flat object of scalar values and never holds credentials,
   tokens, or secrets.
+
+## Client tables
+
+Migration `0005_client_management.sql` adds `clients`, `client_contacts`, the
+`client_code_seq` sequence, the `clients.read_all` permission, and an
+`audit_events (entity_type, entity_id, id DESC)` index for per-record activity.
+See [ADR 0004](../adr/0004-client-identifier-protection-and-visibility.md).
+
+- `client_code` (`CL-00001`) is drawn from `client_code_seq` server-side and is
+  never reused, even after a rolled-back create.
+- `client_type` is `individual` (CNIC required, NTN optional) or `business`
+  (NTN required, never a CNIC). Required fields by type are enforced by the
+  shared Zod contract and the API; the database enforces that a business has
+  no CNIC. The type cannot change after creation.
+- Each identifier is a triple of `*_ciphertext`, `*_blind_index`, and
+  `*_masked` that is all-null or all-set (check constraints). Partial unique
+  indexes on the blind indexes block exact duplicates deployment-wide,
+  including archived clients. Plaintext identifiers are never stored.
+- `normalized_name` and `normalized_display_name` hold the lowercase,
+  punctuation-free, suffix-stripped name used for search and duplicate
+  warnings. Contacts store `email_normalized` (lowercase) and
+  `phone_normalized` (digits in international form, `0300…` → `92300…`).
+- `deleted_at` is the archive timestamp. Archived clients keep every relation
+  and their history and are excluded from default search and selection.
+- `client_contacts` rows belong to one client, have a unique `position`, at
+  most one `is_primary` row per client, and need an email or a phone. An edit
+  replaces the client's contact set inside the client's versioned update.
+- Client edits use `version` with `If-Match`; a stale version returns `412`.
+- Client audit events (`client.created`, `client.updated`, `client.archived`,
+  `client.restored`, `client.duplicate_override`) record changed field names,
+  masked identifiers, and override reasons only, never field values, notes,
+  or contact details.
 
 ## Integrity rules
 

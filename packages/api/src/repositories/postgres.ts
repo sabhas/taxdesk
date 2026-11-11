@@ -14,6 +14,7 @@ import type {
   UserRecord,
 } from '../domain/auth/types.js';
 import type { PaginatedAuditEvents, Repositories, UnitOfWork } from './ports.js';
+import { createPostgresClientRepository } from './postgres-clients.js';
 
 function text(row: SqlRow, key: string): string {
   const value = row[key];
@@ -671,7 +672,22 @@ export function createPostgresRepositories(executor: SqlExecutor): Repositories 
           nextCursor: rows.length > input.limit ? (page.at(-1)?.id ?? null) : null,
         };
       },
+      listForEntity: async (input): Promise<PaginatedAuditEvents> => {
+        const rows = await executor.query(
+          `SELECT * FROM audit_events
+           WHERE entity_type = $1 AND entity_id = $2::uuid AND ($4::uuid IS NULL OR id < $4::uuid)
+           ORDER BY id DESC
+           LIMIT $3`,
+          [input.entityType, input.entityId, input.limit + 1, input.cursor],
+        );
+        const page = rows.slice(0, input.limit).map(mapAudit);
+        return {
+          events: page,
+          nextCursor: rows.length > input.limit ? (page.at(-1)?.id ?? null) : null,
+        };
+      },
     },
+    clients: createPostgresClientRepository(executor),
     loginAttempts: {
       record: async (record) => {
         await executor.query(

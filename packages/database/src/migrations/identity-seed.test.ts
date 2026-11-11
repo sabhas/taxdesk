@@ -6,6 +6,7 @@ import { PERMISSION_KEYS, ROLE_DEFINITIONS, ROLE_KEYS } from '@taxdesk/shared';
 const IDENTITY_MIGRATIONS = [
   '0002_identity_and_authorization.sql',
   '0003_consultant_assigned_case_work.sql',
+  '0005_client_management.sql',
 ] as const;
 
 const sources = await Promise.all(

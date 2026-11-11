@@ -15,6 +15,7 @@ import { originCheckMiddleware, securityHeadersMiddleware } from './middleware/s
 import { problemDetailsResponse } from './problem-details.js';
 import { authRoutes } from './routes/auth.js';
 import { auditRoutes } from './routes/audit.js';
+import { clientRoutes } from './routes/clients.js';
 import { firmRoutes } from './routes/firm.js';
 import { userRoutes } from './routes/users.js';
 import type { AppEnv } from './types.js';
@@ -33,6 +34,8 @@ const PROTECTED_PREFIXES = [
   '/api/v1/users/*',
   '/api/v1/admin/*',
   '/api/v1/firm/*',
+  // Hono's wildcard also matches the bare `/api/v1/clients` collection path.
+  '/api/v1/clients/*',
 ] as const;
 
 function titleForStatus(status: number): string {
@@ -94,6 +97,7 @@ export function createApp(options: CreateAppOptions = {}): Hono<AppEnv> {
   app.route('/api/v1', userRoutes);
   app.route('/api/v1', firmRoutes);
   app.route('/api/v1', auditRoutes);
+  app.route('/api/v1', clientRoutes);
 
   app.notFound((c) => {
     return problemDetailsResponse(c, {

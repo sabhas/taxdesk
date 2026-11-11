@@ -130,6 +130,8 @@ use instead of disabling the control.
 | Name | Kind | Purpose |
 | --- | --- | --- |
 | `MFA_ENCRYPTION_KEY` | Worker secret | base64url 32-byte AES-256-GCM key that encrypts TOTP secrets. Generate with `openssl rand -base64 32 \| tr '+/' '-_' \| tr -d '='`. Losing it forces every user through `disable-mfa` recovery. |
+| `CLIENT_DATA_ENCRYPTION_KEY` | Worker secret | base64url 32-byte AES-256-GCM key that encrypts client CNIC/NTN values (Epic 2, [ADR 0004](../adr/0004-client-identifier-protection-and-visibility.md)). Generate like `MFA_ENCRYPTION_KEY`. Without it, client creation and identifier edits return `503`. |
+| `CLIENT_IDENTIFIER_INDEX_KEY` | Worker secret | A different base64url 32-byte key for the CNIC/NTN HMAC blind index (duplicate blocking and exact identifier search). Never rotate it without re-indexing every client. |
 | `TURNSTILE_SECRET_KEY` | Worker secret | Cloudflare Turnstile Siteverify secret, required once a login is throttled. |
 | `TURNSTILE_SITE_KEY` | `[vars]` | Public Turnstile site key returned to the browser with `turnstile_required`. |
 | `APP_ORIGIN` | `[vars]` | Optional comma-separated extra origins accepted by the mutation Origin check (the request origin is always allowed). |

@@ -21,13 +21,17 @@ const IV_BYTES = 12;
  * self-describing (`v<keyVersion>.<iv>.<ciphertext>`) so a future key rotation
  * can decrypt old values while writing the new version.
  */
-export function createSecretCipher(base64Key: string, keyVersion = 1): SecretCipher {
+export function createSecretCipher(
+  base64Key: string,
+  keyVersion = 1,
+  keyName = 'MFA encryption key',
+): SecretCipher {
   const rawKey = base64UrlToBytes(base64Key);
   if (rawKey.length !== 32) {
-    throw new SecretCipherError('The MFA encryption key must be 32 bytes of base64url data.');
+    throw new SecretCipherError(`The ${keyName} must be 32 bytes of base64url data.`);
   }
   if (!Number.isInteger(keyVersion) || keyVersion < 1) {
-    throw new SecretCipherError('The MFA encryption key version must be a positive integer.');
+    throw new SecretCipherError(`The ${keyName} version must be a positive integer.`);
   }
 
   const importKey = async (): Promise<CryptoKey> =>

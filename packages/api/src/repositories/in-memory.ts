@@ -13,8 +13,13 @@ import type {
   UserRecord,
 } from '../domain/auth/types.js';
 import type { Repositories, UnitOfWork } from './ports.js';
+import {
+  createInMemoryClientRepository,
+  createInMemoryClientState,
+  type InMemoryClientState,
+} from './in-memory-clients.js';
 
-export interface InMemoryState {
+export interface InMemoryState extends InMemoryClientState {
   firm: FirmRecord | null;
   users: Map<string, UserRecord>;
   roles: Map<string, RoleRecord>;
@@ -55,6 +60,7 @@ export function createInMemoryRepositories(): InMemoryRepositories {
     recoveryCodes: new Map(),
     auditEvents: [],
     loginAttempts: [],
+    ...createInMemoryClientState(),
   };
 
   const roles: RoleRecord[] = ROLE_KEYS.map((key) => ({
@@ -67,7 +73,7 @@ export function createInMemoryRepositories(): InMemoryRepositories {
     state.roles.set(role.key, role);
   }
 
-  const repositories: Repositories = {
+  const repositories: Omit<Repositories, 'clients'> = {
     firm: {
       get: async () => (state.firm === null ? null : { ...state.firm }),
       create: async (input) => {
@@ -485,6 +491,22 @@ export function createInMemoryRepositories(): InMemoryRepositories {
           nextCursor: hasMore ? (page.at(-1)?.id ?? null) : null,
         };
       },
+      listForEntity: async (input) => {
+        const cursor = input.cursor;
+        const filtered = state.auditEvents
+          .filter(
+            (event) =>
+              event.entityType === input.entityType &&
+              event.entityId === input.entityId &&
+              (cursor === null || event.id < cursor),
+          )
+          .sort((left, right) => right.id.localeCompare(left.id));
+        const page = filtered.slice(0, input.limit);
+        return {
+          events: page.map(copyEvent),
+          nextCursor: filtered.length > input.limit ? (page.at(-1)?.id ?? null) : null,
+        };
+      },
     },
     loginAttempts: {
       record: async (record) => {
@@ -514,9 +536,14 @@ export function createInMemoryRepositories(): InMemoryRepositories {
     },
   };
 
-  const unitOfWork: UnitOfWork = {
-    run: async (work) => await work(repositories),
+  const repositoriesWithClients: Repositories = {
+    ...repositories,
+    clients: createInMemoryClientRepository(state),
   };
 
-  return { repositories, unitOfWork, state };
+  const unitOfWork: UnitOfWork = {
+    run: async (work) => await work(repositoriesWithClients),
+  };
+
+  return { repositories: repositoriesWithClients, unitOfWork, state };
 }

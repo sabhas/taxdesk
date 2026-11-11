@@ -11,6 +11,15 @@ import type {
   SessionRecord,
   UserRecord,
 } from '../domain/auth/types.js';
+import type {
+  ClientChanges,
+  ClientContactRecord,
+  ClientListFilter,
+  ClientListPage,
+  ClientRecord,
+  DuplicateCandidate,
+  DuplicateCandidateQuery,
+} from '../domain/clients/types.js';
 
 export interface PaginatedAuditEvents {
   readonly events: readonly AuditEventRecord[];
@@ -143,6 +152,49 @@ export interface AuditRepository {
     readonly limit: number;
     readonly cursor: string | null;
   }): Promise<PaginatedAuditEvents>;
+  /** One record's history, newest first (client activity). */
+  listForEntity(input: {
+    readonly entityType: string;
+    readonly entityId: string;
+    readonly limit: number;
+    readonly cursor: string | null;
+  }): Promise<PaginatedAuditEvents>;
+}
+
+/**
+ * Raised by a client repository when a write would duplicate a CNIC or NTN
+ * blind index (a concurrent create, or an update to an existing identifier).
+ */
+export class DuplicateClientIdentifierError extends Error {
+  constructor() {
+    super('A client with this identifier already exists.');
+    this.name = 'DuplicateClientIdentifierError';
+  }
+}
+
+export interface ClientRepository {
+  /** Draws the next client-code number. Numbers are never reused. */
+  nextClientNumber(): Promise<number>;
+  create(client: ClientRecord, contacts: readonly ClientContactRecord[]): Promise<void>;
+  findById(id: string): Promise<ClientRecord | null>;
+  listContacts(clientIds: readonly string[]): Promise<ClientContactRecord[]>;
+  /** Optimistic update; `null` when `expectedVersion` is stale or the client is missing. */
+  update(input: {
+    readonly id: string;
+    readonly changes: ClientChanges;
+    readonly expectedVersion: number;
+    readonly at: string;
+  }): Promise<ClientRecord | null>;
+  replaceContacts(clientId: string, contacts: readonly ClientContactRecord[]): Promise<void>;
+  /** Archives (`archivedAt` set) or restores (`null`); `null` result when stale. */
+  setArchived(input: {
+    readonly id: string;
+    readonly archivedAt: string | null;
+    readonly expectedVersion: number;
+    readonly at: string;
+  }): Promise<ClientRecord | null>;
+  list(filter: ClientListFilter): Promise<ClientListPage>;
+  findDuplicateCandidates(query: DuplicateCandidateQuery): Promise<DuplicateCandidate[]>;
 }
 
 export interface LoginAttemptRepository {
@@ -165,6 +217,7 @@ export interface Repositories {
   readonly mfa: MfaRepository;
   readonly audit: AuditRepository;
   readonly loginAttempts: LoginAttemptRepository;
+  readonly clients: ClientRepository;
 }
 
 /**
