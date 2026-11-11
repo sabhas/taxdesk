@@ -33,7 +33,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                 {/* NavLink sets aria-current="page" on the active route. */}
                 <NavLink
                   to={item.path}
-                  end
+                  end={item.end ?? true}
                   onClick={onNavigate}
                   className={({ isActive }) =>
                     cn(

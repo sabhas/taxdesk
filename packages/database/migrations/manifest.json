@@ -16,6 +16,10 @@
     {
       "name": "0004_username_sign_in.sql",
       "checksum": "746ab913d4847e304cc6b67fd5394ba25b8d3e6506d686ff26c9842d483e7326"
+    },
+    {
+      "name": "0005_client_management.sql",
+      "checksum": "5905c9c497514033f7e05a2d1da8cb4a2059fc872cbfbc99935979f16cd3e23b"
     }
   ]
 }

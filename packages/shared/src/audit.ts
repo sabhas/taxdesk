@@ -63,4 +63,9 @@ export const AUDIT_ACTIONS = {
   recoveryPasswordReset: 'user.recovery_password_reset',
   recoveryMfaDisabled: 'user.recovery_mfa_disabled',
   recoveryReactivated: 'user.recovery_reactivated',
+  clientCreated: 'client.created',
+  clientUpdated: 'client.updated',
+  clientArchived: 'client.archived',
+  clientRestored: 'client.restored',
+  clientDuplicateOverride: 'client.duplicate_override',
 } as const;

@@ -30,6 +30,8 @@ APP_PUBLIC_URL = "http://localhost:5173"
 # Secret values are NOT placed here. Set them with `wrangler secret put`:
 #   MFA_ENCRYPTION_KEY   base64url 32-byte key (openssl rand -base64 32 | tr '+/' '-_' | tr -d '=')
 #   TURNSTILE_SECRET_KEY Turnstile Siteverify secret
+#   CLIENT_DATA_ENCRYPTION_KEY   base64url 32-byte key for client CNIC/NTN ciphertext
+#   CLIENT_IDENTIFIER_INDEX_KEY  a different base64url 32-byte key for the identifier blind index
 
 # `localConnectionString` is used only by `wrangler dev`; it is ignored on
 # deploy. Point it at the dedicated development database (or a local Postgres).

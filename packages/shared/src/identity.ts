@@ -28,6 +28,10 @@ export interface RoleDefinition {
  * Permission keys group by capability area so later epics add routes with an
  * explicit, reviewable declaration. A permission may only be checked on the
  * server; the browser uses the same list to hide affordances.
+ *
+ * `clients.read` opens the client area; `clients.read_all` widens it to every
+ * client. Without it (consultants) only clients assigned to the user are
+ * visible.
  */
 export const PERMISSION_KEYS = [
   'firm.settings.read',
@@ -36,6 +40,7 @@ export const PERMISSION_KEYS = [
   'users.manage',
   'audit.read',
   'clients.read',
+  'clients.read_all',
   'clients.manage',
   'cases.read_all',
   'cases.read_assigned',
@@ -75,6 +80,7 @@ export const ROLE_DEFINITIONS: Readonly<Record<RoleKey, RoleDefinition>> = {
     permissions: [
       'firm.settings.read',
       'clients.read',
+      'clients.read_all',
       'clients.manage',
       'cases.read_all',
       'cases.manage',
@@ -107,6 +113,7 @@ export const ROLE_DEFINITIONS: Readonly<Record<RoleKey, RoleDefinition>> = {
     permissions: [
       'firm.settings.read',
       'clients.read',
+      'clients.read_all',
       'cases.read_all',
       'billing.read',
       'billing.manage',
@@ -121,6 +128,7 @@ export const ROLE_DEFINITIONS: Readonly<Record<RoleKey, RoleDefinition>> = {
     permissions: [
       'firm.settings.read',
       'clients.read',
+      'clients.read_all',
       'cases.read_all',
       'documents.read',
       'billing.read',

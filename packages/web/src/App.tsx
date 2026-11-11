@@ -9,6 +9,9 @@ import { ErrorAlert, LoadingMessage, PermissionDenied } from './components/feedb
 import { AuthHeading, AuthLayout } from './components/layout/AuthLayout.js';
 import { ActivationPage } from './pages/ActivationPage.js';
 import { AuditPage } from './pages/AuditPage.js';
+import { ClientDetailPage } from './pages/clients/ClientDetailPage.js';
+import { ClientFormPage } from './pages/clients/ClientFormPage.js';
+import { ClientsPage } from './pages/clients/ClientsPage.js';
 import { DashboardPage } from './pages/DashboardPage.js';
 import { FirmSettingsPage } from './pages/FirmSettingsPage.js';
 import { LoginPage, type MfaChallengeState } from './pages/LoginPage.js';
@@ -26,6 +29,7 @@ const PAGES: Readonly<Record<string, ReactNode>> = {
   [ROUTE_PATHS.users]: <UsersPage />,
   [ROUTE_PATHS.firmSettings]: <FirmSettingsPage />,
   [ROUTE_PATHS.audit]: <AuditPage />,
+  [ROUTE_PATHS.clients]: <ClientsPage />,
 };
 
 /**
@@ -177,6 +181,23 @@ function AppContent() {
             }
           />
         ))}
+        <Route
+          path={ROUTE_PATHS.newClient}
+          element={
+            <>
+              <DocumentTitle title="New client" />
+              {can('clients.manage') ? <ClientFormPage mode="create" /> : <PermissionDenied />}
+            </>
+          }
+        />
+        <Route
+          path={`${ROUTE_PATHS.clients}/:clientId`}
+          element={can('clients.read') ? <ClientDetailPage /> : <PermissionDenied />}
+        />
+        <Route
+          path={`${ROUTE_PATHS.clients}/:clientId/edit`}
+          element={can('clients.manage') ? <ClientFormPage mode="edit" /> : <PermissionDenied />}
+        />
         {/* An activation link opened without a token, or after activation. */}
         <Route
           path={ROUTE_PATHS.activate}

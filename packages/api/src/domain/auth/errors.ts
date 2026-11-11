@@ -28,7 +28,13 @@ export type AuthErrorCode =
   | 'FIRM_NOT_BOOTSTRAPPED'
   | 'FIRM_ALREADY_BOOTSTRAPPED'
   | 'SERVICE_UNAVAILABLE'
-  | 'ORIGIN_NOT_ALLOWED';
+  | 'ORIGIN_NOT_ALLOWED'
+  | 'CLIENT_NOT_FOUND'
+  | 'CLIENT_IDENTIFIER_EXISTS'
+  | 'CLIENT_DUPLICATE_WARNING'
+  | 'CLIENT_ARCHIVED'
+  | 'CLIENT_NOT_ARCHIVED'
+  | 'ASSIGNEE_INVALID';
 
 export interface AuthErrorOptions {
   readonly errors?: readonly FieldError[];

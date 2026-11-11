@@ -11,6 +11,8 @@ import type { UserRecord } from '../domain/auth/types.js';
 
 export const TEST_MFA_KEY = bytesToBase64Url(new Uint8Array(32).fill(7));
 export const TEST_SITE_KEY = 'test-site-key';
+export const TEST_CLIENT_DATA_KEY = bytesToBase64Url(new Uint8Array(32).fill(11));
+export const TEST_CLIENT_INDEX_KEY = bytesToBase64Url(new Uint8Array(32).fill(13));
 
 export interface TestHarness {
   readonly dependencies: AppDependencies;
@@ -29,6 +31,8 @@ export interface TestHarnessOptions {
   readonly allowedOrigins?: readonly string[];
   readonly appPublicUrl?: string;
   readonly passwordIterations?: number;
+  /** `false` simulates a deployment without client identifier keys. */
+  readonly clientKeys?: boolean;
 }
 
 export function createTestHarness(options: TestHarnessOptions = {}): TestHarness {
@@ -52,6 +56,12 @@ export function createTestHarness(options: TestHarnessOptions = {}): TestHarness
       turnstileSiteKey: siteKey,
       allowedOrigins: options.allowedOrigins ?? [],
       appPublicUrl: options.appPublicUrl ?? 'https://taxdesk.test',
+      ...(options.clientKeys === false
+        ? {}
+        : {
+            clientDataEncryptionKey: TEST_CLIENT_DATA_KEY,
+            clientIdentifierIndexKey: TEST_CLIENT_INDEX_KEY,
+          }),
     },
     clock,
     passwordHasher: createPasswordHasher({

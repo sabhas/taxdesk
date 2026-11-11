@@ -13,6 +13,8 @@ export interface ApiBindings {
     connectionString: string;
   };
   MFA_ENCRYPTION_KEY?: string;
+  CLIENT_DATA_ENCRYPTION_KEY?: string;
+  CLIENT_IDENTIFIER_INDEX_KEY?: string;
   TURNSTILE_SECRET_KEY?: string;
   TURNSTILE_SITE_KEY?: string;
   APP_ORIGIN?: string;
@@ -49,6 +51,10 @@ export interface AuthRuntimeConfig {
   readonly turnstileSiteKey: string | undefined;
   readonly allowedOrigins: readonly string[];
   readonly appPublicUrl: string | undefined;
+  /** AES-256-GCM key for client CNIC/NTN ciphertext. */
+  readonly clientDataEncryptionKey?: string | undefined;
+  /** HMAC key for the client identifier blind index. */
+  readonly clientIdentifierIndexKey?: string | undefined;
 }
 
 function optionalString(value: unknown): string | undefined {
@@ -72,5 +78,7 @@ export function resolveAuthConfig(env: ApiBindings): AuthRuntimeConfig {
     turnstileSiteKey: optionalString(env.TURNSTILE_SITE_KEY),
     allowedOrigins,
     appPublicUrl: optionalString(env.APP_PUBLIC_URL),
+    clientDataEncryptionKey: optionalString(env.CLIENT_DATA_ENCRYPTION_KEY),
+    clientIdentifierIndexKey: optionalString(env.CLIENT_IDENTIFIER_INDEX_KEY),
   };
 }

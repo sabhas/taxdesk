@@ -3,7 +3,12 @@ import { createSecretCipher, type SecretCipher } from './crypto/cipher.js';
 import { createPasswordHasher, type PasswordHasher } from './crypto/password.js';
 import { createTokenHasher, type TokenHasher } from './crypto/token.js';
 import { TOTP_DEFAULTS, createTotpService, type TotpService } from './crypto/totp.js';
+import {
+  createIdentifierProtector,
+  type IdentifierProtector,
+} from './crypto/identifier-protection.js';
 import { AuthService } from './domain/auth/auth-service.js';
+import { ClientService } from './domain/clients/client-service.js';
 import { FirmService } from './domain/auth/firm-service.js';
 import { LoginThrottle } from './domain/auth/login-throttle-service.js';
 import { MfaService } from './domain/auth/mfa-service.js';
@@ -28,6 +33,7 @@ export interface AppDependencies {
   readonly mfaService: MfaService;
   readonly userService: UserLifecycleService;
   readonly firmService: FirmService;
+  readonly clientService: ClientService;
   readonly clock: () => Date;
   readonly close: () => Promise<void>;
 }
@@ -49,7 +55,28 @@ export interface ComposeDependenciesOptions {
   readonly totp?: TotpService;
   readonly cipher?: SecretCipher | null;
   readonly turnstile?: TurnstileVerifier;
+  readonly identifiers?: IdentifierProtector | null;
   readonly close?: () => Promise<void>;
+}
+
+/**
+ * Builds the CNIC/NTN protector from deployment secrets. Without both keys the
+ * client routes still read masked data, but any write or exact identifier
+ * search that needs them fails with 503 rather than storing plaintext.
+ */
+export function identifierProtectorFromConfig(
+  config: AuthRuntimeConfig,
+): IdentifierProtector | null {
+  if (
+    config.clientDataEncryptionKey === undefined ||
+    config.clientIdentifierIndexKey === undefined
+  ) {
+    return null;
+  }
+  return createIdentifierProtector({
+    encryptionKey: config.clientDataEncryptionKey,
+    indexKey: config.clientIdentifierIndexKey,
+  });
 }
 
 /**
@@ -120,6 +147,15 @@ export function composeDependencies(options: ComposeDependenciesOptions): AppDep
       clock,
     }),
     firmService: new FirmService({ repositories, unitOfWork, clock }),
+    clientService: new ClientService({
+      repositories,
+      unitOfWork,
+      identifiers:
+        options.identifiers !== undefined
+          ? options.identifiers
+          : identifierProtectorFromConfig(options.authConfig),
+      clock,
+    }),
     clock,
     close: options.close ?? (() => Promise.resolve()),
   };
