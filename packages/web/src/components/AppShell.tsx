@@ -5,7 +5,7 @@ import { ROLE_DEFINITIONS } from '@taxdesk/shared';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
-import { NAV_ROUTES } from '../routes.js';
+import { NAV_ROUTES, canSeeRoute } from '../routes.js';
 import { useSession } from '../session/session-context.js';
 import { Wordmark } from './layout/BrandMark.js';
 
@@ -19,7 +19,7 @@ function initials(name: string): string {
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const { state, can, signOut } = useSession();
   const session = state.status === 'authenticated' ? state.session : null;
-  const items = NAV_ROUTES.filter((item) => item.permission === undefined || can(item.permission));
+  const items = NAV_ROUTES.filter((item) => canSeeRoute(item, can));
 
   return (
     <div className="flex h-full flex-col gap-6 bg-sidebar p-4 text-sidebar-foreground">

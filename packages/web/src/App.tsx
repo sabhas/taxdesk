@@ -9,6 +9,9 @@ import { ErrorAlert, LoadingMessage, PermissionDenied } from './components/feedb
 import { AuthHeading, AuthLayout } from './components/layout/AuthLayout.js';
 import { ActivationPage } from './pages/ActivationPage.js';
 import { AuditPage } from './pages/AuditPage.js';
+import { CaseCreatePage } from './pages/cases/CaseCreatePage.js';
+import { CaseDetailPage } from './pages/cases/CaseDetailPage.js';
+import { CasesPage } from './pages/cases/CasesPage.js';
 import { ClientDetailPage } from './pages/clients/ClientDetailPage.js';
 import { ClientFormPage } from './pages/clients/ClientFormPage.js';
 import { ClientsPage } from './pages/clients/ClientsPage.js';
@@ -19,8 +22,11 @@ import { MfaChallengePage } from './pages/MfaChallengePage.js';
 import { MfaEnrollmentPage } from './pages/MfaEnrollmentPage.js';
 import { NotFoundPage } from './pages/NotFoundPage.js';
 import { SecurityPage } from './pages/SecurityPage.js';
+import { ServicesPage } from './pages/services/ServicesPage.js';
 import { UsersPage } from './pages/UsersPage.js';
-import { NAV_ROUTES, ROUTE_PATHS } from './routes.js';
+import { WorkflowTemplatePage } from './pages/workflows/WorkflowTemplatePage.js';
+import { WorkflowsPage } from './pages/workflows/WorkflowsPage.js';
+import { CASE_READ_PERMISSIONS, NAV_ROUTES, ROUTE_PATHS, canSeeRoute } from './routes.js';
 import { SessionProvider, useSession } from './session/session-context.js';
 
 const PAGES: Readonly<Record<string, ReactNode>> = {
@@ -30,6 +36,9 @@ const PAGES: Readonly<Record<string, ReactNode>> = {
   [ROUTE_PATHS.firmSettings]: <FirmSettingsPage />,
   [ROUTE_PATHS.audit]: <AuditPage />,
   [ROUTE_PATHS.clients]: <ClientsPage />,
+  [ROUTE_PATHS.cases]: <CasesPage />,
+  [ROUTE_PATHS.services]: <ServicesPage />,
+  [ROUTE_PATHS.workflows]: <WorkflowsPage />,
 };
 
 /**
@@ -172,11 +181,7 @@ function AppContent() {
               <>
                 <DocumentTitle title={route.title} />
                 {/* UI gating only: the API enforces every permission. */}
-                {route.permission === undefined || can(route.permission) ? (
-                  PAGES[route.path]
-                ) : (
-                  <PermissionDenied />
-                )}
+                {canSeeRoute(route, can) ? PAGES[route.path] : <PermissionDenied />}
               </>
             }
           />
@@ -197,6 +202,33 @@ function AppContent() {
         <Route
           path={`${ROUTE_PATHS.clients}/:clientId/edit`}
           element={can('clients.manage') ? <ClientFormPage mode="edit" /> : <PermissionDenied />}
+        />
+        <Route
+          path={ROUTE_PATHS.newCase}
+          element={
+            <>
+              <DocumentTitle title="New case" />
+              {can('cases.manage') || can('cases.work_assigned') ? (
+                <CaseCreatePage />
+              ) : (
+                <PermissionDenied />
+              )}
+            </>
+          }
+        />
+        <Route
+          path={`${ROUTE_PATHS.cases}/:caseId`}
+          element={
+            CASE_READ_PERMISSIONS.some((permission) => can(permission)) ? (
+              <CaseDetailPage />
+            ) : (
+              <PermissionDenied />
+            )
+          }
+        />
+        <Route
+          path={`${ROUTE_PATHS.workflows}/:templateId`}
+          element={can('services.manage') ? <WorkflowTemplatePage /> : <PermissionDenied />}
         />
         {/* An activation link opened without a token, or after activation. */}
         <Route

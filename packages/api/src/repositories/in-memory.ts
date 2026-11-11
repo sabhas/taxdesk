@@ -18,8 +18,15 @@ import {
   createInMemoryClientState,
   type InMemoryClientState,
 } from './in-memory-clients.js';
+import {
+  createInMemoryCaseRepository,
+  createInMemoryCaseState,
+  createInMemoryServiceTypeRepository,
+  createInMemoryWorkflowTemplateRepository,
+  type InMemoryCaseState,
+} from './in-memory-cases.js';
 
-export interface InMemoryState extends InMemoryClientState {
+export interface InMemoryState extends InMemoryClientState, InMemoryCaseState {
   firm: FirmRecord | null;
   users: Map<string, UserRecord>;
   roles: Map<string, RoleRecord>;
@@ -61,6 +68,7 @@ export function createInMemoryRepositories(): InMemoryRepositories {
     auditEvents: [],
     loginAttempts: [],
     ...createInMemoryClientState(),
+    ...createInMemoryCaseState(),
   };
 
   const roles: RoleRecord[] = ROLE_KEYS.map((key) => ({
@@ -73,7 +81,10 @@ export function createInMemoryRepositories(): InMemoryRepositories {
     state.roles.set(role.key, role);
   }
 
-  const repositories: Omit<Repositories, 'clients'> = {
+  const repositories: Omit<
+    Repositories,
+    'clients' | 'serviceTypes' | 'workflowTemplates' | 'cases'
+  > = {
     firm: {
       get: async () => (state.firm === null ? null : { ...state.firm }),
       create: async (input) => {
@@ -539,6 +550,9 @@ export function createInMemoryRepositories(): InMemoryRepositories {
   const repositoriesWithClients: Repositories = {
     ...repositories,
     clients: createInMemoryClientRepository(state),
+    serviceTypes: createInMemoryServiceTypeRepository(state),
+    workflowTemplates: createInMemoryWorkflowTemplateRepository(state),
+    cases: createInMemoryCaseRepository(state, state.clients),
   };
 
   const unitOfWork: UnitOfWork = {

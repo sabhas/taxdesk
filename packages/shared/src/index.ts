@@ -186,3 +186,6 @@ export type {
   SpikeMetrics,
   SpikeSafeText,
 } from './onedrive-spike.js';
+export * from './service-type.js';
+export * from './workflow.js';
+export * from './case.js';

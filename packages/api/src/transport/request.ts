@@ -25,7 +25,10 @@ export function publicBaseUrl(c: Context<AppEnv>): string {
 }
 
 /** Parses a JSON body with a shared Zod contract and maps failures to 400. */
-export async function parseJsonBody<T>(c: Context<AppEnv>, schema: z.ZodType<T>): Promise<T> {
+export async function parseJsonBody<T>(
+  c: Context<AppEnv>,
+  schema: z.ZodType<T, z.ZodTypeDef, unknown>,
+): Promise<T> {
   let raw: unknown;
   try {
     raw = await c.req.json();

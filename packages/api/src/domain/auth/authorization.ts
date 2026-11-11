@@ -16,6 +16,13 @@ export function assertPermission(actor: Actor, permission: PermissionKey): void 
   }
 }
 
+/** Passes when the actor holds at least one of the permissions. */
+export function assertAnyPermission(actor: Actor, permissions: readonly PermissionKey[]): void {
+  if (!permissions.some((permission) => hasPermission(actor, permission))) {
+    throw forbidden();
+  }
+}
+
 /**
  * MFA gate. A signed-in user without confirmed MFA may only reach enrollment,
  * session, and logout routes; a session that has not completed the MFA

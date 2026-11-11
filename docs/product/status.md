@@ -3,7 +3,7 @@ title: Implementation status
 status: accepted
 version: 1.0
 owners: [product, engineering]
-last_reviewed: 2026-11-10
+last_reviewed: 2026-11-11
 ---
 
 # Implementation status
@@ -14,6 +14,8 @@ last_reviewed: 2026-11-10
 
 **Epic 2:** client management (TD-201–TD-206) is implemented and passes every local gate, including the PostgreSQL migration and repository suites. It awaits the two client identifier secrets and migration `0005` in staging, a staging demonstration, and Sprint Review before the epic is marked done.
 
+**Epic 3:** tax-case workflow (TD-301–TD-310) is implemented and passes every local gate, including the PostgreSQL migration and repository suites (database triggers and true concurrent races). It awaits migration `0006` in staging, a staging demonstration, and Sprint Review before the epic is marked done. No new secrets are required.
+
 **UI foundation (cross-cutting, not a backlog story):** the web app now uses shadcn/ui on Base UI with Tailwind CSS and the "ledger" design tokens ([ADR 0003](../adr/0003-ui-foundation.md), [design system](../technical/design-system.md)). The app shell and all existing Epic 1 screens were migrated with unchanged behavior; the production build was checked against the real content security policy with no violations. It is tracked as TD-007 in the Epic 0 PRD and still needs a staging visual check and Sprint Review acceptance.
 
 Update this file when an epic or sprint starts, becomes blocked, or completes.
@@ -23,7 +25,7 @@ Update this file when an epic or sprint starts, becomes blocked, or completes.
 | 0 | Foundation and platform validation | in_progress | 1 | — | TD-001–TD-006 implemented (OneDrive proof of concept passed; CI and staging delivery gates committed). Staging deployed, migrated, green on `ci:db-posture` (least-privilege non-owner role) and green on a 15/15 staging smoke check; that check caught the `/api/v1/app-info` environment defect, fixed in `7ba50d7`. The posture evidence secret is operator-attested and awaits confirmation by the first CI-driven deploy; the failing-check demonstration is still pending Sprint Review |
 | 1 | Identity, MFA, and authorization | in_progress | 2–3 | — | TD-101–TD-111 implemented and verified locally (unit, route, role-matrix, web, and PostgreSQL integration suites; migrations `0002`–`0004`; ADRs 0001–0002; username sign-in; QR MFA setup; recovery runbook). Staging needs `MFA_ENCRYPTION_KEY`, Turnstile keys, and the new migrations, then a staging demonstration and Sprint Review acceptance |
 | 2 | Client management | in_progress | 4 | — | TD-201–TD-206 implemented and verified locally (shared contracts, migration `0005`, API with role/assignment rules, duplicate blocking and audited overrides, `If-Match` edits with a refresh-and-review UI, search/filter/cursor paging, archive/restore, masked activity; unit, route, role-matrix, web/axe, and PostgreSQL suites; ADR 0004). Staging needs `CLIENT_DATA_ENCRYPTION_KEY`, `CLIENT_IDENTIFIER_INDEX_KEY`, and migration `0005`, then a staging demonstration and Sprint Review acceptance |
-| 3 | Tax-case workflow | not_started | 5–6 | Epic 2 | Requires clients and role permissions |
+| 3 | Tax-case workflow | in_progress | 5–6 | — | TD-301–TD-310 implemented and verified locally (shared contracts and workflow validator, migration `0006` with triggers for immutable published versions, case snapshots, append-only status history and transition-only status changes, `services.manage` permission and `any_permission` route policy, service/template/case APIs with `If-Match`, row-locked transitions and checklist gates, preparer/reviewer separation, duplicate-case policy, work queues whose counts share the list query, archive; unit, route, role-matrix, web/axe, jsdom lifecycle, and PostgreSQL suites; ADR 0005). Staging needs migration `0006`, then a staging demonstration and Sprint Review acceptance |
 | 4 | Document storage | not_started | 7–8 | Epic 3 | OneDrive Personal proof of concept passed (TD-005); requires Epic 3 cases |
 | 5 | Billing and payments | not_started | 9–10 | Epic 1, Epic 3 | Requires audit and idempotency service |
 | 6 | Dashboard and operations | not_started | 11 | Epics 2–5 | Aggregates existing domain data |

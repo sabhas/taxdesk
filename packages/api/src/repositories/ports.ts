@@ -20,6 +20,23 @@ import type {
   DuplicateCandidate,
   DuplicateCandidateQuery,
 } from '../domain/clients/types.js';
+import type {
+  ServiceTypeChanges,
+  ServiceTypeRecord,
+  WorkflowTemplateRecord,
+  WorkflowVersionRecord,
+} from '../domain/catalog/types.js';
+import type {
+  CaseChecklistItemRecord,
+  CaseDetailChanges,
+  CaseListFilter,
+  CaseListPage,
+  CaseQueryFilter,
+  CaseStatusHistoryRecord,
+  ChecklistItemChanges,
+  TaxCaseRecord,
+} from '../domain/cases/types.js';
+import type { WorkflowDefinition } from '@taxdesk/shared';
 
 export interface PaginatedAuditEvents {
   readonly events: readonly AuditEventRecord[];
@@ -197,6 +214,131 @@ export interface ClientRepository {
   findDuplicateCandidates(query: DuplicateCandidateQuery): Promise<DuplicateCandidate[]>;
 }
 
+/** Raised when a write would duplicate a unique name (service type or template). */
+export class DuplicateNameError extends Error {
+  constructor() {
+    super('The name is already in use.');
+    this.name = 'DuplicateNameError';
+  }
+}
+
+/** Raised when a template already has a draft version. */
+export class DraftExistsError extends Error {
+  constructor() {
+    super('The template already has a draft.');
+    this.name = 'DraftExistsError';
+  }
+}
+
+export interface ServiceTypeRepository {
+  create(record: ServiceTypeRecord): Promise<void>;
+  findById(id: string): Promise<ServiceTypeRecord | null>;
+  /** Ordered by name. */
+  list(state: 'active' | 'archived' | 'all'): Promise<ServiceTypeRecord[]>;
+  update(input: {
+    readonly id: string;
+    readonly changes: ServiceTypeChanges;
+    readonly expectedVersion: number;
+    readonly at: string;
+  }): Promise<ServiceTypeRecord | null>;
+  setArchived(input: {
+    readonly id: string;
+    readonly archivedAt: string | null;
+    readonly expectedVersion: number;
+    readonly at: string;
+  }): Promise<ServiceTypeRecord | null>;
+}
+
+export interface WorkflowTemplateRepository {
+  create(template: WorkflowTemplateRecord, draft: WorkflowVersionRecord): Promise<void>;
+  findTemplate(id: string): Promise<WorkflowTemplateRecord | null>;
+  /** Ordered by name. */
+  listTemplates(): Promise<WorkflowTemplateRecord[]>;
+  updateTemplate(input: {
+    readonly id: string;
+    readonly name: string;
+    readonly description: string;
+    readonly expectedVersion: number;
+    readonly at: string;
+  }): Promise<WorkflowTemplateRecord | null>;
+  /** Versions of the given templates, ordered by template then version number. */
+  listVersions(templateIds: readonly string[]): Promise<WorkflowVersionRecord[]>;
+  findVersion(id: string): Promise<WorkflowVersionRecord | null>;
+  /** Throws `DraftExistsError` when the template already has a draft. */
+  createVersion(record: WorkflowVersionRecord): Promise<void>;
+  /** Replaces a draft's definition; `null` when stale or no longer a draft. */
+  updateDraft(input: {
+    readonly id: string;
+    readonly definition: WorkflowDefinition;
+    readonly expectedVersion: number;
+    readonly at: string;
+  }): Promise<WorkflowVersionRecord | null>;
+  /** Publishes a draft; `null` when stale or no longer a draft. */
+  publish(input: {
+    readonly id: string;
+    readonly publishedBy: string;
+    readonly expectedVersion: number;
+    readonly at: string;
+  }): Promise<WorkflowVersionRecord | null>;
+}
+
+export interface CaseRepository {
+  /** Draws the next case-code number. Numbers are never reused. */
+  nextCaseNumber(): Promise<number>;
+  /**
+   * Serializes case creation for one client inside the current transaction,
+   * so two concurrent creates cannot both pass the duplicate check.
+   */
+  lockClientForCaseCreation(clientId: string): Promise<void>;
+  /** Cases for the client/service/tax year that are not closed or archived. */
+  findActiveDuplicates(input: {
+    readonly clientId: string;
+    readonly serviceTypeId: string;
+    readonly taxYear: number;
+  }): Promise<TaxCaseRecord[]>;
+  create(
+    record: TaxCaseRecord,
+    initialStatus: CaseStatusHistoryRecord,
+    items: readonly CaseChecklistItemRecord[],
+  ): Promise<void>;
+  findById(id: string): Promise<TaxCaseRecord | null>;
+  /** Reads and row-locks a case for the rest of the transaction. */
+  lockById(id: string): Promise<TaxCaseRecord | null>;
+  updateDetails(input: {
+    readonly id: string;
+    readonly changes: CaseDetailChanges;
+    readonly expectedVersion: number;
+    readonly at: string;
+  }): Promise<TaxCaseRecord | null>;
+  /**
+   * Appends the history row and moves the case to its status in one step;
+   * `null` (and nothing written) when the expected version is stale.
+   */
+  transition(input: {
+    readonly entry: CaseStatusHistoryRecord;
+    readonly expectedVersion: number;
+    readonly at: string;
+  }): Promise<TaxCaseRecord | null>;
+  archive(input: {
+    readonly id: string;
+    readonly expectedVersion: number;
+    readonly at: string;
+  }): Promise<TaxCaseRecord | null>;
+  /** Ordered by case then position. */
+  listItems(caseIds: readonly string[]): Promise<CaseChecklistItemRecord[]>;
+  updateItem(input: {
+    readonly caseId: string;
+    readonly itemId: string;
+    readonly changes: ChecklistItemChanges;
+    readonly expectedVersion: number;
+    readonly at: string;
+  }): Promise<CaseChecklistItemRecord | null>;
+  /** Oldest first. */
+  listStatusHistory(caseId: string): Promise<CaseStatusHistoryRecord[]>;
+  list(filter: CaseListFilter): Promise<CaseListPage>;
+  count(filter: CaseQueryFilter): Promise<number>;
+}
+
 export interface LoginAttemptRepository {
   record(record: LoginAttemptRecord): Promise<void>;
   countFailures(input: {
@@ -218,6 +360,9 @@ export interface Repositories {
   readonly audit: AuditRepository;
   readonly loginAttempts: LoginAttemptRepository;
   readonly clients: ClientRepository;
+  readonly serviceTypes: ServiceTypeRepository;
+  readonly workflowTemplates: WorkflowTemplateRepository;
+  readonly cases: CaseRepository;
 }
 
 /**
