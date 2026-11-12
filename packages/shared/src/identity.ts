@@ -35,6 +35,9 @@ export interface RoleDefinition {
  *
  * `services.manage` configures the service catalog and the workflow/checklist
  * templates that cases follow.
+ *
+ * `storage.manage` (administrator only) connects, checks, and disconnects the
+ * document storage provider and runs provider reconciliation.
  */
 export const PERMISSION_KEYS = [
   'firm.settings.read',
@@ -53,6 +56,7 @@ export const PERMISSION_KEYS = [
   'cases.assign',
   'documents.read',
   'documents.manage',
+  'storage.manage',
   'billing.read',
   'billing.manage',
   'reports.read',

@@ -8,3 +8,7 @@
 - A new repository needs both implementations: `repositories/postgres.ts` and
   `repositories/in-memory.ts` (the test harness uses the in-memory one), against the
   interfaces in `repositories/ports.ts`.
+- Document storage goes only through `storage/provider.ts` (`DocumentStorageProvider`);
+  only `storage/provider-factory.ts` may import `storage/onedrive/`, and
+  `storage/boundary.test.ts` enforces it. Route tests use the fake provider from the
+  harness and `connectStorage(harness, admin)` for a real connected gateway.

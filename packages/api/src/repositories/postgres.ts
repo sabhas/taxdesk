@@ -20,6 +20,13 @@ import {
   createPostgresServiceTypeRepository,
   createPostgresWorkflowTemplateRepository,
 } from './postgres-cases.js';
+import {
+  createPostgresDocumentRepository,
+  createPostgresDocumentUploadRepository,
+  createPostgresReconciliationRunRepository,
+  createPostgresStorageConnectionRepository,
+  createPostgresStorageOAuthStateRepository,
+} from './postgres-documents.js';
 
 function text(row: SqlRow, key: string): string {
   const value = row[key];
@@ -696,6 +703,11 @@ export function createPostgresRepositories(executor: SqlExecutor): Repositories 
     serviceTypes: createPostgresServiceTypeRepository(executor),
     workflowTemplates: createPostgresWorkflowTemplateRepository(executor),
     cases: createPostgresCaseRepository(executor),
+    storageConnections: createPostgresStorageConnectionRepository(executor),
+    storageOAuthStates: createPostgresStorageOAuthStateRepository(executor),
+    documents: createPostgresDocumentRepository(executor),
+    documentUploads: createPostgresDocumentUploadRepository(executor),
+    reconciliationRuns: createPostgresReconciliationRunRepository(executor),
     loginAttempts: {
       record: async (record) => {
         await executor.query(

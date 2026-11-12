@@ -14,6 +14,7 @@ import { createSecretCipher } from '../crypto/cipher.js';
 import { buildDependencies, type AppDependencies } from '../dependencies.js';
 import { BootstrapService } from '../domain/auth/bootstrap-service.js';
 import { matchesCaseFilter, type CaseQueryFilter } from '../domain/cases/types.js';
+import { seedVerifiedDocumentsForCase } from '../testing/document-fixtures.js';
 import { CASE_VIEWS, STARTER_WORKFLOW_DEFINITION } from '@taxdesk/shared';
 
 const connectionString =
@@ -533,6 +534,12 @@ describeWithDatabase('identity repositories against PostgreSQL', () => {
       expect(taxCase.caseCode).toMatch(/^TC-\d{5}$/u);
       expect(taxCase.dueDate).toBe('2026-09-30');
       expect(taxCase.checklist).toHaveLength(4);
+      // Epic 4: document-typed required items need a verified linked document.
+      await seedVerifiedDocumentsForCase(
+        { now: () => clockNow, repositories: dependencies.repositories },
+        taxCase,
+        f.owner.userId,
+      );
 
       for (const item of taxCase.checklist.filter((entry) => entry.required)) {
         tick();

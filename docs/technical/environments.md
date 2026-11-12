@@ -135,13 +135,20 @@ use instead of disabling the control.
 | `TURNSTILE_SECRET_KEY` | Worker secret | Cloudflare Turnstile Siteverify secret, required once a login is throttled. |
 | `TURNSTILE_SITE_KEY` | `[vars]` | Public Turnstile site key returned to the browser with `turnstile_required`. |
 | `APP_ORIGIN` | `[vars]` | Optional comma-separated extra origins accepted by the mutation Origin check (the request origin is always allowed). |
-| `APP_PUBLIC_URL` | `[vars]` | Optional base URL for one-time activation/reset links; defaults to the request origin. |
+| `APP_PUBLIC_URL` | `[vars]` | Optional base URL for one-time activation/reset links; defaults to the request origin. Epic 4 also derives the OneDrive redirect URI from it (`<APP_PUBLIC_URL>/settings/storage/callback`), so storage connection needs it set. |
+| `STORAGE_TOKEN_ENCRYPTION_KEY` | Worker secret | base64url 32-byte AES-256-GCM key that encrypts document storage tokens and upload-session handles (Epic 4, [ADR 0006](../adr/0006-provider-neutral-document-storage.md)). Generate like `MFA_ENCRYPTION_KEY`. Without it, storage connection and uploads return `503`; losing it only requires an administrator to reconnect storage. |
+| `ONEDRIVE_CLIENT_ID` | `[vars]` | Application (client) ID of the environment's Microsoft app registration (Personal accounts). Each environment uses its own registration whose redirect URI is `<APP_PUBLIC_URL>/settings/storage/callback`. Without it, the storage page reports "not configured". |
+| `ONEDRIVE_CLIENT_SECRET` | Worker secret | Optional. Set only when the registration is a confidential web app; a public client relies on PKCE alone. |
+| `ONEDRIVE_AUTHORITY` | `[vars]` | Optional Microsoft identity tenant segment; defaults to `consumers` (Personal accounts). |
+| `DOCUMENT_MAX_UPLOAD_BYTES` | `[vars]` | Optional upload size limit in bytes; defaults to 262144000 (250 MiB). |
 
 The first administrator is created with `pnpm auth:bootstrap`, and lockouts are
 recovered with `pnpm auth:recover`; both need the environment's `DATABASE_URL`.
 See [`../guides/administrator-recovery.md`](../guides/administrator-recovery.md).
 
-Future provider credentials such as OneDrive/Graph values are added here.
+The OneDrive grant is delegated `Files.ReadWrite.AppFolder` + `offline_access`, so
+TaxDesk can only see its own app folder. Connect it from **Settings → Storage** as
+an administrator after the values above are set.
 
 The TD-005 OneDrive feasibility spike deliberately adds **no** Worker secret. It
 runs on an operator workstation as a local CLI, is a public client using

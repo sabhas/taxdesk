@@ -6,6 +6,7 @@ import { createDefaultDependencies, type DependencyFactory } from './dependencie
 import { AppInfoService } from './domain/app-info-service.js';
 import { HealthService } from './domain/health-service.js';
 import { AuthError } from './domain/auth/errors.js';
+import { StorageProviderError } from './storage/provider.js';
 import {
   requestIdMiddleware,
   requireMutationRequestIdMiddleware,
@@ -20,6 +21,8 @@ import { catalogRoutes } from './routes/catalog.js';
 import { clientRoutes } from './routes/clients.js';
 import { firmRoutes } from './routes/firm.js';
 import { userRoutes } from './routes/users.js';
+import { storageRoutes } from './routes/storage.js';
+import { documentRoutes } from './routes/documents.js';
 import type { AppEnv } from './types.js';
 
 export interface CreateAppOptions {
@@ -41,6 +44,8 @@ const PROTECTED_PREFIXES = [
   '/api/v1/service-types/*',
   '/api/v1/workflow-templates/*',
   '/api/v1/cases/*',
+  '/api/v1/storage/*',
+  '/api/v1/documents/*',
 ] as const;
 
 function titleForStatus(status: number): string {
@@ -105,6 +110,8 @@ export function createApp(options: CreateAppOptions = {}): Hono<AppEnv> {
   app.route('/api/v1', clientRoutes);
   app.route('/api/v1', catalogRoutes);
   app.route('/api/v1', caseRoutes);
+  app.route('/api/v1', storageRoutes);
+  app.route('/api/v1', documentRoutes);
 
   app.notFound((c) => {
     return problemDetailsResponse(c, {
@@ -126,6 +133,28 @@ export function createApp(options: CreateAppOptions = {}): Hono<AppEnv> {
         title: titleForStatus(err.status),
         detail: err.message,
         ...(err.errors === undefined ? {} : { errors: [...err.errors] }),
+      });
+    }
+    if (err instanceof StorageProviderError) {
+      // A provider failure no service mapped. Report the kind only: adapters
+      // never put provider bodies, URLs, or tokens in errors, but the
+      // response still carries a fixed message.
+      console.error(
+        JSON.stringify({
+          level: 'error',
+          event: 'api.storage_provider_error',
+          requestId: c.get('requestId'),
+          kind: err.kind,
+        }),
+      );
+      if (err.retryAfterSeconds !== undefined) {
+        c.header('Retry-After', String(err.retryAfterSeconds));
+      }
+      return problemDetailsResponse(c, {
+        status: 503,
+        code: 'STORAGE_UNAVAILABLE',
+        title: 'Service Unavailable',
+        detail: 'Document storage could not complete the request. Try again shortly.',
       });
     }
     // Structured, allow-listed operational log. Never serialize the raw error,

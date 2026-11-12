@@ -36,6 +36,20 @@ import type {
   ChecklistItemChanges,
   TaxCaseRecord,
 } from '../domain/cases/types.js';
+import type {
+  ReconciliationRunRecord,
+  StorageConnectionChanges,
+  StorageConnectionRecord,
+  StorageOAuthStateRecord,
+} from '../domain/storage/types.js';
+import type {
+  DocumentChanges,
+  DocumentListFilter,
+  DocumentListPage,
+  DocumentRecord,
+  DocumentUploadChanges,
+  DocumentUploadRecord,
+} from '../domain/documents/types.js';
 import type { WorkflowDefinition } from '@taxdesk/shared';
 
 export interface PaginatedAuditEvents {
@@ -339,6 +353,88 @@ export interface CaseRepository {
   count(filter: CaseQueryFilter): Promise<number>;
 }
 
+/** The deployment's single storage connection (TD-402–TD-404). */
+export interface StorageConnectionRepository {
+  get(): Promise<StorageConnectionRecord | null>;
+  /**
+   * Reads and row-locks the connection for the rest of the transaction, so a
+   * token refresh or disconnect is serialized with every other writer.
+   */
+  lock(): Promise<StorageConnectionRecord | null>;
+  /** Inserts the singleton row; throws if one already exists. */
+  create(record: StorageConnectionRecord): Promise<void>;
+  /** Optimistic update; `null` when `expectedVersion` is stale. */
+  update(input: {
+    readonly id: string;
+    readonly changes: StorageConnectionChanges;
+    readonly expectedVersion: number;
+    readonly at: string;
+  }): Promise<StorageConnectionRecord | null>;
+}
+
+export interface StorageOAuthStateRepository {
+  create(record: StorageOAuthStateRecord): Promise<void>;
+  findByStateHash(stateHash: string): Promise<StorageOAuthStateRecord | null>;
+  /** Marks a state consumed; `false` when it was already consumed (single use). */
+  consume(id: string, at: string): Promise<boolean>;
+  pruneBefore(before: string): Promise<number>;
+}
+
+/** Raised when a second document would be created from the same upload. */
+export class DuplicateDocumentUploadError extends Error {
+  constructor() {
+    super('A document already exists for this upload.');
+    this.name = 'DuplicateDocumentUploadError';
+  }
+}
+
+export interface DocumentRepository {
+  /** Throws `DuplicateDocumentUploadError` when `uploadId` already produced a document. */
+  create(record: DocumentRecord): Promise<void>;
+  findById(id: string): Promise<DocumentRecord | null>;
+  findByUploadId(uploadId: string): Promise<DocumentRecord | null>;
+  /** Reads and row-locks a document for the rest of the transaction. */
+  lockById(id: string): Promise<DocumentRecord | null>;
+  update(input: {
+    readonly id: string;
+    readonly changes: DocumentChanges;
+    readonly expectedVersion: number;
+    readonly at: string;
+  }): Promise<DocumentRecord | null>;
+  /** Newest first (`uploadedAt` desc, `id` desc). */
+  list(filter: DocumentListFilter): Promise<DocumentListPage>;
+  /** Non-deleted documents linked to any of the checklist items. */
+  listForChecklistItems(itemIds: readonly string[]): Promise<DocumentRecord[]>;
+  /**
+   * A page of non-deleted documents for reconciliation, ordered by `id`,
+   * starting after `afterId`.
+   */
+  listForReconciliation(input: {
+    readonly afterId: string | null;
+    readonly limit: number;
+  }): Promise<DocumentRecord[]>;
+}
+
+export interface DocumentUploadRepository {
+  create(record: DocumentUploadRecord): Promise<void>;
+  findById(id: string): Promise<DocumentUploadRecord | null>;
+  /** The upload a user already started with this request ID (idempotent create). */
+  findByRequest(createdBy: string, requestId: string): Promise<DocumentUploadRecord | null>;
+  lockById(id: string): Promise<DocumentUploadRecord | null>;
+  update(input: {
+    readonly id: string;
+    readonly changes: DocumentUploadChanges;
+    readonly expectedVersion: number;
+    readonly at: string;
+  }): Promise<DocumentUploadRecord | null>;
+}
+
+export interface ReconciliationRunRepository {
+  append(record: ReconciliationRunRecord): Promise<void>;
+  /** Newest first. */
+  listRecent(limit: number): Promise<ReconciliationRunRecord[]>;
+}
+
 export interface LoginAttemptRepository {
   record(record: LoginAttemptRecord): Promise<void>;
   countFailures(input: {
@@ -363,6 +459,11 @@ export interface Repositories {
   readonly serviceTypes: ServiceTypeRepository;
   readonly workflowTemplates: WorkflowTemplateRepository;
   readonly cases: CaseRepository;
+  readonly storageConnections: StorageConnectionRepository;
+  readonly storageOAuthStates: StorageOAuthStateRepository;
+  readonly documents: DocumentRepository;
+  readonly documentUploads: DocumentUploadRepository;
+  readonly reconciliationRuns: ReconciliationRunRepository;
 }
 
 /**

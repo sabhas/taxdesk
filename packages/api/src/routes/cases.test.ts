@@ -15,6 +15,7 @@ import {
   sessionCookieFor,
   type TestHarness,
 } from '../testing/harness.js';
+import { seedVerifiedDocumentsForCase } from '../testing/document-fixtures.js';
 
 let counter = 0;
 const PASSWORD = 'correct horse battery staple';
@@ -196,6 +197,13 @@ async function openCase(
     body: caseBody(w, fixture, overrides),
   });
   expect(result.status).toBe(201);
+  // Document-backed checklist items need a verified document (TD-408); these
+  // workflow tests are about checklist rules, so give every such item one.
+  await seedVerifiedDocumentsForCase(
+    w.harness,
+    result.data as Parameters<typeof seedVerifiedDocumentsForCase>[1],
+    w.ids.consultant,
+  );
   return result.data;
 }
 

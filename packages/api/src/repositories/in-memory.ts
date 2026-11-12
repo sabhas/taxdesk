@@ -25,8 +25,18 @@ import {
   createInMemoryWorkflowTemplateRepository,
   type InMemoryCaseState,
 } from './in-memory-cases.js';
+import {
+  createInMemoryDocumentRepository,
+  createInMemoryDocumentState,
+  createInMemoryDocumentUploadRepository,
+  createInMemoryReconciliationRunRepository,
+  createInMemoryStorageConnectionRepository,
+  createInMemoryStorageOAuthStateRepository,
+  type InMemoryDocumentState,
+} from './in-memory-documents.js';
 
-export interface InMemoryState extends InMemoryClientState, InMemoryCaseState {
+export interface InMemoryState
+  extends InMemoryClientState, InMemoryCaseState, InMemoryDocumentState {
   firm: FirmRecord | null;
   users: Map<string, UserRecord>;
   roles: Map<string, RoleRecord>;
@@ -69,6 +79,7 @@ export function createInMemoryRepositories(): InMemoryRepositories {
     loginAttempts: [],
     ...createInMemoryClientState(),
     ...createInMemoryCaseState(),
+    ...createInMemoryDocumentState(),
   };
 
   const roles: RoleRecord[] = ROLE_KEYS.map((key) => ({
@@ -83,7 +94,15 @@ export function createInMemoryRepositories(): InMemoryRepositories {
 
   const repositories: Omit<
     Repositories,
-    'clients' | 'serviceTypes' | 'workflowTemplates' | 'cases'
+    | 'clients'
+    | 'serviceTypes'
+    | 'workflowTemplates'
+    | 'cases'
+    | 'storageConnections'
+    | 'storageOAuthStates'
+    | 'documents'
+    | 'documentUploads'
+    | 'reconciliationRuns'
   > = {
     firm: {
       get: async () => (state.firm === null ? null : { ...state.firm }),
@@ -553,6 +572,11 @@ export function createInMemoryRepositories(): InMemoryRepositories {
     serviceTypes: createInMemoryServiceTypeRepository(state),
     workflowTemplates: createInMemoryWorkflowTemplateRepository(state),
     cases: createInMemoryCaseRepository(state, state.clients),
+    storageConnections: createInMemoryStorageConnectionRepository(state),
+    storageOAuthStates: createInMemoryStorageOAuthStateRepository(state),
+    documents: createInMemoryDocumentRepository(state),
+    documentUploads: createInMemoryDocumentUploadRepository(state),
+    reconciliationRuns: createInMemoryReconciliationRunRepository(state),
   };
 
   const unitOfWork: UnitOfWork = {

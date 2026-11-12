@@ -45,6 +45,36 @@ export interface ApiRequestOptions {
   readonly ifMatch?: number;
   readonly sessionScoped?: boolean;
   readonly signal?: AbortSignal;
+  /**
+   * A caller-chosen request ID. Idempotent commands (starting an upload) reuse
+   * one ID across retries so the server returns the same result.
+   */
+  readonly requestId?: string;
+  /** Raw bytes sent as `application/octet-stream` instead of a JSON body. */
+  readonly rawBody?: Blob;
+}
+
+function requestHeaders(method: string, options: ApiRequestOptions): Record<string, string> {
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (options.rawBody !== undefined) {
+    headers['Content-Type'] = 'application/octet-stream';
+  } else if (options.body !== undefined) {
+    headers['Content-Type'] = 'application/json';
+  }
+  if (MUTATING_METHODS.has(method)) {
+    headers['X-Request-Id'] = options.requestId ?? newRequestId();
+  }
+  if (options.ifMatch !== undefined) {
+    headers['If-Match'] = `"${String(options.ifMatch)}"`;
+  }
+  return headers;
+}
+
+function requestBody(options: ApiRequestOptions): { body?: BodyInit } {
+  if (options.rawBody !== undefined) {
+    return { body: options.rawBody };
+  }
+  return options.body === undefined ? {} : { body: JSON.stringify(options.body) };
 }
 
 const MUTATING_METHODS = new Set(['POST', 'PATCH', 'PUT', 'DELETE']);
@@ -93,16 +123,7 @@ export async function apiRequest<T>(
   options: ApiRequestOptions = {},
 ): Promise<T> {
   const method = options.method ?? 'GET';
-  const headers: Record<string, string> = { Accept: 'application/json' };
-  if (options.body !== undefined) {
-    headers['Content-Type'] = 'application/json';
-  }
-  if (MUTATING_METHODS.has(method)) {
-    headers['X-Request-Id'] = newRequestId();
-  }
-  if (options.ifMatch !== undefined) {
-    headers['If-Match'] = `"${String(options.ifMatch)}"`;
-  }
+  const headers = requestHeaders(method, options);
 
   let response: Response;
   try {
@@ -110,7 +131,7 @@ export async function apiRequest<T>(
       method,
       headers,
       credentials: 'same-origin',
-      ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
+      ...requestBody(options),
       ...(options.signal === undefined ? {} : { signal: options.signal }),
     });
   } catch {
@@ -160,16 +181,7 @@ export async function apiRequest<T>(
 
 export async function apiRequestVoid(path: string, options: ApiRequestOptions = {}): Promise<void> {
   const method = options.method ?? 'POST';
-  const headers: Record<string, string> = { Accept: 'application/json' };
-  if (options.body !== undefined) {
-    headers['Content-Type'] = 'application/json';
-  }
-  if (MUTATING_METHODS.has(method)) {
-    headers['X-Request-Id'] = newRequestId();
-  }
-  if (options.ifMatch !== undefined) {
-    headers['If-Match'] = `"${String(options.ifMatch)}"`;
-  }
+  const headers = requestHeaders(method, options);
 
   let response: Response;
   try {
@@ -177,7 +189,7 @@ export async function apiRequestVoid(path: string, options: ApiRequestOptions = 
       method,
       headers,
       credentials: 'same-origin',
-      ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
+      ...requestBody(options),
       ...(options.signal === undefined ? {} : { signal: options.signal }),
     });
   } catch {

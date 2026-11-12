@@ -1,9 +1,9 @@
 ---
 title: "Epic 4: Provider-Neutral Document Storage"
-status: not_started
+status: in_progress
 version: 1.0
 owners: [product, engineering]
-last_reviewed: 2026-10-25
+last_reviewed: 2026-11-11
 related:
   - ../roadmap.md
   - ../../technical/architecture.md
@@ -25,41 +25,41 @@ Implement a provider-neutral document domain and use Microsoft OneDrive as the f
 
 **User story:** As an engineer, I want business features isolated from OneDrive so that another storage service can replace it later.
 
-- [ ] Define and test `DocumentStorageProvider` methods for connection, upload, completion, download, metadata, health, and trash.
-- [ ] Implement an in-memory fake provider for service and route tests.
-- [ ] Prevent domain services from importing Graph or OneDrive libraries.
+- [x] Define and test `DocumentStorageProvider` methods for connection, upload, completion, download, metadata, health, and trash.
+- [x] Implement an in-memory fake provider for service and route tests.
+- [x] Prevent domain services from importing Graph or OneDrive libraries.
 
 ### TD-402 — Storage connection data and token encryption — 4 points
 
 **User story:** As an administrator, I want the storage connection protected so that staff never handle provider credentials.
 
-- [ ] Store provider type, connection health, external drive/folder IDs, encrypted token payload, and key version.
-- [ ] Encrypt/decrypt tokens using AES-GCM with deployment secrets stored outside source control and the database.
-- [ ] Ensure tokens and provider authorization responses never reach browser logs or API responses.
+- [x] Store provider type, connection health, external drive/folder IDs, encrypted token payload, and key version.
+- [x] Encrypt/decrypt tokens using AES-GCM with deployment secrets stored outside source control and the database.
+- [x] Ensure tokens and provider authorization responses never reach browser logs or API responses.
 
 ### TD-403 — OneDrive administrator connection — 4 points
 
 **User story:** As an administrator, I want to connect the firm OneDrive account once so that TaxDesk can store authorized documents.
 
-- [ ] Begin delegated OAuth only for administrators.
-- [ ] Validate callback state, complete consent, save connection metadata, and display health.
-- [ ] Support reconnect and explicit disconnect with audit events.
+- [x] Begin delegated OAuth only for administrators.
+- [x] Validate callback state, complete consent, save connection metadata, and display health.
+- [x] Support reconnect and explicit disconnect with audit events.
 
 ### TD-404 — Token refresh and health checks — 3 points
 
 **User story:** As an operator, I want OneDrive failures visible early so that document work is not silently lost.
 
-- [ ] Refresh provider credentials atomically and retain rotation safety.
-- [ ] Mark revoked/expired connection unhealthy and stop new document operations safely.
-- [ ] Provide an administrator-only reconnect call to action.
+- [x] Refresh provider credentials atomically and retain rotation safety.
+- [x] Mark revoked/expired connection unhealthy and stop new document operations safely.
+- [x] Provide an administrator-only reconnect call to action.
 
 ### TD-405 — Stable storage layout — 3 points
 
 **User story:** As the firm, I want documents organized by stable records so that client renames do not break access.
 
-- [ ] Derive provider paths from stable client code, tax year, case ID, and document ID.
-- [ ] Store external item ID and metadata as the durable reference.
-- [ ] Reject unsafe filenames and unsupported content types before upload starts.
+- [x] Derive provider paths from stable client code, tax year, case ID, and document ID.
+- [x] Store external item ID and metadata as the durable reference.
+- [x] Reject unsafe filenames and unsupported content types before upload starts.
 
 ## Sprint 8 backlog — 20 points
 
@@ -67,42 +67,52 @@ Implement a provider-neutral document domain and use Microsoft OneDrive as the f
 
 **User story:** As staff, I want to upload a document reliably so that a poor connection does not lose filing evidence.
 
-- [ ] Validate 250 MiB configurable size limit and initial allowlist: PDF, JPEG, PNG, DOCX, XLSX, CSV.
-- [ ] Create Graph upload sessions after application authorization.
-- [ ] Upload in 5 MiB resumable chunks and expose progress/retry state.
-- [ ] Complete idempotently and verify returned provider metadata before creating a document record.
+- [x] Validate 250 MiB configurable size limit and initial allowlist: PDF, JPEG, PNG, DOCX, XLSX, CSV.
+- [x] Create Graph upload sessions after application authorization.
+- [x] Upload in 5 MiB resumable chunks and expose progress/retry state.
+- [x] Complete idempotently and verify returned provider metadata before creating a document record.
 
 ### TD-407 — Protected document access — 4 points
 
 **User story:** As an authorized staff member, I want to open a client document so that I can work without exposing it to unapproved users.
 
-- [ ] Require client/case/document permission before generating a download target.
-- [ ] Recheck deactivation and assignment permissions for every access request.
-- [ ] Record document-open audit events without logging document content.
+- [x] Require client/case/document permission before generating a download target.
+- [x] Recheck deactivation and assignment permissions for every access request.
+- [x] Record document-open audit events without logging document content.
 
 ### TD-408 — Document metadata and checklist links — 4 points
 
 **User story:** As staff, I want to classify and verify a document so that it completes the correct case requirement.
 
-- [ ] Link document to client, optional case, type, upload actor, and optional checklist item.
-- [ ] Support pending, verified, rejected, and missing-provider verification states.
-- [ ] Update checklist progress only through verified required links.
+- [x] Link document to client, optional case, type, upload actor, and optional checklist item.
+- [x] Support pending, verified, rejected, and missing-provider verification states.
+- [x] Update checklist progress only through verified required links.
 
 ### TD-409 — Soft delete and restore behavior — 3 points
 
 **User story:** As a manager, I want accidental document removal to be recoverable.
 
-- [ ] Move provider object to trash and soft-delete application metadata.
-- [ ] Exclude deleted documents by default and retain audit history.
-- [ ] Permit documented restore only when the provider object remains recoverable.
+- [x] Move provider object to trash and soft-delete application metadata.
+- [x] Exclude deleted documents by default and retain audit history.
+- [x] Permit documented restore only when the provider object remains recoverable.
 
 ### TD-410 — Provider reconciliation — 4 points
 
 **User story:** As an operator, I want missing or externally changed files reported so that records and storage do not silently diverge.
 
-- [ ] Run an administrator-triggered reconciliation over stored external IDs.
-- [ ] Mark missing/moved files without deleting case history.
-- [ ] Report health, missing item count, and next action.
+- [x] Run an administrator-triggered reconciliation over stored external IDs.
+- [x] Mark missing/moved files without deleting case history.
+- [x] Report health, missing item count, and next action.
+
+Criteria are checked off on local verification evidence: shared contract,
+OneDrive adapter (mocked Graph), storage-connection and document route, role
+matrix, web/axe, and PostgreSQL migration/repository suites, plus a
+`/verify-epic` audit and re-audit (see the
+[release note](../release-notes/epic-04-document-storage.md) and
+[ADR 0006](../../adr/0006-provider-neutral-document-storage.md)). The OneDrive
+adapter has not yet run against a real account outside the TD-005 spike. The
+epic stays `in_progress` until a staging demonstration with a real OneDrive
+connection and Sprint Review acceptance.
 
 ## Exit criteria
 

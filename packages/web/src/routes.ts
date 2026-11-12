@@ -2,6 +2,7 @@ import {
   BookUser,
   Briefcase,
   Building2,
+  HardDrive,
   ListChecks,
   Tags,
   LayoutDashboard,
@@ -10,7 +11,7 @@ import {
   Users,
   type LucideIcon,
 } from 'lucide-react';
-import type { PermissionKey } from '@taxdesk/shared';
+import { STORAGE_CALLBACK_PATH, STORAGE_SETTINGS_PATH, type PermissionKey } from '@taxdesk/shared';
 
 /** Signed-in pages. Paths are the public URLs; keep them stable once shipped. */
 export const ROUTE_PATHS = {
@@ -25,6 +26,10 @@ export const ROUTE_PATHS = {
   newCase: '/cases/new',
   services: '/services',
   workflows: '/workflows',
+  /** The storage OAuth callback redirects here (`?result=`). */
+  storage: STORAGE_SETTINGS_PATH,
+  /** The storage provider redirects the browser here after consent. */
+  storageCallback: STORAGE_CALLBACK_PATH,
   /** Built by the API (`activationUrl`) as `/activate?token=…`. */
   activate: '/activate',
 } as const;
@@ -129,6 +134,13 @@ export const NAV_ROUTES: readonly NavRoute[] = [
     title: 'Firm settings',
     icon: Building2,
     permission: 'firm.settings.read',
+  },
+  {
+    path: ROUTE_PATHS.storage,
+    label: 'Document storage',
+    title: 'Document storage',
+    icon: HardDrive,
+    permission: 'storage.manage',
   },
   {
     path: ROUTE_PATHS.audit,
