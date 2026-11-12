@@ -23,6 +23,8 @@ import { MfaEnrollmentPage } from './pages/MfaEnrollmentPage.js';
 import { NotFoundPage } from './pages/NotFoundPage.js';
 import { SecurityPage } from './pages/SecurityPage.js';
 import { ServicesPage } from './pages/services/ServicesPage.js';
+import { StorageCallbackPage } from './pages/storage/StorageCallbackPage.js';
+import { StorageSettingsPage } from './pages/storage/StorageSettingsPage.js';
 import { UsersPage } from './pages/UsersPage.js';
 import { WorkflowTemplatePage } from './pages/workflows/WorkflowTemplatePage.js';
 import { WorkflowsPage } from './pages/workflows/WorkflowsPage.js';
@@ -39,6 +41,7 @@ const PAGES: Readonly<Record<string, ReactNode>> = {
   [ROUTE_PATHS.cases]: <CasesPage />,
   [ROUTE_PATHS.services]: <ServicesPage />,
   [ROUTE_PATHS.workflows]: <WorkflowsPage />,
+  [ROUTE_PATHS.storage]: <StorageSettingsPage />,
 };
 
 /**
@@ -229,6 +232,15 @@ function AppContent() {
         <Route
           path={`${ROUTE_PATHS.workflows}/:templateId`}
           element={can('services.manage') ? <WorkflowTemplatePage /> : <PermissionDenied />}
+        />
+        <Route
+          path={ROUTE_PATHS.storageCallback}
+          element={
+            <>
+              <DocumentTitle title="Connecting storage" />
+              {can('storage.manage') ? <StorageCallbackPage /> : <PermissionDenied />}
+            </>
+          }
         />
         {/* An activation link opened without a token, or after activation. */}
         <Route

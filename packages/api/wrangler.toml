@@ -32,6 +32,12 @@ APP_PUBLIC_URL = "http://localhost:5173"
 #   TURNSTILE_SECRET_KEY Turnstile Siteverify secret
 #   CLIENT_DATA_ENCRYPTION_KEY   base64url 32-byte key for client CNIC/NTN ciphertext
 #   CLIENT_IDENTIFIER_INDEX_KEY  a different base64url 32-byte key for the identifier blind index
+#   STORAGE_TOKEN_ENCRYPTION_KEY base64url 32-byte key for document storage tokens
+#   ONEDRIVE_CLIENT_SECRET       only for a confidential Microsoft app registration
+# Non-secret storage values (set per environment):
+# ONEDRIVE_CLIENT_ID = "REPLACE_WITH_MICROSOFT_APP_CLIENT_ID"
+# ONEDRIVE_AUTHORITY = "consumers"
+# DOCUMENT_MAX_UPLOAD_BYTES = "262144000"
 
 # `localConnectionString` is used only by `wrangler dev`; it is ignored on
 # deploy. Point it at the dedicated development database (or a local Postgres).

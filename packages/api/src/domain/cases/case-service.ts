@@ -32,6 +32,7 @@ import {
   type ChecklistAction,
   type TaxCase,
   type WorkflowStatusDefinition,
+  documentSatisfiesChecklist,
 } from '@taxdesk/shared';
 import { base64UrlToBytes, bytesToBase64Url } from '../../crypto/encoding.js';
 import type { Repositories, UnitOfWork } from '../../repositories/ports.js';
@@ -884,6 +885,18 @@ export class CaseService {
         );
       }
       const changes = this.nextItemState(actor, item, action, input.comment, at);
+      // TD-408: a required item that asks for a document is satisfied only
+      // through a verified, linked, non-deleted document.
+      if (action === 'complete' && item.required && item.documentType !== null) {
+        const linked = await repositories.documents.listForChecklistItems([item.id]);
+        if (!linked.some((document) => documentSatisfiesChecklist(document))) {
+          throw new AuthError(
+            409,
+            'CHECKLIST_DOCUMENT_REQUIRED',
+            `Link and verify a ${item.documentType} document before completing this item.`,
+          );
+        }
+      }
       const next = await repositories.cases.updateItem({
         caseId: locked.id,
         itemId: item.id,

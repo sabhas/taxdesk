@@ -146,6 +146,48 @@ Migration `0006_tax_case_workflow.sql` adds `service_types`,
 - Queue lists and counts share one filter (`matchesCaseFilter` in memory,
   `caseFilterSql` in PostgreSQL); an integration test checks they agree.
 
+## Document storage tables
+
+Migration `0007_document_storage.sql` adds `storage_connections`,
+`storage_oauth_states`, `documents`, `document_uploads`,
+`storage_reconciliation_runs`, and the administrator-only `storage.manage`
+permission. See [ADR 0006](../adr/0006-provider-neutral-document-storage.md).
+
+- `storage_connections` holds at most one row (singleton index): provider type,
+  status (`not_connected`, `healthy`, `reconnect_required`, `unavailable`), a
+  code-only health reason, external drive and app-root folder IDs, an account
+  label, and the AES-256-GCM `token_ciphertext` with its `token_key_version`.
+  Check constraints keep the ciphertext and key version together, require a
+  token while connected, and forbid one once disconnected. Disconnecting wipes
+  the token and keeps the row.
+- `storage_oauth_states` stores only the SHA-256 digest of each consent state,
+  the encrypted PKCE verifier, the starting administrator, and a ten-minute
+  expiry. A state is consumed once.
+- `documents` keep the provider-neutral reference (`provider_type`,
+  `external_item_id`, plus drive, parent, and ETag for reconciliation), file
+  name, allowlisted content type, size, document type, and links to the
+  client, optional case, and optional checklist item. Paths are never stored.
+  A trigger forbids deletes, changes to the client, storage reference, or
+  upload facts, and links to a case of another client or an item of another
+  case. `verification_state` is `pending`, `verified`, `rejected`, or
+  `missing_provider`; `provider_state` is `present`, `missing`, or `moved`.
+  `deleted_at`/`deleted_by` mark a soft delete; default lists exclude them.
+  Edits use `version` with `If-Match`.
+- `document_uploads` track a resumable upload: the pre-assigned document ID
+  (so the storage path is stable), the encrypted provider session handle, the
+  next byte offset, and the state (`active`, `completed`, `cancelled`,
+  `expired`, `failed`). `(created_by, request_id)` is unique so a retried create
+  returns the same upload, and `documents.upload_id` is unique so completing an
+  upload twice yields one document.
+- `storage_reconciliation_runs` are append-only (trigger) and record counts of
+  checked, present, missing, moved, and recovered documents, the connection
+  status, and the recommended next action.
+- A required checklist item with a document type is satisfied only by a
+  linked, non-deleted, `verified` document.
+- Storage and document audit events (`storage.*`, `document.*`) record
+  document type, content type, size, and client/case codes. They never record
+  tokens, upload URLs, provider responses, or document contents.
+
 ## Integrity rules
 
 - Tax identifiers use encrypted ciphertext for display and an HMAC blind index for exact duplicate detection.

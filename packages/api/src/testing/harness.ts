@@ -8,11 +8,14 @@ import type { Repositories, UnitOfWork } from '../repositories/ports.js';
 import { createInMemoryRepositories, type InMemoryState } from '../repositories/in-memory.js';
 import type { TurnstileVerifier } from '../domain/auth/turnstile.js';
 import type { UserRecord } from '../domain/auth/types.js';
+import { createFakeStorageProvider, type FakeStorageProvider } from '../storage/fake-provider.js';
+import type { StorageGateway } from '../storage/gateway.js';
 
 export const TEST_MFA_KEY = bytesToBase64Url(new Uint8Array(32).fill(7));
 export const TEST_SITE_KEY = 'test-site-key';
 export const TEST_CLIENT_DATA_KEY = bytesToBase64Url(new Uint8Array(32).fill(11));
 export const TEST_CLIENT_INDEX_KEY = bytesToBase64Url(new Uint8Array(32).fill(13));
+export const TEST_STORAGE_KEY = bytesToBase64Url(new Uint8Array(32).fill(17));
 
 export interface TestHarness {
   readonly dependencies: AppDependencies;
@@ -20,6 +23,8 @@ export interface TestHarness {
   readonly unitOfWork: UnitOfWork;
   readonly state: InMemoryState;
   readonly totp: TotpService;
+  /** The fake document storage provider wired into the dependencies. */
+  readonly storage: FakeStorageProvider;
   readonly advance: (milliseconds: number) => void;
   readonly now: () => Date;
 }
@@ -33,6 +38,13 @@ export interface TestHarnessOptions {
   readonly passwordIterations?: number;
   /** `false` simulates a deployment without client identifier keys. */
   readonly clientKeys?: boolean;
+  /** `false` simulates a deployment without the storage token key. */
+  readonly storageKey?: boolean;
+  /** `null` simulates a deployment without a configured storage provider. */
+  readonly storageProvider?: FakeStorageProvider | null;
+  /** Bypasses the connection service (document-domain unit tests only). */
+  readonly storageGateway?: StorageGateway;
+  readonly maxUploadBytes?: number;
 }
 
 export function createTestHarness(options: TestHarnessOptions = {}): TestHarness {
@@ -47,6 +59,10 @@ export function createTestHarness(options: TestHarnessOptions = {}): TestHarness
     verify: () => Promise.resolve(turnstileValid),
   };
   const siteKey = options.siteKey ?? TEST_SITE_KEY;
+  const storage =
+    options.storageProvider === undefined
+      ? createFakeStorageProvider({ clock })
+      : options.storageProvider;
   const dependencies = composeDependencies({
     repositories: memory.repositories,
     unitOfWork: memory.unitOfWork,
@@ -62,7 +78,13 @@ export function createTestHarness(options: TestHarnessOptions = {}): TestHarness
             clientDataEncryptionKey: TEST_CLIENT_DATA_KEY,
             clientIdentifierIndexKey: TEST_CLIENT_INDEX_KEY,
           }),
+      ...(options.storageKey === false ? {} : { storageTokenEncryptionKey: TEST_STORAGE_KEY }),
+      ...(options.maxUploadBytes === undefined
+        ? {}
+        : { documentMaxUploadBytes: options.maxUploadBytes }),
     },
+    storageProvider: storage,
+    ...(options.storageGateway === undefined ? {} : { storageGateway: options.storageGateway }),
     clock,
     passwordHasher: createPasswordHasher({
       version: 1,
@@ -81,6 +103,7 @@ export function createTestHarness(options: TestHarnessOptions = {}): TestHarness
     unitOfWork: memory.unitOfWork,
     state: memory.state,
     totp,
+    storage: storage ?? createFakeStorageProvider({ clock }),
     advance: (milliseconds) => {
       current = new Date(current.getTime() + milliseconds);
     },
@@ -174,4 +197,29 @@ export async function sessionCookieFor(
     requestId: 'test-session',
   });
   return { cookie: `__Host-taxdesk_session=${issued.token}`, token: issued.token };
+}
+
+/**
+ * Connects the harness's fake storage provider through the real
+ * `StorageConnectionService` (authorize → callback), as an administrator
+ * would. Document tests use it to get a healthy, audited connection.
+ */
+export async function connectStorage(harness: TestHarness, admin: UserRecord): Promise<void> {
+  const service = harness.dependencies.storageConnectionService;
+  const { authorizationUrl } = await service.beginAuthorization({
+    actorUserId: admin.id,
+    requestId: 'test-storage-authorize',
+  });
+  const state = new URL(authorizationUrl).searchParams.get('state');
+  if (state === null) {
+    throw new Error('The fake provider did not echo the OAuth state.');
+  }
+  const result = await service.completeAuthorization({
+    actorUserId: admin.id,
+    requestId: 'test-storage-callback',
+    request: { code: harness.storage.validCode, state },
+  });
+  if (result !== 'connected') {
+    throw new Error(`Storage connection failed in the test harness: ${result}.`);
+  }
 }

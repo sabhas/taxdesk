@@ -24,6 +24,10 @@
     {
       "name": "0006_tax_case_workflow.sql",
       "checksum": "797466c46cc624e907c7b8592cb19d0204c04be28d9d234124d03933a6e87aaa"
+    },
+    {
+      "name": "0007_document_storage.sql",
+      "checksum": "b237c5f5f4163caedbdd940bd03bdac3530381fd2c8ccd6924ea06a5cf6e3bf4"
     }
   ]
 }

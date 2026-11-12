@@ -189,3 +189,5 @@ export type {
 export * from './service-type.js';
 export * from './workflow.js';
 export * from './case.js';
+export * from './storage.js';
+export * from './document.js';

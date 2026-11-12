@@ -10,6 +10,7 @@ import {
   type CasePerson,
   type CaseStatusHistoryEntry,
   type ChecklistAction,
+  type Document,
   type TaxCase,
 } from '@taxdesk/shared';
 import {
@@ -58,6 +59,8 @@ import {
   type ErrorNotice,
 } from '../../components/feedback.js';
 import { PageHeader } from '../../components/layout/PageHeader.js';
+import { DocumentsPanel, verifiedCountsByItem } from '../documents/DocumentsPanel.js';
+import { useSession } from '../../session/session-context.js';
 import { ROUTE_PATHS, clientPath } from '../../routes.js';
 import { toErrorNotice } from '../error-notice.js';
 import {
@@ -173,11 +176,14 @@ function ChecklistRow({
   item,
   taxCase,
   busy,
+  verifiedDocuments,
   onAction,
 }: {
   item: CaseChecklistItem;
   taxCase: TaxCase;
   busy: boolean;
+  /** Verified documents linked to this item; `null` when documents are not visible. */
+  verifiedDocuments: number | null;
   onAction: (item: CaseChecklistItem, action: ChecklistAction) => void;
 }) {
   const { prepareChecklist, reviewChecklist } = taxCase.allowedActions;
@@ -207,7 +213,21 @@ function ChecklistRow({
             {item.reviewRequired && <Badge variant="outline">Needs review</Badge>}
           </p>
           {item.documentType !== null && (
-            <p className="text-xs text-muted-foreground">Document: {item.documentType}</p>
+            <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              Document: {item.documentType}
+              {verifiedDocuments !== null &&
+                (verifiedDocuments > 0 ? (
+                  <Badge variant="success">
+                    {verifiedDocuments === 1
+                      ? '1 verified document'
+                      : `${String(verifiedDocuments)} verified documents`}
+                  </Badge>
+                ) : (
+                  <Badge variant={item.required ? 'warning' : 'outline'}>
+                    No verified document
+                  </Badge>
+                ))}
+            </p>
           )}
           {item.instructions.length > 0 && (
             <p className="text-sm text-muted-foreground">{item.instructions}</p>
@@ -456,6 +476,12 @@ export function CaseDetailPage() {
   const [commentError, setCommentError] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
   const [editing, setEditing] = useState(false);
+  const { can } = useSession();
+  const canReadDocuments = can('documents.read');
+  const [verifiedCounts, setVerifiedCounts] = useState<ReadonlyMap<string, number> | null>(null);
+  const onDocumentsChange = useCallback((documents: readonly Document[]) => {
+    setVerifiedCounts(verifiedCountsByItem(documents));
+  }, []);
 
   const loadSide = useCallback(
     async (signal?: AbortSignal) => {
@@ -761,6 +787,9 @@ export function CaseDetailPage() {
                       item={item}
                       taxCase={taxCase}
                       busy={working}
+                      verifiedDocuments={
+                        verifiedCounts === null ? null : (verifiedCounts.get(item.id) ?? 0)
+                      }
                       onAction={(target, action) => {
                         open({ kind: 'checklist', item: target, action });
                       }}
@@ -775,6 +804,23 @@ export function CaseDetailPage() {
               )}
             </CardContent>
           </Card>
+
+          {canReadDocuments && (
+            <DocumentsPanel
+              scope={{
+                kind: 'case',
+                caseId: taxCase.id,
+                clientId: taxCase.client.id,
+                checklist: taxCase.checklist,
+              }}
+              readOnly={archived}
+              onDocumentsChange={onDocumentsChange}
+              onChanged={() => {
+                // A document change can reopen a checklist item on the server.
+                void load();
+              }}
+            />
+          )}
 
           <Card>
             <CardHeader>

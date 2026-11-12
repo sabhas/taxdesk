@@ -18,6 +18,12 @@ import { MfaService } from './domain/auth/mfa-service.js';
 import { SessionService } from './domain/auth/session-service.js';
 import { UserLifecycleService } from './domain/auth/user-lifecycle-service.js';
 import { createTurnstileVerifier, type TurnstileVerifier } from './domain/auth/turnstile.js';
+import { StorageConnectionService } from './domain/storage/storage-connection-service.js';
+import { DocumentService } from './domain/documents/document-service.js';
+import type { StorageGateway } from './storage/gateway.js';
+import type { DocumentStorageProvider } from './storage/provider.js';
+import { createStorageProviderFromConfig } from './storage/provider-factory.js';
+import { DOCUMENT_LIMITS, STORAGE_CALLBACK_PATH } from '@taxdesk/shared';
 import { createPostgresRepositories, createPostgresUnitOfWork } from './repositories/postgres.js';
 import type { Repositories, UnitOfWork } from './repositories/ports.js';
 import { resolveAuthConfig, type ApiBindings, type AuthRuntimeConfig } from './config.js';
@@ -40,6 +46,9 @@ export interface AppDependencies {
   readonly serviceTypeService: ServiceTypeService;
   readonly workflowTemplateService: WorkflowTemplateService;
   readonly caseService: CaseService;
+  readonly storageProvider: DocumentStorageProvider | null;
+  readonly storageConnectionService: StorageConnectionService;
+  readonly documentService: DocumentService;
   readonly clock: () => Date;
   readonly close: () => Promise<void>;
 }
@@ -62,7 +71,27 @@ export interface ComposeDependenciesOptions {
   readonly cipher?: SecretCipher | null;
   readonly turnstile?: TurnstileVerifier;
   readonly identifiers?: IdentifierProtector | null;
+  /** Overrides the configured storage adapter (tests pass the fake provider). */
+  readonly storageProvider?: DocumentStorageProvider | null;
+  /** Overrides the storage token cipher (`STORAGE_TOKEN_ENCRYPTION_KEY`). */
+  readonly storageCipher?: SecretCipher | null;
+  /** Overrides the gateway the document service uses (unit tests only). */
+  readonly storageGateway?: StorageGateway;
   readonly close?: () => Promise<void>;
+}
+
+/** The storage token cipher from deployment secrets, or `null` when unset. */
+export function storageCipherFromConfig(config: AuthRuntimeConfig): SecretCipher | null {
+  return config.storageTokenEncryptionKey === undefined
+    ? null
+    : createSecretCipher(config.storageTokenEncryptionKey, 1, 'storage token encryption key');
+}
+
+/** The provider redirect URI, derived from the public app URL. */
+export function storageRedirectUri(config: AuthRuntimeConfig): string | undefined {
+  return config.appPublicUrl === undefined
+    ? undefined
+    : `${config.appPublicUrl.replace(/\/+$/u, '')}${STORAGE_CALLBACK_PATH}`;
 }
 
 /**
@@ -110,6 +139,32 @@ export function composeDependencies(options: ComposeDependenciesOptions): AppDep
     unitOfWork,
     tokenHasher,
     clock,
+  });
+  const storageProvider =
+    options.storageProvider !== undefined
+      ? options.storageProvider
+      : createStorageProviderFromConfig(options.authConfig);
+  const storageCipher =
+    options.storageCipher !== undefined
+      ? options.storageCipher
+      : storageCipherFromConfig(options.authConfig);
+  const storageConnectionService = new StorageConnectionService({
+    repositories,
+    unitOfWork,
+    provider: storageProvider,
+    cipher: storageCipher,
+    tokenHasher,
+    clock,
+    redirectUri: storageRedirectUri(options.authConfig),
+  });
+  const documentService = new DocumentService({
+    repositories,
+    unitOfWork,
+    storage: options.storageGateway ?? storageConnectionService,
+    cipher: storageCipher,
+    clock,
+    maxUploadBytes:
+      options.authConfig.documentMaxUploadBytes ?? DOCUMENT_LIMITS.defaultMaxUploadBytes,
   });
 
   return {
@@ -165,6 +220,9 @@ export function composeDependencies(options: ComposeDependenciesOptions): AppDep
     serviceTypeService: new ServiceTypeService({ repositories, unitOfWork, clock }),
     workflowTemplateService: new WorkflowTemplateService({ repositories, unitOfWork, clock }),
     caseService: new CaseService({ repositories, unitOfWork, clock }),
+    storageProvider,
+    storageConnectionService,
+    documentService,
     clock,
     close: options.close ?? (() => Promise.resolve()),
   };

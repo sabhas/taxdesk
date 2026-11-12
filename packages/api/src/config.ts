@@ -15,6 +15,11 @@ export interface ApiBindings {
   MFA_ENCRYPTION_KEY?: string;
   CLIENT_DATA_ENCRYPTION_KEY?: string;
   CLIENT_IDENTIFIER_INDEX_KEY?: string;
+  STORAGE_TOKEN_ENCRYPTION_KEY?: string;
+  ONEDRIVE_CLIENT_ID?: string;
+  ONEDRIVE_CLIENT_SECRET?: string;
+  ONEDRIVE_AUTHORITY?: string;
+  DOCUMENT_MAX_UPLOAD_BYTES?: string;
   TURNSTILE_SECRET_KEY?: string;
   TURNSTILE_SITE_KEY?: string;
   APP_ORIGIN?: string;
@@ -55,6 +60,25 @@ export interface AuthRuntimeConfig {
   readonly clientDataEncryptionKey?: string | undefined;
   /** HMAC key for the client identifier blind index. */
   readonly clientIdentifierIndexKey?: string | undefined;
+  /** AES-256-GCM key for storage provider tokens and upload-session handles. */
+  readonly storageTokenEncryptionKey?: string | undefined;
+  /** Microsoft application (client) ID for the OneDrive adapter. */
+  readonly onedriveClientId?: string | undefined;
+  /** Optional client secret when the app registration is a confidential web app. */
+  readonly onedriveClientSecret?: string | undefined;
+  /** Microsoft identity authority tenant segment; defaults to `consumers`. */
+  readonly onedriveAuthority?: string | undefined;
+  /** Maximum upload size in bytes; defaults to 250 MiB. */
+  readonly documentMaxUploadBytes?: number | undefined;
+}
+
+function optionalPositiveInteger(value: unknown): number | undefined {
+  const raw = optionalString(value);
+  if (raw === undefined) {
+    return undefined;
+  }
+  const parsed = Number(raw);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : undefined;
 }
 
 function optionalString(value: unknown): string | undefined {
@@ -80,5 +104,10 @@ export function resolveAuthConfig(env: ApiBindings): AuthRuntimeConfig {
     appPublicUrl: optionalString(env.APP_PUBLIC_URL),
     clientDataEncryptionKey: optionalString(env.CLIENT_DATA_ENCRYPTION_KEY),
     clientIdentifierIndexKey: optionalString(env.CLIENT_IDENTIFIER_INDEX_KEY),
+    storageTokenEncryptionKey: optionalString(env.STORAGE_TOKEN_ENCRYPTION_KEY),
+    onedriveClientId: optionalString(env.ONEDRIVE_CLIENT_ID),
+    onedriveClientSecret: optionalString(env.ONEDRIVE_CLIENT_SECRET),
+    onedriveAuthority: optionalString(env.ONEDRIVE_AUTHORITY),
+    documentMaxUploadBytes: optionalPositiveInteger(env.DOCUMENT_MAX_UPLOAD_BYTES),
   };
 }
