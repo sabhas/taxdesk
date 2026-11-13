@@ -9,6 +9,8 @@ import { ErrorAlert, LoadingMessage, PermissionDenied } from './components/feedb
 import { AuthHeading, AuthLayout } from './components/layout/AuthLayout.js';
 import { ActivationPage } from './pages/ActivationPage.js';
 import { AuditPage } from './pages/AuditPage.js';
+import { InvoiceDetailPage } from './pages/billing/InvoiceDetailPage.js';
+import { InvoicesPage } from './pages/billing/InvoicesPage.js';
 import { CaseCreatePage } from './pages/cases/CaseCreatePage.js';
 import { CaseDetailPage } from './pages/cases/CaseDetailPage.js';
 import { CasesPage } from './pages/cases/CasesPage.js';
@@ -39,6 +41,7 @@ const PAGES: Readonly<Record<string, ReactNode>> = {
   [ROUTE_PATHS.audit]: <AuditPage />,
   [ROUTE_PATHS.clients]: <ClientsPage />,
   [ROUTE_PATHS.cases]: <CasesPage />,
+  [ROUTE_PATHS.invoices]: <InvoicesPage />,
   [ROUTE_PATHS.services]: <ServicesPage />,
   [ROUTE_PATHS.workflows]: <WorkflowsPage />,
   [ROUTE_PATHS.storage]: <StorageSettingsPage />,
@@ -228,6 +231,10 @@ function AppContent() {
               <PermissionDenied />
             )
           }
+        />
+        <Route
+          path={`${ROUTE_PATHS.invoices}/:invoiceId`}
+          element={can('billing.read') ? <InvoiceDetailPage /> : <PermissionDenied />}
         />
         <Route
           path={`${ROUTE_PATHS.workflows}/:templateId`}

@@ -23,6 +23,7 @@ import { firmRoutes } from './routes/firm.js';
 import { userRoutes } from './routes/users.js';
 import { storageRoutes } from './routes/storage.js';
 import { documentRoutes } from './routes/documents.js';
+import { billingRoutes } from './routes/billing.js';
 import type { AppEnv } from './types.js';
 
 export interface CreateAppOptions {
@@ -46,6 +47,8 @@ const PROTECTED_PREFIXES = [
   '/api/v1/cases/*',
   '/api/v1/storage/*',
   '/api/v1/documents/*',
+  '/api/v1/invoices/*',
+  '/api/v1/payments/*',
 ] as const;
 
 function titleForStatus(status: number): string {
@@ -112,6 +115,7 @@ export function createApp(options: CreateAppOptions = {}): Hono<AppEnv> {
   app.route('/api/v1', caseRoutes);
   app.route('/api/v1', storageRoutes);
   app.route('/api/v1', documentRoutes);
+  app.route('/api/v1', billingRoutes);
 
   app.notFound((c) => {
     return problemDetailsResponse(c, {

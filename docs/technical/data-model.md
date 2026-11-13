@@ -188,6 +188,48 @@ permission. See [ADR 0006](../adr/0006-provider-neutral-document-storage.md).
   document type, content type, size, and client/case codes. They never record
   tokens, upload URLs, provider responses, or document contents.
 
+Migration `0008_billing_and_payments.sql` adds invoices, line items, payments,
+reversals, billing PDFs, gapless number counters, and idempotency keys, plus the
+`billing.payments.reverse` permission (administrator and manager). See
+[ADR 0007](../adr/0007-billing-integrity-and-idempotency.md).
+
+- `number_sequences` holds one counter row per `invoice` and `receipt`. A
+  number is drawn by an `UPDATE … RETURNING` in the allocating transaction, so
+  the row lock queues callers and a rollback leaves no gap.
+- `idempotency_keys` is unique on `(actor_user_id, scope, key)` and stores a
+  SHA-256 `request_hash` and the stored `response`. A key reused for another
+  request is detected by the hash.
+- `invoices` carry `client_id`, an optional `case_id` (a trigger requires the
+  case to belong to the client), `currency` (`PKR`), `status`
+  (`draft`/`finalized`/`void`), a unique `invoice_number` (null while a draft),
+  `issue_date`/`due_date`, and bigint minor-unit `subtotal`, `discount`,
+  `total`, `paid`, and `outstanding` columns. Checks enforce
+  `total = subtotal − discount`, `discount ≤ subtotal`,
+  `outstanding = total − paid`, `0 ≤ paid ≤ total`, a payment status that
+  matches the amounts, paired finalize and void columns, a positive total once
+  finalized, and `paid = 0` once void. `pdf_state`
+  (`none`/`pending`/`ready`/`failed`) and `pdf_document_id` track the PDF.
+  A trigger makes a finalized invoice's number, dates, amounts, and notes
+  immutable, makes `void` terminal, and forbids every delete.
+- `invoice_items` are unique on `(invoice_id, position)` with
+  `line_total = quantity × unit_amount`; a trigger rejects any insert, update,
+  or delete once the invoice is not a draft.
+- `payments` carry a unique `receipt_number`, a positive amount, method
+  (`cash`, `bank_transfer`, `cheque`, `card`, `other`), received date,
+  reference, recorder, and a receipt PDF state. A trigger allows inserts only
+  against a finalized invoice, makes every column immutable except the receipt
+  PDF columns, and forbids deletes.
+- `payment_reversals` are append-only (trigger) and linked to one payment and
+  its invoice; each carries a required reason. The service rejects a reversal
+  above the payment's unreversed amount under the invoice row lock.
+- `billing_documents` are append-only references to stored invoice and receipt
+  PDFs (`provider_type`, `external_item_id`, never a path). They are separate
+  from `documents`, so billing PDFs never appear in document lists, checklists,
+  or reconciliation.
+- Invoice and payment audit events (`billing.*`) record the invoice or receipt
+  number, client and case codes, amount, and currency. They never record names,
+  identifiers, or document contents.
+
 ## Integrity rules
 
 - Tax identifiers use encrypted ciphertext for display and an HMAC blind index for exact duplicate detection.

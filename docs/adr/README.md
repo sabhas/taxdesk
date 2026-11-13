@@ -23,3 +23,4 @@ When implementation begins, create separate ADRs for decisions that change cost,
 | [0004](0004-client-identifier-protection-and-visibility.md) | Client identifier protection and assignment-scoped client visibility | proposed |
 | [0005](0005-case-workflow-integrity-and-authorization.md) | Tax-case workflow integrity and case authorization | proposed |
 | [0006](0006-provider-neutral-document-storage.md) | Provider-neutral document storage through the Worker | proposed |
+| [0007](0007-billing-integrity-and-idempotency.md) | Billing integrity, idempotency, and decoupled PDFs | proposed |

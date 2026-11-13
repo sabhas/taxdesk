@@ -24,13 +24,14 @@
     "@taxdesk/database": "workspace:*",
     "@taxdesk/shared": "workspace:*",
     "hono": "^4.6.14",
+    "pdf-lib": "1.17.1",
     "zod": "^3.24.1"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241224.0",
+    "@types/node": "^22.10.2",
     "esbuild": "^0.24.2",
     "typescript": "^5.7.2",
-    "vitest": "^2.1.8",
-    "@types/node": "^22.10.2"
+    "vitest": "^2.1.8"
   }
 }

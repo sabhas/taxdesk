@@ -20,6 +20,9 @@ import { UserLifecycleService } from './domain/auth/user-lifecycle-service.js';
 import { createTurnstileVerifier, type TurnstileVerifier } from './domain/auth/turnstile.js';
 import { StorageConnectionService } from './domain/storage/storage-connection-service.js';
 import { DocumentService } from './domain/documents/document-service.js';
+import { BillingService } from './domain/billing/billing-service.js';
+import { BillingDocumentService } from './domain/billing/billing-documents.js';
+import { createPdfRenderer, type PdfRenderer } from './domain/billing/pdf/renderer.js';
 import type { StorageGateway } from './storage/gateway.js';
 import type { DocumentStorageProvider } from './storage/provider.js';
 import { createStorageProviderFromConfig } from './storage/provider-factory.js';
@@ -49,6 +52,8 @@ export interface AppDependencies {
   readonly storageProvider: DocumentStorageProvider | null;
   readonly storageConnectionService: StorageConnectionService;
   readonly documentService: DocumentService;
+  readonly billingService: BillingService;
+  readonly billingDocumentService: BillingDocumentService;
   readonly clock: () => Date;
   readonly close: () => Promise<void>;
 }
@@ -77,6 +82,8 @@ export interface ComposeDependenciesOptions {
   readonly storageCipher?: SecretCipher | null;
   /** Overrides the gateway the document service uses (unit tests only). */
   readonly storageGateway?: StorageGateway;
+  /** Overrides the PDF renderer (tests may inject a failing one). */
+  readonly pdfRenderer?: PdfRenderer;
   readonly close?: () => Promise<void>;
 }
 
@@ -223,6 +230,14 @@ export function composeDependencies(options: ComposeDependenciesOptions): AppDep
     storageProvider,
     storageConnectionService,
     documentService,
+    billingService: new BillingService({ repositories, unitOfWork, clock }),
+    billingDocumentService: new BillingDocumentService({
+      repositories,
+      unitOfWork,
+      storage: options.storageGateway ?? storageConnectionService,
+      renderer: options.pdfRenderer ?? createPdfRenderer(),
+      clock,
+    }),
     clock,
     close: options.close ?? (() => Promise.resolve()),
   };

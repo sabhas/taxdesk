@@ -27,6 +27,13 @@ import {
   createPostgresStorageConnectionRepository,
   createPostgresStorageOAuthStateRepository,
 } from './postgres-documents.js';
+import {
+  createPostgresBillingDocumentRepository,
+  createPostgresIdempotencyRepository,
+  createPostgresInvoiceRepository,
+  createPostgresNumberSequenceRepository,
+  createPostgresPaymentRepository,
+} from './postgres-billing.js';
 
 function text(row: SqlRow, key: string): string {
   const value = row[key];
@@ -708,6 +715,11 @@ export function createPostgresRepositories(executor: SqlExecutor): Repositories 
     documents: createPostgresDocumentRepository(executor),
     documentUploads: createPostgresDocumentUploadRepository(executor),
     reconciliationRuns: createPostgresReconciliationRunRepository(executor),
+    invoices: createPostgresInvoiceRepository(executor),
+    payments: createPostgresPaymentRepository(executor),
+    billingDocuments: createPostgresBillingDocumentRepository(executor),
+    numberSequences: createPostgresNumberSequenceRepository(executor),
+    idempotency: createPostgresIdempotencyRepository(executor),
     loginAttempts: {
       record: async (record) => {
         await executor.query(
