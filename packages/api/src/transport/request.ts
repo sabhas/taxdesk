@@ -1,5 +1,6 @@
 import type { Context } from 'hono';
 import { type z } from 'zod';
+import { IDEMPOTENCY_KEY_PATTERN } from '@taxdesk/shared';
 import type { AppEnv } from '../types.js';
 import { AuthError } from '../domain/auth/errors.js';
 import { parseIfMatch } from './cookies.js';
@@ -69,4 +70,31 @@ export function requireIfMatch(c: Context<AppEnv>): number {
 
 export function setEtag(c: Context<AppEnv>, version: number): void {
   c.header('ETag', `"${String(version)}"`);
+}
+
+/**
+ * Financial commands require an `Idempotency-Key` header so a network retry
+ * returns the original outcome instead of repeating the entry.
+ */
+export function requireIdempotencyKey(c: Context<AppEnv>): string {
+  const header = c.req.header('Idempotency-Key');
+  if (header === undefined || header.trim().length === 0) {
+    throw new AuthError(
+      428,
+      'IDEMPOTENCY_KEY_REQUIRED',
+      'Send an Idempotency-Key header with this request.',
+    );
+  }
+  const key = header.trim();
+  if (!IDEMPOTENCY_KEY_PATTERN.test(key)) {
+    throw new AuthError(400, 'VALIDATION_FAILED', 'The Idempotency-Key header is not valid.', {
+      errors: [
+        {
+          field: 'Idempotency-Key',
+          message: 'Use 16 to 128 letters, digits, hyphens, or underscores.',
+        },
+      ],
+    });
+  }
+  return key;
 }

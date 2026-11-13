@@ -9,6 +9,7 @@ const IDENTITY_MIGRATIONS = [
   '0005_client_management.sql',
   '0006_tax_case_workflow.sql',
   '0007_document_storage.sql',
+  '0008_billing_and_payments.sql',
 ] as const;
 
 const sources = await Promise.all(

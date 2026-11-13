@@ -52,6 +52,11 @@ export interface ApiRequestOptions {
   readonly requestId?: string;
   /** Raw bytes sent as `application/octet-stream` instead of a JSON body. */
   readonly rawBody?: Blob;
+  /**
+   * Sent as `Idempotency-Key`. A financial dialog creates one key per open and
+   * reuses it on every retry, so the server returns the original outcome.
+   */
+  readonly idempotencyKey?: string;
 }
 
 function requestHeaders(method: string, options: ApiRequestOptions): Record<string, string> {
@@ -66,6 +71,9 @@ function requestHeaders(method: string, options: ApiRequestOptions): Record<stri
   }
   if (options.ifMatch !== undefined) {
     headers['If-Match'] = `"${String(options.ifMatch)}"`;
+  }
+  if (options.idempotencyKey !== undefined) {
+    headers['Idempotency-Key'] = options.idempotencyKey;
   }
   return headers;
 }

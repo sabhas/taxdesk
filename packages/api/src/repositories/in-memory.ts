@@ -26,6 +26,15 @@ import {
   type InMemoryCaseState,
 } from './in-memory-cases.js';
 import {
+  createInMemoryBillingDocumentRepository,
+  createInMemoryBillingState,
+  createInMemoryIdempotencyRepository,
+  createInMemoryInvoiceRepository,
+  createInMemoryNumberSequenceRepository,
+  createInMemoryPaymentRepository,
+  type InMemoryBillingState,
+} from './in-memory-billing.js';
+import {
   createInMemoryDocumentRepository,
   createInMemoryDocumentState,
   createInMemoryDocumentUploadRepository,
@@ -36,7 +45,7 @@ import {
 } from './in-memory-documents.js';
 
 export interface InMemoryState
-  extends InMemoryClientState, InMemoryCaseState, InMemoryDocumentState {
+  extends InMemoryClientState, InMemoryCaseState, InMemoryDocumentState, InMemoryBillingState {
   firm: FirmRecord | null;
   users: Map<string, UserRecord>;
   roles: Map<string, RoleRecord>;
@@ -80,6 +89,7 @@ export function createInMemoryRepositories(): InMemoryRepositories {
     ...createInMemoryClientState(),
     ...createInMemoryCaseState(),
     ...createInMemoryDocumentState(),
+    ...createInMemoryBillingState(),
   };
 
   const roles: RoleRecord[] = ROLE_KEYS.map((key) => ({
@@ -103,6 +113,11 @@ export function createInMemoryRepositories(): InMemoryRepositories {
     | 'documents'
     | 'documentUploads'
     | 'reconciliationRuns'
+    | 'invoices'
+    | 'payments'
+    | 'billingDocuments'
+    | 'numberSequences'
+    | 'idempotency'
   > = {
     firm: {
       get: async () => (state.firm === null ? null : { ...state.firm }),
@@ -577,6 +592,11 @@ export function createInMemoryRepositories(): InMemoryRepositories {
     documents: createInMemoryDocumentRepository(state),
     documentUploads: createInMemoryDocumentUploadRepository(state),
     reconciliationRuns: createInMemoryReconciliationRunRepository(state),
+    invoices: createInMemoryInvoiceRepository(state, state),
+    payments: createInMemoryPaymentRepository(state),
+    billingDocuments: createInMemoryBillingDocumentRepository(state),
+    numberSequences: createInMemoryNumberSequenceRepository(state),
+    idempotency: createInMemoryIdempotencyRepository(state),
   };
 
   const unitOfWork: UnitOfWork = {

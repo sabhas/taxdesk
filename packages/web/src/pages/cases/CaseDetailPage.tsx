@@ -59,6 +59,7 @@ import {
   type ErrorNotice,
 } from '../../components/feedback.js';
 import { PageHeader } from '../../components/layout/PageHeader.js';
+import { InvoicesCard } from '../billing/InvoicesCard.js';
 import { DocumentsPanel, verifiedCountsByItem } from '../documents/DocumentsPanel.js';
 import { useSession } from '../../session/session-context.js';
 import { ROUTE_PATHS, clientPath } from '../../routes.js';
@@ -821,6 +822,8 @@ export function CaseDetailPage() {
               }}
             />
           )}
+
+          <InvoicesCard scope={{ kind: 'case', id: taxCase.id }} archived={archived} />
 
           <Card>
             <CardHeader>

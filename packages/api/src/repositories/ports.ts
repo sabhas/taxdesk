@@ -50,7 +50,21 @@ import type {
   DocumentUploadChanges,
   DocumentUploadRecord,
 } from '../domain/documents/types.js';
-import type { WorkflowDefinition } from '@taxdesk/shared';
+import type {
+  BillingDocumentRecord,
+  IdempotencyBegin,
+  InvoiceBalance,
+  InvoiceDraftChanges,
+  InvoiceFinalization,
+  InvoiceItemRecord,
+  InvoiceListFilter,
+  InvoiceListPage,
+  InvoiceRecord,
+  InvoiceVoiding,
+  PaymentRecord,
+  PaymentReversalRecord,
+} from '../domain/billing/types.js';
+import type { BillingPdfState, WorkflowDefinition } from '@taxdesk/shared';
 
 export interface PaginatedAuditEvents {
   readonly events: readonly AuditEventRecord[];
@@ -435,6 +449,117 @@ export interface ReconciliationRunRepository {
   listRecent(limit: number): Promise<ReconciliationRunRecord[]>;
 }
 
+/** Raised when two invoices or payments would share a number (a counter bug). */
+export class DuplicateBillingNumberError extends Error {
+  constructor() {
+    super('The billing number is already in use.');
+    this.name = 'DuplicateBillingNumberError';
+  }
+}
+
+export interface InvoiceRepository {
+  /** Inserts a draft and its line items. */
+  create(record: InvoiceRecord, items: readonly InvoiceItemRecord[]): Promise<void>;
+  findById(id: string): Promise<InvoiceRecord | null>;
+  /** Reads and row-locks an invoice for the rest of the transaction. */
+  lockById(id: string): Promise<InvoiceRecord | null>;
+  /** Ordered by position. */
+  listItems(invoiceId: string): Promise<InvoiceItemRecord[]>;
+  /**
+   * Replaces a draft's content and line items; `null` (and nothing written)
+   * when `expectedVersion` is stale or the invoice is no longer a draft.
+   */
+  replaceDraft(input: {
+    readonly id: string;
+    readonly changes: InvoiceDraftChanges;
+    readonly items: readonly InvoiceItemRecord[];
+    readonly expectedVersion: number;
+    readonly at: string;
+  }): Promise<InvoiceRecord | null>;
+  /** Draft → finalized with its number; `null` when stale or not a draft. */
+  finalize(input: {
+    readonly id: string;
+    readonly finalization: InvoiceFinalization;
+    readonly expectedVersion: number;
+    readonly at: string;
+  }): Promise<InvoiceRecord | null>;
+  /** Draft/finalized → void. The caller holds the row lock and has checked the version. */
+  void(input: {
+    readonly id: string;
+    readonly voiding: InvoiceVoiding;
+    readonly expectedVersion: number;
+    readonly at: string;
+  }): Promise<InvoiceRecord>;
+  /** Applies a recalculated balance to a row-locked invoice and bumps its version. */
+  applyBalance(input: {
+    readonly id: string;
+    readonly balance: InvoiceBalance;
+    readonly at: string;
+  }): Promise<InvoiceRecord>;
+  /** Records PDF generation state without bumping the invoice version. */
+  setPdf(input: {
+    readonly id: string;
+    readonly state: BillingPdfState;
+    readonly documentId: string | null;
+    readonly at: string;
+  }): Promise<void>;
+  /** Newest first (`createdAt` desc, `id` desc). */
+  list(filter: InvoiceListFilter): Promise<InvoiceListPage>;
+}
+
+export interface PaymentRepository {
+  create(record: PaymentRecord): Promise<void>;
+  findById(id: string): Promise<PaymentRecord | null>;
+  /** Oldest first. */
+  listForInvoice(invoiceId: string): Promise<PaymentRecord[]>;
+  setReceiptPdf(input: {
+    readonly id: string;
+    readonly state: BillingPdfState;
+    readonly documentId: string | null;
+    readonly at: string;
+  }): Promise<void>;
+  appendReversal(record: PaymentReversalRecord): Promise<void>;
+  /** Oldest first. */
+  listReversalsForInvoice(invoiceId: string): Promise<PaymentReversalRecord[]>;
+}
+
+export interface BillingDocumentRepository {
+  create(record: BillingDocumentRecord): Promise<void>;
+  findById(id: string): Promise<BillingDocumentRecord | null>;
+}
+
+export interface NumberSequenceRepository {
+  /**
+   * Draws the next gapless number. The counter row is locked by the calling
+   * transaction, so a rollback returns the number and concurrent callers
+   * queue instead of skipping or repeating one.
+   */
+  next(key: 'invoice' | 'receipt'): Promise<number>;
+}
+
+export interface IdempotencyRepository {
+  /**
+   * Claims `(actor, scope, key)` for this transaction. A concurrent claim of
+   * the same key waits for the first transaction to finish, then sees its
+   * stored response (`replay`) or, if it rolled back, claims the key itself.
+   */
+  begin(input: {
+    readonly actorUserId: string;
+    readonly scope: string;
+    readonly key: string;
+    readonly requestHash: string;
+    readonly at: string;
+  }): Promise<IdempotencyBegin>;
+  /** Stores the outcome so a retry returns it unchanged. */
+  complete(input: {
+    readonly actorUserId: string;
+    readonly scope: string;
+    readonly key: string;
+    readonly resourceId: string | null;
+    readonly response: unknown;
+  }): Promise<void>;
+}
+
 export interface LoginAttemptRepository {
   record(record: LoginAttemptRecord): Promise<void>;
   countFailures(input: {
@@ -464,6 +589,11 @@ export interface Repositories {
   readonly documents: DocumentRepository;
   readonly documentUploads: DocumentUploadRepository;
   readonly reconciliationRuns: ReconciliationRunRepository;
+  readonly invoices: InvoiceRepository;
+  readonly payments: PaymentRepository;
+  readonly billingDocuments: BillingDocumentRepository;
+  readonly numberSequences: NumberSequenceRepository;
+  readonly idempotency: IdempotencyRepository;
 }
 
 /**

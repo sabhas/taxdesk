@@ -3,6 +3,7 @@ import {
   Briefcase,
   Building2,
   HardDrive,
+  Receipt,
   ListChecks,
   Tags,
   LayoutDashboard,
@@ -24,6 +25,7 @@ export const ROUTE_PATHS = {
   newClient: '/clients/new',
   cases: '/cases',
   newCase: '/cases/new',
+  invoices: '/invoices',
   services: '/services',
   workflows: '/workflows',
   /** The storage OAuth callback redirects here (`?result=`). */
@@ -68,6 +70,10 @@ export function newCasePath(clientId?: string): string {
     : `${ROUTE_PATHS.newCase}?client=${encodeURIComponent(clientId)}`;
 }
 
+export function invoicePath(invoiceId: string): string {
+  return `${ROUTE_PATHS.invoices}/${encodeURIComponent(invoiceId)}`;
+}
+
 export function workflowPath(templateId: string): string {
   return `${ROUTE_PATHS.workflows}/${encodeURIComponent(templateId)}`;
 }
@@ -103,6 +109,14 @@ export const NAV_ROUTES: readonly NavRoute[] = [
     title: 'Cases',
     icon: Briefcase,
     permission: CASE_READ_PERMISSIONS,
+    end: false,
+  },
+  {
+    path: ROUTE_PATHS.invoices,
+    label: 'Invoices',
+    title: 'Invoices',
+    icon: Receipt,
+    permission: 'billing.read',
     end: false,
   },
   {

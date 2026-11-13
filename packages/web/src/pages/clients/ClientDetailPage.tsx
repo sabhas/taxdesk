@@ -27,6 +27,7 @@ import {
   type ErrorNotice,
 } from '../../components/feedback.js';
 import { PageHeader } from '../../components/layout/PageHeader.js';
+import { InvoicesCard } from '../billing/InvoicesCard.js';
 import { ClientCasesCard } from '../cases/ClientCasesCard.js';
 import { DocumentsPanel } from '../documents/DocumentsPanel.js';
 import { ROUTE_PATHS, editClientPath } from '../../routes.js';
@@ -341,6 +342,7 @@ export function ClientDetailPage() {
           </Card>
 
           <ClientCasesCard clientId={client.id} archived={archived} />
+          <InvoicesCard scope={{ kind: 'client', id: client.id }} archived={archived} />
 
           {can('documents.read') && (
             <DocumentsPanel scope={{ kind: 'client', clientId: client.id }} readOnly={archived} />
