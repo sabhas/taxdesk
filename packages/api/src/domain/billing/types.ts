@@ -97,6 +97,9 @@ export interface InvoiceListFilter {
   readonly issuedTo?: string;
   readonly dueFrom?: string;
   readonly dueTo?: string;
+  /** Finalized invoices with a balance; `overdue` also requires `dueBefore`. */
+  readonly outstandingOnly?: boolean;
+  readonly dueBefore?: string;
   /** Visibility restriction when the actor cannot read every client. */
   readonly visibleClientIds?: readonly string[];
   readonly limit: number;

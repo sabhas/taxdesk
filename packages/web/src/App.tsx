@@ -24,6 +24,7 @@ import { MfaChallengePage } from './pages/MfaChallengePage.js';
 import { MfaEnrollmentPage } from './pages/MfaEnrollmentPage.js';
 import { NotFoundPage } from './pages/NotFoundPage.js';
 import { SecurityPage } from './pages/SecurityPage.js';
+import { ReportsPage } from './pages/reports/ReportsPage.js';
 import { ServicesPage } from './pages/services/ServicesPage.js';
 import { StorageCallbackPage } from './pages/storage/StorageCallbackPage.js';
 import { StorageSettingsPage } from './pages/storage/StorageSettingsPage.js';
@@ -42,6 +43,7 @@ const PAGES: Readonly<Record<string, ReactNode>> = {
   [ROUTE_PATHS.clients]: <ClientsPage />,
   [ROUTE_PATHS.cases]: <CasesPage />,
   [ROUTE_PATHS.invoices]: <InvoicesPage />,
+  [ROUTE_PATHS.reports]: <ReportsPage section="cases" />,
   [ROUTE_PATHS.services]: <ServicesPage />,
   [ROUTE_PATHS.workflows]: <WorkflowsPage />,
   [ROUTE_PATHS.storage]: <StorageSettingsPage />,
@@ -235,6 +237,24 @@ function AppContent() {
         <Route
           path={`${ROUTE_PATHS.invoices}/:invoiceId`}
           element={can('billing.read') ? <InvoiceDetailPage /> : <PermissionDenied />}
+        />
+        <Route
+          path={ROUTE_PATHS.reportsWorkload}
+          element={
+            <>
+              <DocumentTitle title="Workload report" />
+              <ReportsPage section="workload" />
+            </>
+          }
+        />
+        <Route
+          path={ROUTE_PATHS.reportsBilling}
+          element={
+            <>
+              <DocumentTitle title="Billing report" />
+              <ReportsPage section="billing" />
+            </>
+          }
         />
         <Route
           path={`${ROUTE_PATHS.workflows}/:templateId`}

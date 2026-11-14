@@ -1,3 +1,4 @@
+import { isChecklistItemSatisfied } from '@taxdesk/shared';
 import type {
   CaseView,
   ChecklistItemState,
@@ -104,7 +105,11 @@ export interface CaseDetailChanges {
  * disagree with the list it labels (TD-308).
  */
 export interface CaseQueryFilter {
-  readonly view: CaseView;
+  /**
+   * The queue views, plus two used only by reports: `active` (every case that
+   * is not archived, open or closed) and `any` (archived cases too).
+   */
+  readonly view: CaseView | 'active' | 'any';
   /** Firm-calendar today and the last "due soon" date, `YYYY-MM-DD`. */
   readonly today: string;
   readonly dueSoonUntil: string;
@@ -118,6 +123,15 @@ export interface CaseQueryFilter {
   readonly reviewerUserId: string | null;
   readonly taxYear: number | null;
   readonly clientId: string | null;
+  /** Report filters; the queue never sets them. */
+  readonly statusKind?: WorkflowStatusKind | null;
+  readonly dueFrom?: string | null;
+  readonly dueTo?: string | null;
+  /**
+   * `gaps`: a required checklist item is not satisfied; `awaiting_review`: a
+   * review-required item is completed but not yet verified.
+   */
+  readonly checklist?: 'gaps' | 'awaiting_review' | null;
 }
 
 export interface CaseListCursor {
@@ -142,7 +156,12 @@ const CLOSED_KINDS: readonly WorkflowStatusKind[] = ['completed', 'cancelled'];
  * uses it directly; the PostgreSQL repository builds the same conditions in
  * SQL, and an integration test checks the two agree.
  */
-export function matchesCaseFilter(record: TaxCaseRecord, filter: CaseQueryFilter): boolean {
+export function matchesCaseFilter(
+  record: TaxCaseRecord,
+  filter: CaseQueryFilter,
+  /** The case's checklist items; only the `checklist` filter reads them. */
+  items: readonly CaseChecklistItemRecord[] = [],
+): boolean {
   const archived = record.deletedAt !== null;
   const closed = CLOSED_KINDS.includes(record.currentStatusKind);
   const open = !archived && !closed;
@@ -172,6 +191,12 @@ export function matchesCaseFilter(record: TaxCaseRecord, filter: CaseQueryFilter
     case 'archived':
       inView = archived;
       break;
+    case 'active':
+      inView = !archived;
+      break;
+    case 'any':
+      inView = true;
+      break;
   }
   if (!inView) {
     return false;
@@ -181,6 +206,27 @@ export function matchesCaseFilter(record: TaxCaseRecord, filter: CaseQueryFilter
     restrict !== null &&
     record.primaryConsultantUserId !== restrict &&
     record.reviewerUserId !== restrict
+  ) {
+    return false;
+  }
+  if (filter.statusKind != null && record.currentStatusKind !== filter.statusKind) {
+    return false;
+  }
+  if (filter.dueFrom != null && record.dueDate < filter.dueFrom) {
+    return false;
+  }
+  if (filter.dueTo != null && record.dueDate > filter.dueTo) {
+    return false;
+  }
+  if (
+    filter.checklist === 'gaps' &&
+    !items.some((item) => item.required && !isChecklistItemSatisfied(item))
+  ) {
+    return false;
+  }
+  if (
+    filter.checklist === 'awaiting_review' &&
+    !items.some((item) => item.reviewRequired && item.state === 'completed')
   ) {
     return false;
   }

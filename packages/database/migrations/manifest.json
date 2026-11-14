@@ -32,6 +32,10 @@
     {
       "name": "0008_billing_and_payments.sql",
       "checksum": "74abab60ae4fadb56f7e878ea2b206985467c92928a105d8b9eaf5612c254443"
+    },
+    {
+      "name": "0009_dashboard_and_operations.sql",
+      "checksum": "c2b607e7acadc358d06c35cf91695fb9db9e2a2d2f3e76a03ceb366943a3e329"
     }
   ]
 }

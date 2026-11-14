@@ -29,6 +29,7 @@ import {
 } from './postgres-documents.js';
 import {
   createPostgresBillingDocumentRepository,
+  createPostgresBillingReportRepository,
   createPostgresIdempotencyRepository,
   createPostgresInvoiceRepository,
   createPostgresNumberSequenceRepository,
@@ -179,6 +180,11 @@ function mapFirm(row: SqlRow): FirmRecord {
     id: text(row, 'id'),
     firmName: text(row, 'firm_name'),
     timezone: text(row, 'timezone'),
+    currency: text(row, 'currency'),
+    invoicePrefix: text(row, 'invoice_prefix'),
+    receiptPrefix: text(row, 'receipt_prefix'),
+    documentMaxUploadBytes: integer(row, 'document_max_upload_bytes'),
+    dueSoonDays: integer(row, 'due_soon_days'),
     bootstrapCompletedAt: nullableIso(row['bootstrap_completed_at']),
     createdAt: iso(row['created_at']),
     updatedAt: iso(row['updated_at']),
@@ -265,10 +271,23 @@ export function createPostgresRepositories(executor: SqlExecutor): Repositories 
       updateSettings: async (input) => {
         const rows = await executor.query(
           `UPDATE firm_settings
-           SET firm_name = $2, timezone = $3, updated_at = $4, version = version + 1
+           SET firm_name = $2, timezone = $3, updated_at = $4, version = version + 1,
+               currency = $6, invoice_prefix = $7, receipt_prefix = $8,
+               document_max_upload_bytes = $9, due_soon_days = $10
            WHERE id = $1 AND version = $5
            RETURNING *`,
-          [input.id, input.firmName, input.timezone, input.updatedAt, input.expectedVersion],
+          [
+            input.id,
+            input.firmName,
+            input.timezone,
+            input.updatedAt,
+            input.expectedVersion,
+            input.currency,
+            input.invoicePrefix,
+            input.receiptPrefix,
+            input.documentMaxUploadBytes,
+            input.dueSoonDays,
+          ],
         );
         return rows[0] === undefined ? null : mapFirm(rows[0]);
       },
@@ -691,6 +710,58 @@ export function createPostgresRepositories(executor: SqlExecutor): Repositories 
           nextCursor: rows.length > input.limit ? (page.at(-1)?.id ?? null) : null,
         };
       },
+      search: async (filter): Promise<PaginatedAuditEvents> => {
+        const values: unknown[] = [];
+        const bind = (value: unknown): string => {
+          values.push(value);
+          return `$${String(values.length)}`;
+        };
+        const where: string[] = [];
+        if (filter.actorUserId !== null) {
+          where.push(`actor_user_id = ${bind(filter.actorUserId)}::uuid`);
+        }
+        if (filter.from !== null) {
+          where.push(
+            `(occurred_at AT TIME ZONE ${bind(filter.timezone)})::date >= ${bind(filter.from)}::date`,
+          );
+        }
+        if (filter.to !== null) {
+          where.push(
+            `(occurred_at AT TIME ZONE ${bind(filter.timezone)})::date <= ${bind(filter.to)}::date`,
+          );
+        }
+        if (filter.action !== null) {
+          if (filter.action.endsWith('.*')) {
+            where.push(`starts_with(action, ${bind(filter.action.slice(0, -1))})`);
+          } else {
+            where.push(`action = ${bind(filter.action)}`);
+          }
+        }
+        if (filter.entityType !== null) {
+          where.push(`entity_type = ${bind(filter.entityType)}`);
+        }
+        if (filter.entityId !== null) {
+          where.push(`entity_id = ${bind(filter.entityId)}::uuid`);
+        }
+        if (filter.requestId !== null) {
+          where.push(`request_id = ${bind(filter.requestId)}`);
+        }
+        if (filter.cursor !== null) {
+          where.push(`id < ${bind(filter.cursor)}::uuid`);
+        }
+        const limit = bind(filter.limit + 1);
+        const rows = await executor.query(
+          `SELECT * FROM audit_events
+           ${where.length === 0 ? '' : `WHERE ${where.join(' AND ')}`}
+           ORDER BY id DESC LIMIT ${limit}`,
+          values,
+        );
+        const page = rows.slice(0, filter.limit).map(mapAudit);
+        return {
+          events: page,
+          nextCursor: rows.length > filter.limit ? (page.at(-1)?.id ?? null) : null,
+        };
+      },
       listForEntity: async (input): Promise<PaginatedAuditEvents> => {
         const rows = await executor.query(
           `SELECT * FROM audit_events
@@ -720,6 +791,7 @@ export function createPostgresRepositories(executor: SqlExecutor): Repositories 
     billingDocuments: createPostgresBillingDocumentRepository(executor),
     numberSequences: createPostgresNumberSequenceRepository(executor),
     idempotency: createPostgresIdempotencyRepository(executor),
+    billingReports: createPostgresBillingReportRepository(executor),
     loginAttempts: {
       record: async (record) => {
         await executor.query(

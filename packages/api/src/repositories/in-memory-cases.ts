@@ -220,6 +220,8 @@ export function createInMemoryCaseRepository(
   state: InMemoryCaseState,
   clients: Map<string, ClientRecord>,
 ): CaseRepository {
+  const itemsFor = (caseId: string): CaseChecklistItemRecord[] =>
+    [...state.caseChecklistItems.values()].filter((item) => item.caseId === caseId);
   const withClient = (record: TaxCaseRecord): TaxCaseRecord => {
     const client = clients.get(record.clientId);
     return {
@@ -360,7 +362,7 @@ export function createInMemoryCaseRepository(
     list: async (filter) => {
       const after = filter.after;
       const matching = [...state.cases.values()]
-        .filter((record) => matchesCaseFilter(record, filter))
+        .filter((record) => matchesCaseFilter(record, filter, itemsFor(record.id)))
         .filter(
           (record) =>
             after === null ||
@@ -374,6 +376,8 @@ export function createInMemoryCaseRepository(
       };
     },
     count: async (filter) =>
-      [...state.cases.values()].filter((record) => matchesCaseFilter(record, filter)).length,
+      [...state.cases.values()].filter((record) =>
+        matchesCaseFilter(record, filter, itemsFor(record.id)),
+      ).length,
   };
 }

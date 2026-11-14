@@ -4,6 +4,7 @@ import {
   Building2,
   HardDrive,
   Receipt,
+  ChartColumn,
   ListChecks,
   Tags,
   LayoutDashboard,
@@ -26,6 +27,9 @@ export const ROUTE_PATHS = {
   cases: '/cases',
   newCase: '/cases/new',
   invoices: '/invoices',
+  reports: '/reports',
+  reportsWorkload: '/reports/workload',
+  reportsBilling: '/reports/billing',
   services: '/services',
   workflows: '/workflows',
   /** The storage OAuth callback redirects here (`?result=`). */
@@ -117,6 +121,14 @@ export const NAV_ROUTES: readonly NavRoute[] = [
     title: 'Invoices',
     icon: Receipt,
     permission: 'billing.read',
+    end: false,
+  },
+  {
+    path: ROUTE_PATHS.reports,
+    label: 'Reports',
+    title: 'Reports',
+    icon: ChartColumn,
+    permission: 'reports.read',
     end: false,
   },
   {

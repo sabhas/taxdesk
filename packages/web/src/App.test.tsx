@@ -65,11 +65,29 @@ function problem(status: number, code: string, detail: string, requestId = 'req-
   );
 }
 
+const EMPTY_SUMMARY = {
+  generatedAt: '2026-06-01T04:00:00.000Z',
+  today: '2026-06-01',
+  dueSoonDays: 7,
+  work: null,
+  management: null,
+  billing: null,
+};
+
+/** Calls other than the dashboard's own summary request. */
+function scriptedCalls(fetchMock: ReturnType<typeof vi.fn>): number {
+  return fetchMock.mock.calls.filter(([url]) => url !== '/api/v1/dashboard/summary').length;
+}
+
 function mockFetchSequence(responses: readonly (() => Response)[]): void {
   const sequence = [...responses];
   vi.stubGlobal(
     'fetch',
-    vi.fn().mockImplementation(async () => {
+    vi.fn().mockImplementation(async (input?: string) => {
+      // The dashboard loads its own summary; it is not part of the scripted flow.
+      if (input === '/api/v1/dashboard/summary') {
+        return json(EMPTY_SUMMARY);
+      }
       const next = sequence.shift();
       if (next === undefined) {
         return problem(500, 'INTERNAL_ERROR', 'No more mocked responses.');
@@ -315,7 +333,10 @@ describe('authorization and session lifecycle in the UI', () => {
       () => json({ users: [staff] }),
       () => json({ ...staff, status: 'deactivated', version: 2 }),
     ];
-    fetchMock.mockImplementation(async () => {
+    fetchMock.mockImplementation(async (input?: string) => {
+      if (input === '/api/v1/dashboard/summary') {
+        return json(EMPTY_SUMMARY);
+      }
       const next = sequence.shift();
       return next === undefined ? problem(500, 'INTERNAL_ERROR', 'No more responses.') : next();
     });
@@ -330,7 +351,7 @@ describe('authorization and session lifecycle in the UI', () => {
       within(dialog).getByRole('heading', { name: 'Deactivate Staff Person?' }),
     ).toBeInTheDocument();
     expect(dialog).toHaveTextContent(/signed out of every session/);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(scriptedCalls(fetchMock)).toBe(2);
     fireEvent.click(within(dialog).getByRole('button', { name: 'Deactivate Staff Person' }));
     expect(
       await screen.findByText('Deactivated staff. Their sessions were revoked.'),
@@ -342,7 +363,9 @@ describe('authorization and session lifecycle in the UI', () => {
     await waitFor(() => {
       expect(reactivate).toHaveFocus();
     });
-    const [url, init] = fetchMock.mock.calls[2] as [string, RequestInit];
+    const [url, init] = fetchMock.mock.calls.filter(
+      ([target]) => target !== '/api/v1/dashboard/summary',
+    )[2] as [string, RequestInit];
     expect(url).toBe(`/api/v1/admin/users/${staff.id}`);
     expect(init.method).toBe('PATCH');
     expect((init.headers as Record<string, string>)['If-Match']).toBe('"1"');
@@ -363,7 +386,10 @@ describe('authorization and session lifecycle in the UI', () => {
     };
     const fetchMock = vi.fn();
     const sequence = [() => json(sessionFor()), () => json({ users: [staff] })];
-    fetchMock.mockImplementation(async () => {
+    fetchMock.mockImplementation(async (input?: string) => {
+      if (input === '/api/v1/dashboard/summary') {
+        return json(EMPTY_SUMMARY);
+      }
       const next = sequence.shift();
       return next === undefined ? problem(500, 'INTERNAL_ERROR', 'No more responses.') : next();
     });
@@ -388,7 +414,7 @@ describe('authorization and session lifecycle in the UI', () => {
     await waitFor(() => {
       expect(deactivate).toHaveFocus();
     });
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(scriptedCalls(fetchMock)).toBe(2);
     expect(screen.queryByText(/Deactivated staff/)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Deactivate' })).toBeInTheDocument();
   });

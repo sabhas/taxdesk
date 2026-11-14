@@ -139,7 +139,10 @@ export class CaseService {
   private async firmDates(): Promise<{ today: string; dueSoonUntil: string }> {
     const firm = await this.repositories.firm.get();
     const today = calendarDateIn(firm?.timezone ?? DEFAULT_TIMEZONE, this.dependencies.clock());
-    return { today, dueSoonUntil: addDaysToDate(today, CASE_DUE_SOON_DAYS) };
+    return {
+      today,
+      dueSoonUntil: addDaysToDate(today, firm?.dueSoonDays ?? CASE_DUE_SOON_DAYS),
+    };
   }
 
   private urgency(
@@ -350,15 +353,35 @@ export class CaseService {
       reviewerUserId: query.reviewer ?? null,
       taxYear: query.taxYear ?? null,
       clientId: query.client ?? null,
+      statusKind: query.statusKind ?? null,
+      checklist: query.checklist ?? null,
     };
+  }
+
+  /**
+   * The filter every queue count, list, dashboard figure, and case report is
+   * built from. `overrides` adds report-only fields (date range, state view).
+   */
+  async filterFor(
+    actor: Actor,
+    view: CaseQueryFilter['view'],
+    query: CaseQueueCountsQuery,
+    overrides: Partial<CaseQueryFilter> = {},
+  ): Promise<CaseQueryFilter> {
+    return { ...(await this.queryFilter(actor, view, query)), ...overrides };
   }
 
   async listCases(actor: Actor, query: CaseListQuery): Promise<CaseList> {
     const filter = await this.queryFilter(actor, query.view, query);
+    return await this.listForFilter(filter, query.limit, query.cursor);
+  }
+
+  /** One page of cases and the total for `filter`, from the same predicate. */
+  async listForFilter(filter: CaseQueryFilter, limit: number, cursor?: string): Promise<CaseList> {
     const page = await this.repositories.cases.list({
       ...filter,
-      limit: query.limit,
-      after: query.cursor === undefined ? null : decodeCursor(query.cursor),
+      limit,
+      after: cursor === undefined ? null : decodeCursor(cursor),
     });
     const total = await this.repositories.cases.count(filter);
     const lookup = personLookup(this.repositories.users);

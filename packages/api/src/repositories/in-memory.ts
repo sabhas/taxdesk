@@ -1,5 +1,12 @@
 /* eslint-disable @typescript-eslint/require-await, @typescript-eslint/prefer-optional-chain -- in-memory fakes implement async repository ports synchronously with explicit null checks */
-import { ROLE_DEFINITIONS, ROLE_KEYS, isRoleKey, newUuidV7 } from '@taxdesk/shared';
+import {
+  DEFAULT_FIRM_SETTINGS,
+  ROLE_DEFINITIONS,
+  ROLE_KEYS,
+  calendarDateIn,
+  isRoleKey,
+  newUuidV7,
+} from '@taxdesk/shared';
 import type {
   ActivationTokenRecord,
   AuditEventRecord,
@@ -27,6 +34,7 @@ import {
 } from './in-memory-cases.js';
 import {
   createInMemoryBillingDocumentRepository,
+  createInMemoryBillingReportRepository,
   createInMemoryBillingState,
   createInMemoryIdempotencyRepository,
   createInMemoryInvoiceRepository,
@@ -118,6 +126,7 @@ export function createInMemoryRepositories(): InMemoryRepositories {
     | 'billingDocuments'
     | 'numberSequences'
     | 'idempotency'
+    | 'billingReports'
   > = {
     firm: {
       get: async () => (state.firm === null ? null : { ...state.firm }),
@@ -129,6 +138,11 @@ export function createInMemoryRepositories(): InMemoryRepositories {
           id: input.id,
           firmName: input.firmName,
           timezone: input.timezone,
+          currency: DEFAULT_FIRM_SETTINGS.currency,
+          invoicePrefix: DEFAULT_FIRM_SETTINGS.invoicePrefix,
+          receiptPrefix: DEFAULT_FIRM_SETTINGS.receiptPrefix,
+          documentMaxUploadBytes: DEFAULT_FIRM_SETTINGS.documentMaxUploadBytes,
+          dueSoonDays: DEFAULT_FIRM_SETTINGS.dueSoonDays,
           bootstrapCompletedAt: null,
           createdAt: input.createdAt,
           updatedAt: input.createdAt,
@@ -153,6 +167,11 @@ export function createInMemoryRepositories(): InMemoryRepositories {
           ...state.firm,
           firmName: input.firmName,
           timezone: input.timezone,
+          currency: input.currency,
+          invoicePrefix: input.invoicePrefix,
+          receiptPrefix: input.receiptPrefix,
+          documentMaxUploadBytes: input.documentMaxUploadBytes,
+          dueSoonDays: input.dueSoonDays,
           updatedAt: input.updatedAt,
           version: state.firm.version + 1,
         };
@@ -536,6 +555,43 @@ export function createInMemoryRepositories(): InMemoryRepositories {
           nextCursor: hasMore ? (page.at(-1)?.id ?? null) : null,
         };
       },
+      search: async (filter) => {
+        const dayOf = (event: AuditEventRecord): string =>
+          calendarDateIn(filter.timezone, new Date(event.occurredAt));
+        const cursor = filter.cursor;
+        const filtered = state.auditEvents
+          .filter((event) => {
+            if (filter.actorUserId !== null && event.actorUserId !== filter.actorUserId) {
+              return false;
+            }
+            if (filter.from !== null && dayOf(event) < filter.from) {
+              return false;
+            }
+            if (filter.to !== null && dayOf(event) > filter.to) {
+              return false;
+            }
+            if (filter.action !== null) {
+              const matches = filter.action.endsWith('.*')
+                ? event.action.startsWith(filter.action.slice(0, -1))
+                : event.action === filter.action;
+              if (!matches) {
+                return false;
+              }
+            }
+            return (
+              (filter.entityType === null || event.entityType === filter.entityType) &&
+              (filter.entityId === null || event.entityId === filter.entityId) &&
+              (filter.requestId === null || event.requestId === filter.requestId) &&
+              (cursor === null || event.id < cursor)
+            );
+          })
+          .sort((left, right) => right.id.localeCompare(left.id));
+        const page = filtered.slice(0, filter.limit);
+        return {
+          events: page.map(copyEvent),
+          nextCursor: filtered.length > filter.limit ? (page.at(-1)?.id ?? null) : null,
+        };
+      },
       listForEntity: async (input) => {
         const cursor = input.cursor;
         const filtered = state.auditEvents
@@ -597,6 +653,7 @@ export function createInMemoryRepositories(): InMemoryRepositories {
     billingDocuments: createInMemoryBillingDocumentRepository(state),
     numberSequences: createInMemoryNumberSequenceRepository(state),
     idempotency: createInMemoryIdempotencyRepository(state),
+    billingReports: createInMemoryBillingReportRepository(state),
   };
 
   const unitOfWork: UnitOfWork = {

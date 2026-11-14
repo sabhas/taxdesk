@@ -35,15 +35,20 @@ export const BILLING_PDF_STATES = ['none', 'pending', 'ready', 'failed'] as cons
 export const BillingPdfStateSchema = z.enum(BILLING_PDF_STATES);
 export type BillingPdfState = z.infer<typeof BillingPdfStateSchema>;
 
-export const INVOICE_NUMBER_PATTERN = /^INV-\d{5,}$/u;
-export const RECEIPT_NUMBER_PATTERN = /^RCP-\d{5,}$/u;
+/**
+ * Numbers carry the firm's prefix at the time they were issued (TD-605), so
+ * the pattern accepts any 2-6 letter prefix. A prefix change never rewrites an
+ * issued number.
+ */
+export const INVOICE_NUMBER_PATTERN = /^[A-Z]{2,6}-\d{5,}$/u;
+export const RECEIPT_NUMBER_PATTERN = /^[A-Z]{2,6}-\d{5,}$/u;
 
-export function formatInvoiceNumber(sequence: number): string {
-  return `INV-${String(sequence).padStart(5, '0')}`;
+export function formatInvoiceNumber(sequence: number, prefix = 'INV'): string {
+  return `${prefix}-${String(sequence).padStart(5, '0')}`;
 }
 
-export function formatReceiptNumber(sequence: number): string {
-  return `RCP-${String(sequence).padStart(5, '0')}`;
+export function formatReceiptNumber(sequence: number, prefix = 'RCP'): string {
+  return `${prefix}-${String(sequence).padStart(5, '0')}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -266,6 +271,11 @@ export const InvoiceListQuerySchema = z
     issuedTo: IsoDateSchema.optional(),
     dueFrom: IsoDateSchema.optional(),
     dueTo: IsoDateSchema.optional(),
+    /**
+     * `outstanding`: finalized invoices with a balance; `overdue`: those past
+     * their due date today. The dashboard and billing report count the same.
+     */
+    balance: z.enum(['outstanding', 'overdue']).optional(),
     cursor: z.string().min(1).max(256).optional(),
     limit: z.coerce
       .number()

@@ -230,6 +230,43 @@ reversals, billing PDFs, gapless number counters, and idempotency keys, plus the
   number, client and case codes, amount, and currency. They never record names,
   identifiers, or document contents.
 
+## Firm settings and reporting (Epic 6)
+
+Migration `0009_dashboard_and_operations.sql` adds no new tables. It moves
+ordinary business choices out of deployment configuration:
+
+- `firm_settings` gains `currency` (`PKR` only; invoices are PKR-only),
+  `invoice_prefix` and `receipt_prefix` (2–6 capital letters), `due_soon_days`
+  (1–60), and `document_max_upload_bytes` (1–250 MiB, an `integer`). Every range
+  is a database `CHECK` as well as a Zod rule, and each change is one audited
+  `firm.settings_updated` event carrying the changed field names and their old
+  and new values.
+- A new prefix applies to numbers issued from then on. `invoices.invoice_number`
+  and `payments.receipt_number` checks are relaxed from `INV-`/`RCP-` to
+  `^[A-Z]{2,6}-[0-9]{5,}$`; issued numbers are never rewritten and the
+  immutability triggers are unchanged. The counters stay gapless.
+- `DOCUMENT_MAX_UPLOAD_BYTES` remains a deployment ceiling: the effective upload
+  limit is the lower of it and the firm setting.
+- Indexes serve the audit explorer (`action`, `request_id`; the actor and entity
+  indexes already existed) and the billing report (`invoices.issue_date` for
+  finalized invoices, `payments.received_on`).
+
+Dashboards and reports are read models over existing tables:
+
+- Case counts, lists, workload rows, and the case report all use one predicate
+  (`matchesCaseFilter` and its SQL translation `caseFilterSql`), extended with a
+  status-kind filter, a due-date range, `checklist=gaps|awaiting_review`, and the
+  report-only `active` and `any` views. An integration test checks the SQL
+  against the reference predicate.
+- Billing totals sum the persisted `invoices.total/outstanding_minor` (written by
+  the same totals calculator as invoice detail) and `payments`/`payment_reversals`
+  rows. "Outstanding" is a finalized invoice with a balance; "overdue" adds a due
+  date before today. Reversals are placed on a day in the firm timezone.
+- Audit search filters `audit_events` by actor, firm-calendar day range, action
+  (exact or `prefix.*`), entity type and ID, and request ID, newest first with a
+  cursor. Metadata is masked before display (secrets, hashes, and identifier-like
+  values become `[masked]`).
+
 ## Integrity rules
 
 - Tax identifiers use encrypted ciphertext for display and an HMAC blind index for exact duplicate detection.
