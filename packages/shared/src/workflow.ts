@@ -458,7 +458,7 @@ export const WorkflowVersionSummarySchema = z
     id: UuidV7Schema,
     versionNumber: z.number().int().positive(),
     state: WorkflowVersionStateSchema,
-    publishedAt: z.string().datetime().nullable(),
+    publishedAt: z.iso.datetime().nullable(),
   })
   .strict();
 
@@ -471,7 +471,7 @@ export const WorkflowTemplateSummarySchema = z
     description: z.string().max(WORKFLOW_LIMITS.descriptionMax),
     latestPublished: WorkflowVersionSummarySchema.nullable(),
     draft: WorkflowVersionSummarySchema.nullable(),
-    updatedAt: z.string().datetime(),
+    updatedAt: z.iso.datetime(),
     version: z.number().int().positive(),
   })
   .strict();
@@ -488,7 +488,7 @@ export type WorkflowTemplateList = z.infer<typeof WorkflowTemplateListSchema>;
 
 export const WorkflowTemplateSchema = WorkflowTemplateSummarySchema.extend({
   versions: z.array(WorkflowVersionSummarySchema),
-  createdAt: z.string().datetime(),
+  createdAt: z.iso.datetime(),
 }).strict();
 
 export type WorkflowTemplate = z.infer<typeof WorkflowTemplateSchema>;
@@ -503,10 +503,10 @@ export const WorkflowVersionSchema = z
     definition: WorkflowDefinitionSchema,
     /** Publishing is refused while this list is non-empty. */
     issues: z.array(WorkflowValidationIssueSchema),
-    publishedAt: z.string().datetime().nullable(),
+    publishedAt: z.iso.datetime().nullable(),
     publishedBy: PersonSchema.nullable(),
-    createdAt: z.string().datetime(),
-    updatedAt: z.string().datetime(),
+    createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime(),
     version: z.number().int().positive(),
   })
   .strict();

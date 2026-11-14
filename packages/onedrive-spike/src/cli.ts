@@ -73,7 +73,7 @@ export class UsageError extends Error {
 }
 
 const CliOptionsSchema = z.object({
-  clientId: z.string().uuid(),
+  clientId: z.uuid(),
   host: z
     .string()
     .min(1)

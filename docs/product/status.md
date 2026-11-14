@@ -3,7 +3,7 @@ title: Implementation status
 status: accepted
 version: 1.0
 owners: [product, engineering]
-last_reviewed: 2026-11-11
+last_reviewed: 2026-11-14
 ---
 
 # Implementation status
@@ -24,6 +24,8 @@ last_reviewed: 2026-11-11
 
 **Epic 6:** dashboard and operations (TD-601–TD-605) is implemented and passes every local gate, including the PostgreSQL migration and repository suites (report predicates against the reference, billing aggregates against invoice detail, audit search). It awaits migration `0009` in staging, a staging demonstration including the real-browser accessibility pass for TD-605, and Sprint Review before the epic is marked done. No new secrets are required.
 
+**Epic 7:** migration, security, and recovery is implemented. TD-701–TD-705 (versioned CSV templates, dry run, idempotent chunked commit, review/correction, import security) pass every local gate, including the PostgreSQL import suite. TD-706–TD-710 tooling and runbooks are in place: synthetic rehearsal data, migration reconciliation, an encrypted independent export workflow with manifest verification, restore verification, the security review (0 critical or high open after upgrading zod 4, drizzle-orm 0.45, hono, vite 6, and vitest 4), and the production readiness review template. It awaits migration `0010` and the backup secrets/R2 bucket in staging, a signed migration rehearsal, an isolated restore rehearsal within the four-hour RTO, security review sign-off, a go/no-go decision, and Sprint Review before the epic is marked done.
+
 Update this file when an epic or sprint starts, becomes blocked, or completes.
 
 | Epic | Name | Status | Sprint(s) | Blocked by | Notes |
@@ -35,7 +37,7 @@ Update this file when an epic or sprint starts, becomes blocked, or completes.
 | 4 | Document storage | in_progress | 7–8 | — | TD-401–TD-410 implemented and verified locally (`DocumentStorageProvider` port with fake and OneDrive adapters and an import-boundary test, migration `0007` with a singleton encrypted connection, single-use hashed OAuth state with PKCE, immutable/undeletable documents, idempotent uploads, append-only reconciliation runs, `storage.manage` permission, Worker-proxied 5 MiB resumable uploads and audited downloads, row-locked token refresh, reconnect-required stop, verification states and checklist gate, soft delete/restore, reconciliation; unit, route, role-matrix, web/axe, and PostgreSQL suites; ADR 0006). Staging needs a Microsoft app registration, `STORAGE_TOKEN_ENCRYPTION_KEY`, `ONEDRIVE_CLIENT_ID`, and migration `0007`, then a staging demonstration and Sprint Review acceptance |
 | 5 | Billing and payments | in_progress | 9–10 | — | TD-501–TD-510 implemented and verified locally (shared money contracts and pure totals calculator, migration `0008` with locked gapless invoice/receipt counters, generic idempotency keys, append-only payment/reversal/billing-PDF tables and immutability triggers on finalized invoices, `billing.payments.reverse` permission, draft/finalize/payment/reversal/void APIs with `If-Match` and `Idempotency-Key`, decoupled `pdf-lib` invoice and receipt PDFs stored through the storage gateway with retry, invoice list/detail/editor UI with record-payment, reverse, and void dialogs; unit, route, role-matrix, web/axe, jsdom journey, and PostgreSQL race/trigger suites; ADR 0007). Staging needs migration `0008`, then a staging demonstration and Sprint Review acceptance |
 | 6 | Dashboard and operations | in_progress | 11 | — | TD-601–TD-605 implemented and verified locally (reconciled dashboard figures, permissioned case/workload/billing reports with audited CSV export, masked audit explorer, firm settings for currency, prefixes, upload limit, due-soon window; migration `0009`; ADR 0008). Staging needs migration `0009`, then a staging demonstration, a browser accessibility pass, and Sprint Review acceptance |
-| 7 | Migration, security, and recovery | not_started | 12–13 | Epics 2–6 | Requires usable staging workflow |
+| 7 | Migration, security, and recovery | in_progress | 12–13 | — | TD-701–TD-705 implemented and verified locally (migration `0010`, `imports.manage`, dry run/decisions/chunked idempotent commit with lineage, exports, reconciliation; route, web/axe, and PostgreSQL rollback and concurrency suites; ADR 0009). TD-706–TD-710 tooling, workflows, runbooks, security review, and readiness review committed; staging rehearsals, export secrets, sign-offs, and Sprint Review pending |
 | 8 | Pilot and production launch | not_started | 14 | Epic 7 | Requires signed migration rehearsal |
 
 **Status values:** `not_started` | `in_progress` | `blocked` | `done`

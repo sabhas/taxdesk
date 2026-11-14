@@ -109,9 +109,9 @@ export const ServiceTypeSchema = z
       .strict()
       .nullable(),
     state: ServiceTypeStateSchema,
-    archivedAt: z.string().datetime().nullable(),
-    createdAt: z.string().datetime(),
-    updatedAt: z.string().datetime(),
+    archivedAt: z.iso.datetime().nullable(),
+    createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime(),
     version: z.number().int().positive(),
   })
   .strict();

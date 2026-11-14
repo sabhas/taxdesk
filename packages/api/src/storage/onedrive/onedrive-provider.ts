@@ -70,13 +70,13 @@ const ParentReferenceSchema = z
     driveId: z.string().min(1).optional(),
     id: z.string().min(1).optional(),
   })
-  .passthrough();
+  .loose();
 
 const IdentitySchema = z
   .object({
-    user: z.object({ displayName: z.string().optional() }).passthrough().optional(),
+    user: z.object({ displayName: z.string().optional() }).loose().optional(),
   })
-  .passthrough();
+  .loose();
 
 const AppRootSchema = z
   .object({
@@ -84,7 +84,7 @@ const AppRootSchema = z
     parentReference: ParentReferenceSchema.optional(),
     createdBy: IdentitySchema.optional(),
   })
-  .passthrough();
+  .loose();
 
 const DriveItemSchema = z
   .object({
@@ -95,22 +95,22 @@ const DriveItemSchema = z
     parentReference: ParentReferenceSchema.optional(),
     deleted: z.unknown().optional(),
   })
-  .passthrough();
+  .loose();
 
 const UploadSessionResponseSchema = z
   .object({
-    uploadUrl: z.string().url(),
+    uploadUrl: z.url(),
     expirationDateTime: z.string().optional(),
     nextExpectedRanges: z.array(z.string()).optional(),
   })
-  .passthrough();
+  .loose();
 
 const UploadStatusSchema = z
   .object({
     expirationDateTime: z.string().optional(),
     nextExpectedRanges: z.array(z.string()).optional(),
   })
-  .passthrough();
+  .loose();
 
 /** First byte of the first expected range (`"5242880-"` or `"0-1023"`). */
 export function offsetFromRanges(ranges: readonly string[] | undefined): number | undefined {

@@ -15,7 +15,7 @@ const StoredCredentialsSchema = z
   .object({
     accessToken: z.string().min(1),
     refreshToken: z.string().min(1),
-    accessTokenExpiresAt: z.string().datetime(),
+    accessTokenExpiresAt: z.iso.datetime(),
     scopes: z.array(z.string()),
   })
   .strict();

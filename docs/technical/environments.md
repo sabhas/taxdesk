@@ -142,6 +142,21 @@ use instead of disabling the control.
 | `ONEDRIVE_AUTHORITY` | `[vars]` | Optional Microsoft identity tenant segment; defaults to `consumers` (Personal accounts). |
 | `DOCUMENT_MAX_UPLOAD_BYTES` | `[vars]` | Optional upload size limit in bytes; defaults to 262144000 (250 MiB). |
 
+Epic 7 adds no Worker secret. The independent backup export (TD-707) runs in
+GitHub Actions in the protected `staging` environment and needs these values
+there (later the same names in `production`):
+
+| Name | Kind | Purpose |
+| --- | --- | --- |
+| `BACKUP_ENCRYPTION_KEY` | Environment secret | base64url 32-byte AES-256-GCM key for export archives. Generate like `MFA_ENCRYPTION_KEY`, and keep a copy in the operator's offline key store: without it no export can be restored. |
+| `STAGING_BACKUP_DATABASE_URL` | Environment secret | Connection string `pg_dump` uses (TLS required). A read-only role with `SELECT` on all tables and sequences is enough. |
+| `BACKUP_R2_API_TOKEN` | Environment secret | Cloudflare API token limited to object read/write on the backup bucket. |
+| `CLOUDFLARE_ACCOUNT_ID` | Environment secret | Already used by deploys. |
+| `BACKUP_BUCKET` | Environment variable | R2 bucket name; objects are written under `<environment>/`. Configure a 35-day lifecycle rule. |
+| `PG_CLIENT_MAJOR` | Environment variable | Optional PostgreSQL client major version for `pg_dump` (default 17); must be ≥ the server's. |
+
+See [`../guides/backup-and-restore.md`](../guides/backup-and-restore.md).
+
 The first administrator is created with `pnpm auth:bootstrap`, and lockouts are
 recovered with `pnpm auth:recover`; both need the environment's `DATABASE_URL`.
 See [`../guides/administrator-recovery.md`](../guides/administrator-recovery.md).
@@ -313,5 +328,12 @@ the operator-recorded coverage and export evidence. The daily `Platform posture`
 workflow re-runs the check and opens an operator issue when it fails. The
 evidence contract and runbook live in [`ci.md`](ci.md).
 
+The daily `Independent backup export` workflow (TD-707) writes an encrypted
+`pg_dump` archive and manifest to R2, and `Platform posture` also runs
+`pnpm ci:backup-verify` against the latest manifest. Restores follow
+[`../guides/backup-and-restore.md`](../guides/backup-and-restore.md) and are
+verified with `pnpm ops:restore-verify`.
+
 Do not deploy staging while the posture gate fails. Real client data remains
-forbidden in staging; the production recovery rehearsal is TD-709.
+forbidden in staging; the restore rehearsal is TD-708 and the production
+readiness decision is TD-710.

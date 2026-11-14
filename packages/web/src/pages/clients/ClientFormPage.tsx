@@ -155,7 +155,7 @@ function requestBody(draft: ClientDraft, mode: 'create' | 'edit'): Record<string
   return body;
 }
 
-function issuesToErrors(issues: readonly { path: (string | number)[]; message: string }[]) {
+function issuesToErrors(issues: readonly { path: readonly PropertyKey[]; message: string }[]) {
   const errors: Record<string, string> = {};
   for (const issue of issues) {
     const key = issue.path.length === 0 ? 'form' : issue.path.map(String).join('.');

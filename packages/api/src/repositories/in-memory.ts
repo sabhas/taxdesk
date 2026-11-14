@@ -43,6 +43,11 @@ import {
   type InMemoryBillingState,
 } from './in-memory-billing.js';
 import {
+  createInMemoryImportRepository,
+  createInMemoryImportState,
+  type InMemoryImportState,
+} from './in-memory-imports.js';
+import {
   createInMemoryDocumentRepository,
   createInMemoryDocumentState,
   createInMemoryDocumentUploadRepository,
@@ -53,7 +58,12 @@ import {
 } from './in-memory-documents.js';
 
 export interface InMemoryState
-  extends InMemoryClientState, InMemoryCaseState, InMemoryDocumentState, InMemoryBillingState {
+  extends
+    InMemoryClientState,
+    InMemoryCaseState,
+    InMemoryDocumentState,
+    InMemoryBillingState,
+    InMemoryImportState {
   firm: FirmRecord | null;
   users: Map<string, UserRecord>;
   roles: Map<string, RoleRecord>;
@@ -98,6 +108,7 @@ export function createInMemoryRepositories(): InMemoryRepositories {
     ...createInMemoryCaseState(),
     ...createInMemoryDocumentState(),
     ...createInMemoryBillingState(),
+    ...createInMemoryImportState(),
   };
 
   const roles: RoleRecord[] = ROLE_KEYS.map((key) => ({
@@ -127,6 +138,7 @@ export function createInMemoryRepositories(): InMemoryRepositories {
     | 'numberSequences'
     | 'idempotency'
     | 'billingReports'
+    | 'imports'
   > = {
     firm: {
       get: async () => (state.firm === null ? null : { ...state.firm }),
@@ -654,6 +666,7 @@ export function createInMemoryRepositories(): InMemoryRepositories {
     numberSequences: createInMemoryNumberSequenceRepository(state),
     idempotency: createInMemoryIdempotencyRepository(state),
     billingReports: createInMemoryBillingReportRepository(state),
+    imports: createInMemoryImportRepository(state),
   };
 
   const unitOfWork: UnitOfWork = {

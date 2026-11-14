@@ -143,7 +143,12 @@ describe('committed workflows', () => {
     expect(result.violations).toEqual([]);
     expect(result.ok).toBe(true);
     expect(result.workflows).toEqual(
-      expect.arrayContaining(['ci.yml', 'deploy-staging.yml', 'platform-posture.yml']),
+      expect.arrayContaining([
+        'ci.yml',
+        'deploy-staging.yml',
+        'platform-posture.yml',
+        'backup-export.yml',
+      ]),
     );
   });
 
@@ -181,5 +186,45 @@ describe('committed workflows', () => {
     expect(content).toContain('pnpm ci:backup-check');
     expect(content).toContain('if: failure()');
     expect(content).toContain('gh issue create');
+    expect(content).toContain('pnpm ci:backup-verify');
+  });
+
+  it('export, encrypt, upload, and verify an independent backup daily with an alert (TD-707)', async () => {
+    const content = await readFile(join(WORKFLOW_DIRECTORY, 'backup-export.yml'), 'utf8');
+    expect(content).toContain('schedule:');
+    expect(content).toContain('name: staging');
+    expect(content).toContain('pnpm ops:backup-export');
+    expect(content).toContain('secrets.BACKUP_ENCRYPTION_KEY');
+    expect(content).toContain('wrangler r2 object put');
+    expect(content).toContain('pnpm ci:backup-verify');
+    expect(content).toContain('if: failure()');
+    expect(content).toContain('gh issue create');
+    expect(content).not.toContain('secrets.PRODUCTION');
+  });
+
+  it('reject a backup workflow without a schedule, environment, export, or alert', () => {
+    const content = [
+      'name: Backup',
+      'on:',
+      '  workflow_dispatch:',
+      'permissions:',
+      '  contents: read',
+      '  issues: write',
+      'jobs:',
+      '  export:',
+      '    runs-on: ubuntu-latest',
+      '    steps:',
+      '      - run: echo nothing',
+      '',
+    ].join('\n');
+    expect(ruleIds('backup-export.yml', content)).toEqual(
+      expect.arrayContaining([
+        'WRITE_PERMISSION',
+        'BACKUP_SCHEDULE_MISSING',
+        'BACKUP_ENVIRONMENT_MISSING',
+        'BACKUP_EXPORT_MISSING',
+        'ALERT_STEP_MISSING',
+      ]),
+    );
   });
 });

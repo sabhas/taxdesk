@@ -36,6 +36,10 @@
     {
       "name": "0009_dashboard_and_operations.sql",
       "checksum": "c2b607e7acadc358d06c35cf91695fb9db9e2a2d2f3e76a03ceb366943a3e329"
+    },
+    {
+      "name": "0010_data_import.sql",
+      "checksum": "78d8002f5fdbcce717772a0403049b71bac8cf616dd550e9b939c16bf20e46fb"
     }
   ]
 }

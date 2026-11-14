@@ -60,10 +60,10 @@ export const StorageConnectionSchema = z
     healthReason: StorageHealthReasonSchema.nullable(),
     /** Display label of the connected account (e.g. its display name). Never a token. */
     accountLabel: z.string().max(200).nullable(),
-    connectedAt: z.string().datetime().nullable(),
+    connectedAt: z.iso.datetime().nullable(),
     connectedByName: z.string().max(200).nullable(),
-    lastCheckedAt: z.string().datetime().nullable(),
-    lastRefreshedAt: z.string().datetime().nullable(),
+    lastCheckedAt: z.iso.datetime().nullable(),
+    lastRefreshedAt: z.iso.datetime().nullable(),
     /** `null` until a connection row exists. Sent back as `If-Match` for disconnect. */
     version: z.number().int().positive().nullable(),
     /** Whether the server is configured for OAuth (client ID, key, redirect). */
@@ -80,8 +80,8 @@ export type StorageConnection = z.infer<typeof StorageConnectionSchema>;
 export const StorageAuthorizationResponseSchema = z
   .object({
     /** Provider consent URL the administrator's browser navigates to. */
-    authorizationUrl: z.string().url(),
-    expiresAt: z.string().datetime(),
+    authorizationUrl: z.url(),
+    expiresAt: z.iso.datetime(),
   })
   .strict();
 export type StorageAuthorizationResponse = z.infer<typeof StorageAuthorizationResponseSchema>;
@@ -150,8 +150,8 @@ export const ReconciliationRunSchema = z
   .object({
     id: UuidV7Schema,
     state: ReconciliationStateSchema,
-    startedAt: z.string().datetime(),
-    finishedAt: z.string().datetime(),
+    startedAt: z.iso.datetime(),
+    finishedAt: z.iso.datetime(),
     startedByName: z.string().max(200).nullable(),
     connectionStatus: StorageConnectionStatusSchema,
     checkedCount: z.number().int().nonnegative(),

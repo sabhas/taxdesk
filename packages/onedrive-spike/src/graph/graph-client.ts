@@ -48,7 +48,7 @@ export interface AppRootInfo {
 }
 
 const UploadSessionSchema = z.object({
-  uploadUrl: z.string().url(),
+  uploadUrl: z.url(),
   expirationDateTime: z.string().optional(),
 });
 

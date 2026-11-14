@@ -34,7 +34,7 @@ export const PublicUserSchema = z
     displayName: DisplayNameSchema,
     status: UserStatusSchema,
     mfaEnrolled: z.boolean(),
-    createdAt: z.string().datetime(),
+    createdAt: z.iso.datetime(),
   })
   .strict();
 
@@ -42,8 +42,8 @@ export type PublicUser = z.infer<typeof PublicUserSchema>;
 
 export const SessionDetailsSchema = z
   .object({
-    idleExpiresAt: z.string().datetime(),
-    absoluteExpiresAt: z.string().datetime(),
+    idleExpiresAt: z.iso.datetime(),
+    absoluteExpiresAt: z.iso.datetime(),
     mfaVerified: z.boolean(),
   })
   .strict();
@@ -105,7 +105,7 @@ export const MfaRequiredResponseSchema = z
   .object({
     status: z.literal('mfa_required'),
     challengeToken: z.string().min(20).max(256),
-    expiresAt: z.string().datetime(),
+    expiresAt: z.iso.datetime(),
     siteKey: z.string().min(1).optional(),
   })
   .strict();
@@ -211,8 +211,8 @@ export const UserSummarySchema = z
     status: UserStatusSchema,
     roles: z.array(RoleKeySchema),
     mfaEnrolled: z.boolean(),
-    createdAt: z.string().datetime(),
-    updatedAt: z.string().datetime(),
+    createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime(),
     version: z.number().int().positive(),
   })
   .strict();
@@ -239,8 +239,8 @@ export type InviteUserRequest = z.infer<typeof InviteUserRequestSchema>;
 
 export const ActivationLinkSchema = z
   .object({
-    activationUrl: z.string().url(),
-    expiresAt: z.string().datetime(),
+    activationUrl: z.url(),
+    expiresAt: z.iso.datetime(),
   })
   .strict();
 
@@ -249,8 +249,8 @@ export type ActivationLink = z.infer<typeof ActivationLinkSchema>;
 export const InviteUserResponseSchema = z
   .object({
     user: UserSummarySchema,
-    activationUrl: z.string().url(),
-    expiresAt: z.string().datetime(),
+    activationUrl: z.url(),
+    expiresAt: z.iso.datetime(),
   })
   .strict();
 

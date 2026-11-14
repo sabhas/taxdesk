@@ -41,7 +41,7 @@ function idParam(c: Context<AppEnv>, name: 'documentId' | 'uploadId'): string {
   return value;
 }
 
-function parseQuery<T>(c: Context<AppEnv>, schema: z.ZodType<T, z.ZodTypeDef, unknown>): T {
+function parseQuery<T>(c: Context<AppEnv>, schema: z.ZodType<T>): T {
   const parsed = schema.safeParse(c.req.query());
   if (!parsed.success) {
     throw new AuthError(400, 'VALIDATION_FAILED', 'Check the document filters.', {

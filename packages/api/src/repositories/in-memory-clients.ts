@@ -107,6 +107,10 @@ export function createInMemoryClientRepository(state: InMemoryClientState): Clie
       const record = state.clients.get(id);
       return record === undefined ? null : { ...record };
     },
+    findByCode: async (clientCode) => {
+      const record = [...state.clients.values()].find((client) => client.clientCode === clientCode);
+      return record === undefined ? null : { ...record };
+    },
     listContacts: async (clientIds) =>
       clientIds
         .flatMap((id) => contactsFor(id))

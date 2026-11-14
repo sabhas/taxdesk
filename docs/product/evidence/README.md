@@ -49,3 +49,22 @@ TD-006 recovery evidence is **not** committed here: the provider-neutral
 re-validated by the daily posture workflow. It contains no provider token,
 connection string, database name, or host. See
 [`../technical/ci.md`](../technical/ci.md).
+
+## Epic 7 recovery tooling dry run (not TD-708 evidence)
+
+On 2026-11-14 the backup and restore tooling was run end to end on a developer
+workstation against the disposable `_test` database (synthetic data only):
+`ops:recovery-snapshot` on the source, `ops:backup-export` (encrypted archive and
+manifest, schema head `0010_data_import.sql`), `ci:backup-verify` with the
+artifact digest, `ops:backup-decrypt`, `pg_restore` into a new disposable
+database, and `ops:restore-verify --expected`. Schema checksums, record counts
+for 16 tables, money totals, case status, and invoice balances matched the
+source. `ADMINISTRATOR_SIGN_IN_POSSIBLE` failed as expected, because the test
+fixture's administrator has no MFA enrollment, which shows the check rejects a
+copy nobody could sign in to.
+
+This proves the tooling, not the staging restore path or the four-hour RTO.
+TD-708 evidence is the completed form in
+[`../../guides/backup-and-restore.md`](../../guides/backup-and-restore.md) from an
+isolated staging-derived restore, and is not recorded yet.
+

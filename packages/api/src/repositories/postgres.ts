@@ -35,6 +35,7 @@ import {
   createPostgresNumberSequenceRepository,
   createPostgresPaymentRepository,
 } from './postgres-billing.js';
+import { createPostgresImportRepository } from './postgres-imports.js';
 
 function text(row: SqlRow, key: string): string {
   const value = row[key];
@@ -792,6 +793,7 @@ export function createPostgresRepositories(executor: SqlExecutor): Repositories 
     numberSequences: createPostgresNumberSequenceRepository(executor),
     idempotency: createPostgresIdempotencyRepository(executor),
     billingReports: createPostgresBillingReportRepository(executor),
+    imports: createPostgresImportRepository(executor),
     loginAttempts: {
       record: async (record) => {
         await executor.query(

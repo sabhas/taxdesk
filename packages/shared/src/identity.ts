@@ -41,6 +41,9 @@ export interface RoleDefinition {
  *
  * `storage.manage` (administrator only) connects, checks, and disconnects the
  * document storage provider and runs provider reconciliation.
+ *
+ * `imports.manage` (administrator only) downloads import templates, runs
+ * dry runs, decides possible duplicates, and commits data imports.
  */
 export const PERMISSION_KEYS = [
   'firm.settings.read',
@@ -65,6 +68,7 @@ export const PERMISSION_KEYS = [
   'billing.payments.reverse',
   'reports.read',
   'dashboard.read',
+  'imports.manage',
 ] as const;
 
 export const PermissionKeySchema = z.enum(PERMISSION_KEYS);

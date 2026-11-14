@@ -17,7 +17,7 @@ export const SafeLabelSchema = z
   .regex(/^[A-Za-z0-9][A-Za-z0-9 .,:;/_@+-]*$/);
 
 /** UTC ISO-8601 timestamp. Evidence timestamps are always UTC. */
-export const EvidenceTimestampSchema = z.string().datetime();
+export const EvidenceTimestampSchema = z.iso.datetime();
 
 /**
  * Live database and Hyperdrive posture. Every field is a boolean observation

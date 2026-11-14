@@ -16,13 +16,14 @@ related:
 TD-006 adds the delivery pipeline: every change runs the full quality gate, a
 successful `main` build deploys the isolated staging stack, and recovery posture
 is checked on every deploy and on a daily schedule. The pipeline is defined in
-three GitHub Actions workflows:
+four GitHub Actions workflows:
 
 | Workflow | Trigger | Purpose |
 | --- | --- | --- |
 | `.github/workflows/ci.yml` | Pull request, push to `main`, manual | Install, type check, lint, format, tests, migration checksums, clean-database migrations, secret scans, build |
 | `.github/workflows/deploy-staging.yml` | Successful `CI` run for a `main` push, manual SHA dispatch | Apply staging migrations, verify database/recovery posture, deploy the Worker and Pages app, smoke-test the Pages host |
-| `.github/workflows/platform-posture.yml` | Daily schedule, manual | Re-validate recovery, independent export, and alerting evidence; open or update an operator issue on failure |
+| `.github/workflows/platform-posture.yml` | Daily schedule, manual | Re-validate recovery, independent export, and alerting evidence and verify the latest export manifest in R2 (`pnpm ci:backup-verify`); open or update an operator issue on failure |
+| `.github/workflows/backup-export.yml` | Daily schedule, manual | TD-707: encrypted `pg_dump` export of staging to Cloudflare R2 with a manifest, verified after upload; open or update an operator issue on failure |
 
 Pull-request runs never read repository or environment secrets. The CI workflow
 declares `permissions: contents: read`, and the workflow policy gate rejects a
@@ -243,6 +244,17 @@ check turns red and the PR cannot merge while branch protection is enabled.
 | `pnpm ci:db-posture` | Verify staging TLS and role privileges (`DATABASE_URL`) |
 | `pnpm ci:backup-check` | Validate posture evidence (`--evidence <path>` or `PLATFORM_POSTURE_EVIDENCE_JSON`) |
 | `pnpm ci:staging-smoke` | Smoke-test a deployed Pages host (`STAGING_WEB_URL`) |
+| `pnpm ci:backup-verify` | Check the latest export manifest (`--manifest`, optional `--artifact`, `--max-age-hours`) |
+
+The Epic 7 operations commands (`pnpm ops:backup-export`, `ops:backup-decrypt`,
+`ops:recovery-snapshot`, `ops:restore-verify`, `ops:sample-import`) are
+documented in [`../guides/backup-and-restore.md`](../guides/backup-and-restore.md)
+and [`../guides/migration-rehearsal.md`](../guides/migration-rehearsal.md).
+
+The workflow policy also requires `backup-export.yml`: it must run on a
+schedule in a protected environment, run `pnpm ops:backup-export`, never read
+production secrets, and alert on failure. Only it and `platform-posture.yml`
+may request `issues: write`.
 
 Every command prints one JSON report as its final stdout line and exits `0` on
 success, `1` on a failed gate, and `2` on a usage error.

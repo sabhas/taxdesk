@@ -55,7 +55,7 @@ export type MigrationLedgerRow = z.infer<typeof MigrationLedgerRowSchema>;
 
 /** An applied migration as reported to operators and to the CLI. */
 export const AppliedMigrationSchema = MigrationFileSummarySchema.extend({
-  appliedAt: z.string().datetime(),
+  appliedAt: z.iso.datetime(),
   durationMs: z.number().int().nonnegative(),
 }).strict();
 

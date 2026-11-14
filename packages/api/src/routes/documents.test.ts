@@ -268,78 +268,83 @@ function noSecrets(w: World, value: string) {
 }
 
 describe('resumable upload (TD-406)', () => {
-  it('uploads in 5 MiB chunks with a short final chunk and completes idempotently', async () => {
-    const w = await world();
-    const client = await createClient(w);
-    const taxCase = await openCase(w, client);
-    const size = 2 * CHUNK + 1234;
-    const content = bytesOf(size, 7);
-    const started = await w.call('/api/v1/documents/uploads', {
-      as: 'consultant',
-      method: 'POST',
-      body: uploadBody({ clientId: client['id'], caseId: taxCase['id'], size }),
-    });
-    expect(started.status).toBe(201);
-    expect(started.data).toMatchObject({ nextOffset: 0, chunkBytes: CHUNK, state: 'active' });
-    noSecrets(w, started.text);
-    const uploadId = started.data['id'] as string;
-    const base = `/api/v1/documents/uploads/${uploadId}`;
+  // Hashes and moves several 5 MiB chunks through the fake provider: slower than the default timeout.
+  it(
+    'uploads in 5 MiB chunks with a short final chunk and completes idempotently',
+    { timeout: 30_000 },
+    async () => {
+      const w = await world();
+      const client = await createClient(w);
+      const taxCase = await openCase(w, client);
+      const size = 2 * CHUNK + 1234;
+      const content = bytesOf(size, 7);
+      const started = await w.call('/api/v1/documents/uploads', {
+        as: 'consultant',
+        method: 'POST',
+        body: uploadBody({ clientId: client['id'], caseId: taxCase['id'], size }),
+      });
+      expect(started.status).toBe(201);
+      expect(started.data).toMatchObject({ nextOffset: 0, chunkBytes: CHUNK, state: 'active' });
+      noSecrets(w, started.text);
+      const uploadId = started.data['id'] as string;
+      const base = `/api/v1/documents/uploads/${uploadId}`;
 
-    const first = await w.call(`${base}/content?offset=0`, {
-      as: 'consultant',
-      method: 'PUT',
-      raw: content.slice(0, CHUNK),
-    });
-    expect(first.data).toEqual({ nextOffset: CHUNK, complete: false });
+      const first = await w.call(`${base}/content?offset=0`, {
+        as: 'consultant',
+        method: 'PUT',
+        raw: content.slice(0, CHUNK),
+      });
+      expect(first.data).toEqual({ nextOffset: CHUNK, complete: false });
 
-    // Completing early is refused.
-    const early = await w.call(`${base}/complete`, { as: 'consultant', method: 'POST' });
-    expect(early.status).toBe(409);
-    expect(early.data['code']).toBe('UPLOAD_INCOMPLETE');
+      // Completing early is refused.
+      const early = await w.call(`${base}/complete`, { as: 'consultant', method: 'POST' });
+      expect(early.status).toBe(409);
+      expect(early.data['code']).toBe('UPLOAD_INCOMPLETE');
 
-    const second = await w.call(`${base}/content?offset=${String(CHUNK)}`, {
-      as: 'consultant',
-      method: 'PUT',
-      raw: content.slice(CHUNK, 2 * CHUNK),
-    });
-    expect(second.data).toEqual({ nextOffset: 2 * CHUNK, complete: false });
-    const last = await w.call(`${base}/content?offset=${String(2 * CHUNK)}`, {
-      as: 'consultant',
-      method: 'PUT',
-      raw: content.slice(2 * CHUNK),
-    });
-    expect(last.data).toEqual({ nextOffset: size, complete: true });
+      const second = await w.call(`${base}/content?offset=${String(CHUNK)}`, {
+        as: 'consultant',
+        method: 'PUT',
+        raw: content.slice(CHUNK, 2 * CHUNK),
+      });
+      expect(second.data).toEqual({ nextOffset: 2 * CHUNK, complete: false });
+      const last = await w.call(`${base}/content?offset=${String(2 * CHUNK)}`, {
+        as: 'consultant',
+        method: 'PUT',
+        raw: content.slice(2 * CHUNK),
+      });
+      expect(last.data).toEqual({ nextOffset: size, complete: true });
 
-    const completed = await w.call(`${base}/complete`, { as: 'consultant', method: 'POST' });
-    expect(completed.status).toBe(201);
-    expect(completed.data).toMatchObject({
-      clientId: client['id'],
-      caseId: taxCase['id'],
-      caseCode: taxCase['caseCode'],
-      sizeBytes: size,
-      verificationState: 'pending',
-      providerState: 'present',
-      uploadedByName: 'Staff consultant',
-    });
-    expect(completed.etag).toBe('"1"');
-    noSecrets(w, completed.text);
+      const completed = await w.call(`${base}/complete`, { as: 'consultant', method: 'POST' });
+      expect(completed.status).toBe(201);
+      expect(completed.data).toMatchObject({
+        clientId: client['id'],
+        caseId: taxCase['id'],
+        caseCode: taxCase['caseCode'],
+        sizeBytes: size,
+        verificationState: 'pending',
+        providerState: 'present',
+        uploadedByName: 'Staff consultant',
+      });
+      expect(completed.etag).toBe('"1"');
+      noSecrets(w, completed.text);
 
-    const again = await w.call(`${base}/complete`, { as: 'consultant', method: 'POST' });
-    expect(again.status).toBe(200);
-    expect(again.data['id']).toBe(completed.data['id']);
-    expect(w.harness.state.documents.size).toBe(1);
-    expect(
-      w.harness.state.auditEvents.filter((event) => event.action === 'document.uploaded'),
-    ).toHaveLength(1);
-    const uploaded = w.harness.state.auditEvents.find((e) => e.action === 'document.uploaded')!;
-    expect(uploaded.metadata).toMatchObject({ caseCode: taxCase['caseCode'], sizeBytes: size });
-    expect(JSON.stringify(uploaded.metadata)).not.toContain('statement.pdf');
+      const again = await w.call(`${base}/complete`, { as: 'consultant', method: 'POST' });
+      expect(again.status).toBe(200);
+      expect(again.data['id']).toBe(completed.data['id']);
+      expect(w.harness.state.documents.size).toBe(1);
+      expect(
+        w.harness.state.auditEvents.filter((event) => event.action === 'document.uploaded'),
+      ).toHaveLength(1);
+      const uploaded = w.harness.state.auditEvents.find((e) => e.action === 'document.uploaded')!;
+      expect(uploaded.metadata).toMatchObject({ caseCode: taxCase['caseCode'], sizeBytes: size });
+      expect(JSON.stringify(uploaded.metadata)).not.toContain('statement.pdf');
 
-    // Stored bytes match; the record keeps the external item ID, not a path.
-    const record = w.harness.state.documents.get(completed.data['id'] as string)!;
-    expect(w.harness.storage.contentOf(record.externalItemId)).toEqual(content);
-    expect(Object.keys(record)).not.toContain('path');
-  });
+      // Stored bytes match; the record keeps the external item ID, not a path.
+      const record = w.harness.state.documents.get(completed.data['id'] as string)!;
+      expect(w.harness.storage.contentOf(record.externalItemId)).toEqual(content);
+      expect(Object.keys(record)).not.toContain('path');
+    },
+  );
 
   it('stores objects under the stable client-code/year/case/document layout', async () => {
     const w = await world();

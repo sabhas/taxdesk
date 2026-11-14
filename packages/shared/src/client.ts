@@ -214,7 +214,7 @@ export const ContactEmailSchema = z
   .string()
   .trim()
   .max(CLIENT_LIMITS.emailMax)
-  .email('Enter a valid email address.');
+  .pipe(z.email('Enter a valid email address.'));
 
 export const ContactPhoneSchema = z
   .string()
@@ -381,9 +381,9 @@ export const ClientSchema = z
     notes: z.string().max(CLIENT_LIMITS.notesMax),
     assignedManager: ClientAssigneeSchema.nullable(),
     state: ClientStateSchema,
-    archivedAt: z.string().datetime().nullable(),
-    createdAt: z.string().datetime(),
-    updatedAt: z.string().datetime(),
+    archivedAt: z.iso.datetime().nullable(),
+    createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime(),
     version: z.number().int().positive(),
   })
   .strict();
@@ -402,7 +402,7 @@ export const ClientListItemSchema = z
     primaryContact: ClientContactSchema.nullable(),
     assignedManager: ClientAssigneeSchema.nullable(),
     state: ClientStateSchema,
-    updatedAt: z.string().datetime(),
+    updatedAt: z.iso.datetime(),
   })
   .strict();
 
@@ -426,8 +426,8 @@ export const ClientListQuerySchema = z
       .string()
       .trim()
       .max(CLIENT_LIMITS.searchMax, 'Use a shorter search.')
-      .optional()
-      .transform((value) => (value === undefined || value.length === 0 ? undefined : value)),
+      .transform((value) => (value.length === 0 ? undefined : value))
+      .optional(),
     type: ClientTypeSchema.optional(),
     /** A user ID, or `unassigned` for clients without a manager. */
     manager: z.union([UuidSchema, z.literal('unassigned')]).optional(),
@@ -508,7 +508,7 @@ export type ClientActivityAction = z.infer<typeof ClientActivityActionSchema>;
 export const ClientActivitySchema = z
   .object({
     id: UuidV7Schema,
-    occurredAt: z.string().datetime(),
+    occurredAt: z.iso.datetime(),
     action: ClientActivityActionSchema,
     actor: ClientAssigneeSchema.nullable(),
     changedFields: z.array(ClientFieldSchema),

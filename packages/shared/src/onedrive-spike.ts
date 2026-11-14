@@ -129,7 +129,8 @@ export type SpikeSafeText = z.infer<typeof SpikeSafeTextSchema>;
 export const SPIKE_METRIC_KEY_PATTERN = /^[a-z][A-Za-z0-9]*(?:\.[a-z][A-Za-z0-9]*)*$/;
 
 export const SpikeMetricValueSchema = z.union([
-  z.number().finite(),
+  // Zod 4 numbers reject Infinity and NaN by default.
+  z.number(),
   z.boolean(),
   z
     .string()
@@ -190,12 +191,12 @@ export const OnedriveSpikeReportSchema = z
   .object({
     reportVersion: z.literal(1),
     story: z.literal('TD-005'),
-    recordedAt: z.string().datetime(),
+    recordedAt: z.iso.datetime(),
     operator: spikeSafeText(120),
     environment: z.literal('non-production'),
     accountType: z.literal('personal'),
     tenant: z.literal('consumers'),
-    applicationId: z.string().uuid(),
+    applicationId: z.uuid(),
     redirectUri: OnedriveSpikeRedirectUriSchema,
     requestedScopes: z.array(OnedriveSpikeScopeSchema).min(1).max(ONEDRIVE_SPIKE_SCOPES.length),
     grantedScopes: z.array(spikeSafeText(120)).max(20),
@@ -210,7 +211,7 @@ export const OnedriveSpikeReportSchema = z
     for (const [index, result] of report.results.entries()) {
       if (seen.has(result.scenario)) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: 'custom',
           path: ['results', index, 'scenario'],
           message: 'scenario results must be unique',
         });
