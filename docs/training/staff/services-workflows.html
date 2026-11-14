@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Services and Workflows · TaxDesk Training</title>
+    <link rel="stylesheet" href="../assets/guide.css" />
+  </head>
+  <body data-root="../" data-page="staff/services-workflows.html">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="topbar" id="topbar"></header>
+    <div class="layout">
+      <nav class="sidebar" id="sidebar" aria-label="Guide sections"></nav>
+      <main id="main">
+        <div class="content">
+          <p class="breadcrumb">
+            Track B · Staff · <span class="badge admin">Administrator</span>
+            <span class="badge manager">Manager</span>
+          </p>
+          <h1>Services and workflows</h1>
+          <p class="lede">
+            Set these up before anyone opens a case. A <strong>workflow</strong> defines the
+            statuses and checklist a case follows. A <strong>service</strong> is something the
+            firm sells (for example "Individual income tax return"), with a default fee, deadline,
+            and workflow.
+          </p>
+
+          <h2 id="order">Setup order</h2>
+          <ol class="steps">
+            <li>Create a workflow template and <strong>publish</strong> a version.</li>
+            <li>Create a service that uses that template as its default workflow.</li>
+            <li>Now cases can be opened for that service.</li>
+          </ol>
+
+          <h2 id="workflows">Workflow templates</h2>
+          <p>
+            Open <span class="path">Workflows</span> → <span class="ui">New template</span> →
+            <span class="ui">Create template</span>. New templates start as draft version 1,
+            pre-filled with the starter annual-return workflow below.
+          </p>
+          <h3 id="starter">The starter workflow</h3>
+          <figure class="diagram">
+            <svg viewBox="0 0 900 260" role="img" aria-labelledby="wf-t wf-d">
+              <title id="wf-t">Starter workflow statuses</title>
+              <desc id="wf-d">
+                Intake, then Collecting documents, then In preparation, then In review, then Filed,
+                then Completed. In preparation can go back to Collecting documents. In review can go
+                back to In preparation. Any open status before Filed can move to Cancelled. Filed
+                and Completed need the checklist complete.
+              </desc>
+              <defs>
+                <marker id="wf-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                  <path d="M0,0 L10,5 L0,10 z" class="d-arrow" />
+                </marker>
+              </defs>
+              <rect x="10" y="60" width="110" height="50" rx="9" class="d-box hl" />
+              <text x="65" y="84" text-anchor="middle" class="d-text">Intake</text>
+              <text x="65" y="100" text-anchor="middle" class="d-sub">initial</text>
+              <rect x="160" y="60" width="130" height="50" rx="9" class="d-box" />
+              <text x="225" y="90" text-anchor="middle" class="d-text">Collecting docs</text>
+              <rect x="330" y="60" width="130" height="50" rx="9" class="d-box" />
+              <text x="395" y="90" text-anchor="middle" class="d-text">In preparation</text>
+              <rect x="500" y="60" width="110" height="50" rx="9" class="d-box" />
+              <text x="555" y="90" text-anchor="middle" class="d-text">In review</text>
+              <rect x="650" y="60" width="100" height="50" rx="9" class="d-box ok" />
+              <text x="700" y="84" text-anchor="middle" class="d-text">Filed</text>
+              <text x="700" y="100" text-anchor="middle" class="d-sub">checklist ✓</text>
+              <rect x="785" y="60" width="105" height="50" rx="9" class="d-box ok" />
+              <text x="837" y="84" text-anchor="middle" class="d-text">Completed</text>
+              <text x="837" y="100" text-anchor="middle" class="d-sub">checklist ✓</text>
+              <rect x="300" y="190" width="190" height="50" rx="9" class="d-box bad" />
+              <text x="395" y="220" text-anchor="middle" class="d-text">Cancelled</text>
+
+              <path d="M120,80 L156,80" class="d-line" marker-end="url(#wf-ah)" />
+              <path d="M290,78 L326,78" class="d-line" marker-end="url(#wf-ah)" />
+              <path d="M326,96 L294,96" class="d-line" marker-end="url(#wf-ah)" />
+              <path d="M460,78 L496,78" class="d-line" marker-end="url(#wf-ah)" />
+              <path d="M496,96 L464,96" class="d-line" marker-end="url(#wf-ah)" />
+              <path d="M610,85 L646,85" class="d-line" marker-end="url(#wf-ah)" />
+              <path d="M750,85 L781,85" class="d-line" marker-end="url(#wf-ah)" />
+              <path d="M65,110 C65,170 200,210 296,212" class="d-line dash" marker-end="url(#wf-ah)" />
+              <path d="M225,110 C225,160 280,190 310,192" class="d-line dash" marker-end="url(#wf-ah)" />
+              <path d="M395,110 L395,186" class="d-line dash" marker-end="url(#wf-ah)" />
+              <path d="M555,110 C555,170 520,200 492,210" class="d-line dash" marker-end="url(#wf-ah)" />
+              <text x="450" y="30" text-anchor="middle" class="d-sub">Solid: forward and back moves · Dashed: cancel</text>
+            </svg>
+            <figcaption>Status keys: intake, collecting_documents, in_preparation, in_review, filed, completed, cancelled</figcaption>
+          </figure>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Starter checklist item</th>
+                  <th>Document type</th>
+                  <th>Required</th>
+                  <th>Reviewer must verify</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>Client identity document</td><td>CNIC copy</td><td>Yes</td><td>No</td></tr>
+                <tr><td>Bank statements for the tax year</td><td>Bank statement</td><td>Yes</td><td>Yes</td></tr>
+                <tr><td>Income evidence</td><td>Salary certificate</td><td>Yes</td><td>Yes</td></tr>
+                <tr><td>Prior-year return</td><td>Tax return</td><td>No</td><td>No</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3 id="editing">Editing a draft</h3>
+          <ul>
+            <li>
+              <strong>Statuses:</strong> each has a name, a key (for example
+              <code>in_review</code>), a kind, whether it is the initial status, and whether it
+              needs the checklist complete. Use <span class="ui">Add status</span>.
+            </li>
+            <li><strong>Allowed transitions:</strong> which status may move to which.</li>
+            <li>
+              <strong>Checklist:</strong> ordered items with a document type, required flag,
+              "reviewer must verify" flag, and instructions. Use
+              <span class="ui">Add checklist item</span>.
+            </li>
+            <li>
+              The editor flags problems as you type: not exactly one initial status, a status
+              nothing can reach, or a dead end.
+            </li>
+            <li>
+              <span class="ui">Save draft</span>, then
+              <span class="ui">Publish version N</span>. Publish is disabled while there are
+              unsaved changes or problems.
+            </li>
+          </ul>
+          <div class="callout">
+            <strong>Published versions never change</strong>
+            <p>
+              Once published, a version is frozen. To change it, select
+              <span class="ui">Start new draft</span>, edit, and publish a new version. Existing
+              cases keep the version, statuses, and checklist they were opened with. Only new
+              cases pick up the new version.
+            </p>
+          </div>
+
+          <h2 id="services">Services</h2>
+          <p>
+            Open <span class="path">Services</span> → <span class="ui">New service</span> and fill
+            in:
+          </p>
+          <div class="table-wrap">
+            <table>
+              <tbody>
+                <tr><th>Name, Description</th><td>For example "Individual return".</td></tr>
+                <tr><th>Default fee (PKR)</th><td>Pre-fills the first line of an invoice created from a case</td></tr>
+                <tr><th>Default deadline (days)</th><td>A new case's due date = today (firm timezone) + this many days</td></tr>
+                <tr>
+                  <th>Duplicate open cases</th>
+                  <td>
+                    <strong>Warn</strong>: a second open case for the same client, service, and tax
+                    year needs a reason. <strong>Block</strong>: it is refused.
+                  </td>
+                </tr>
+                <tr><th>Default workflow</th><td>A template with at least one published version</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Select <span class="ui">Create service</span> (or <span class="ui">Save service</span>
+            when editing). <span class="ui">Archive</span> retires a service. Its cases are kept,
+            and <span class="ui">Restore</span> brings it back. Changing a service's fee or
+            deadline never changes cases already open.
+          </p>
+        </div>
+      </main>
+    </div>
+    <script src="../assets/search-index.js"></script>
+    <script src="../assets/guide.js"></script>
+  </body>
+</html>

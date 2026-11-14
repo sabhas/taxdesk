@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Getting Started and MFA · TaxDesk Training</title>
+    <link rel="stylesheet" href="../assets/guide.css" />
+  </head>
+  <body data-root="../" data-page="staff/getting-started.html">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="topbar" id="topbar"></header>
+    <div class="layout">
+      <nav class="sidebar" id="sidebar" aria-label="Guide sections"></nav>
+      <main id="main">
+        <div class="content">
+          <p class="breadcrumb">Track B · Staff</p>
+          <h1>Getting started and MFA</h1>
+          <p class="lede">
+            Everyone starts here. Activate your account, set up your authenticator app, keep your
+            recovery codes safe, and learn how sessions work.
+          </p>
+
+          <h2 id="before">What you need</h2>
+          <ul>
+            <li>
+              An <strong>activation link</strong> from your firm administrator. TaxDesk never
+              emails it; the administrator gives it to you directly.
+            </li>
+            <li>
+              An <strong>authenticator app</strong> on your phone, for example Google
+              Authenticator, Microsoft Authenticator, 1Password, or Authy.
+            </li>
+            <li>A safe place for ten recovery codes: the firm's password vault, or a printed copy in a locked drawer.</li>
+          </ul>
+
+          <h2 id="activate">1. Activate your account</h2>
+          <ol class="steps">
+            <li>
+              Open the link. It works <strong>once</strong> and expires
+              <strong>30 minutes</strong> after the administrator created it.
+            </li>
+            <li>
+              On <span class="ui">Activate your TaxDesk account</span>, enter a
+              <span class="ui">New password</span> (at least 12 characters) and
+              <span class="ui">Confirm password</span>.
+            </li>
+            <li>
+              Select <span class="ui">Activate account</span>, then
+              <span class="ui">Go to sign in</span>.
+            </li>
+          </ol>
+          <p>
+            If the link has expired or was already used, ask the administrator for a new one. It
+            takes them a few seconds.
+          </p>
+
+          <h2 id="sign-in">2. Sign in</h2>
+          <p>
+            On <span class="ui">Sign in to TaxDesk</span>, enter your <strong>username</strong>
+            (not an email address) and your password, then select <span class="ui">Sign in</span>.
+            Your username is permanent and was chosen by your administrator.
+          </p>
+          <p>
+            If the details are wrong, TaxDesk deliberately does not say which part was wrong.
+            After several failures you may be asked to complete a short "are you human" check
+            (Cloudflare Turnstile). After more failures, sign-in is paused for a few minutes:
+            "Too many sign-in attempts. Wait a few minutes and try again."
+          </p>
+
+          <h2 id="enrol">3. Set up multi-factor authentication (first sign-in)</h2>
+          <p>MFA is mandatory. You cannot open any firm record until it is set up.</p>
+          <ol class="steps">
+            <li>
+              On <span class="ui">Set up multi-factor authentication</span>, open your
+              authenticator app and add an account.
+            </li>
+            <li>
+              Scan the QR code. If you cannot scan, use
+              <span class="ui">Use a setup link instead</span> or copy the secret into the app.
+            </li>
+            <li>
+              Type the <span class="ui">Six-digit code</span> the app shows and select
+              <span class="ui">Enable MFA</span>.
+            </li>
+            <li>
+              <strong>Save your recovery codes.</strong> Ten codes are shown <em>once</em>. Store
+              them safely, then select <span class="ui">I have saved these codes</span>.
+            </li>
+          </ol>
+
+          <h2 id="every-day">4. Signing in every day</h2>
+          <ol class="steps">
+            <li>Enter your username and password.</li>
+            <li>
+              On <span class="ui">Multi-factor verification</span>, type the current code from
+              your app and select <span class="ui">Verify</span>. You have 5 minutes; after that,
+              select <span class="ui">Start over</span>.
+            </li>
+            <li>
+              No phone? Switch to <span class="ui">Recovery code</span> and type one of your saved
+              codes. <strong>Each recovery code works once.</strong>
+            </li>
+          </ol>
+          <div class="callout tip">
+            <strong>Codes rejected even though they look right?</strong>
+            <p>
+              Your phone's clock is probably wrong. Turn on automatic date and time, then try
+              again.
+            </p>
+          </div>
+
+          <h2 id="sessions">Sessions and signing out</h2>
+          <div class="table-wrap">
+            <table>
+              <tbody>
+                <tr>
+                  <th>Idle timeout</th>
+                  <td>30 minutes without activity signs you out</td>
+                </tr>
+                <tr>
+                  <th>Maximum session</th>
+                  <td>12 hours, then you sign in again, even if you were active</td>
+                </tr>
+                <tr>
+                  <th>Sign out</th>
+                  <td><span class="ui">Sign out</span> at the bottom of the side menu</td>
+                </tr>
+                <tr>
+                  <th>Expired session</th>
+                  <td>
+                    "Your session expired. Sign in again to continue." The page you were on opens
+                    again after you sign in.
+                  </td>
+                </tr>
+                <tr>
+                  <th>Forced sign-out</th>
+                  <td>
+                    Happens when an administrator changes your role, resets you, or deactivates you,
+                    and when your own password or MFA changes
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Every screen has its own address, so you can bookmark pages and use the browser's
+            back and forward buttons. On a phone, open the menu with
+            <span class="ui">Open navigation</span>.
+          </p>
+
+          <h2 id="security-page">The Security page</h2>
+          <p>Open <span class="path">Security</span> in the side menu. You can:</p>
+          <ul>
+            <li>
+              <strong>Regenerate recovery codes:</strong> enter your password and a current
+              authenticator code, then select <span class="ui">Regenerate codes</span>. Old codes
+              stop working, and your other sessions are signed out. Do this when you have used most
+              of your codes, or think someone has seen them.
+            </li>
+            <li>
+              <strong>Disable MFA:</strong> enter your password and a code, tick
+              <span class="ui">I understand that MFA will be removed from my account.</span>, and
+              select <span class="ui">Disable MFA</span>. You must set up MFA again before you can
+              use TaxDesk. Use this when moving to a new phone.
+            </li>
+          </ul>
+
+          <h2 id="lost">Lost your phone or forgot your password?</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Problem</th>
+                  <th>What to do</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>New phone, old phone still works</td>
+                  <td><span class="path">Security</span> → disable MFA, then enrol again on the new phone</td>
+                </tr>
+                <tr>
+                  <td>Phone lost, recovery codes available</td>
+                  <td>Sign in with a recovery code, then disable and re-enrol MFA on the Security page</td>
+                </tr>
+                <tr>
+                  <td>Phone and codes both lost</td>
+                  <td>Ask an administrator. They will arrange an MFA reset.</td>
+                </tr>
+                <tr>
+                  <td>Forgot password</td>
+                  <td>Ask an administrator for a <span class="ui">Reset link</span>. It works once, within 30 minutes.</td>
+                </tr>
+                <tr>
+                  <td>Correct details are still refused (your account may be deactivated)</td>
+                  <td>Ask an administrator</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 id="next">What you see next</h2>
+          <p>
+            The side menu only shows what your role allows. See
+            <a href="roles.html">Roles and permissions</a>, or jump to your
+            <a href="quick-reference.html">role's quick-reference card</a>.
+          </p>
+        </div>
+      </main>
+    </div>
+    <script src="../assets/search-index.js"></script>
+    <script src="../assets/guide.js"></script>
+  </body>
+</html>

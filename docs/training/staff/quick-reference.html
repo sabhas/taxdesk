@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Role Quick-Reference Cards · TaxDesk Training</title>
+    <link rel="stylesheet" href="../assets/guide.css" />
+  </head>
+  <body data-root="../" data-page="staff/quick-reference.html">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="topbar" id="topbar"></header>
+    <div class="layout">
+      <nav class="sidebar" id="sidebar" aria-label="Guide sections"></nav>
+      <main id="main">
+        <div class="content">
+          <p class="breadcrumb">Track B · Staff</p>
+          <h1>Role quick-reference cards</h1>
+          <p class="lede no-print">
+            One card per role, to print and keep by the desk. Each card prints on its own page
+            (use ⎙ in the top bar).
+          </p>
+
+          <section class="qr-card" id="qr-admin">
+            <h2><span class="badge admin">Administrator</span> quick reference</h2>
+            <div class="qr-cols">
+              <div>
+                <h3>People</h3>
+                <ul>
+                  <li>Invite: Users → Invite a user → Send invitation → Copy link</li>
+                  <li>Links work once and expire in 30 minutes. Deliver them yourself.</li>
+                  <li>Forgot password: Reset link</li>
+                  <li>Leaver: Deactivate (sessions end at once)</li>
+                  <li>Role change applies immediately and signs the user out</li>
+                </ul>
+              </div>
+              <div>
+                <h3>Firm</h3>
+                <ul>
+                  <li>Firm settings: timezone, prefixes (2–6 capitals), upload limit, due-soon days</li>
+                  <li>Document storage: Check now, Reconnect storage, Run reconciliation</li>
+                  <li>Data import: dry run → decide → commit with the same file</li>
+                </ul>
+              </div>
+              <div>
+                <h3>Investigate</h3>
+                <ul>
+                  <li>Audit history: Action <code>billing.*</code>, <code>auth.*</code></li>
+                  <li>Paste a user's request ID into Request ID</li>
+                  <li>Keep two administrators with MFA at all times</li>
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          <section class="qr-card" id="qr-manager">
+            <h2><span class="badge manager">Manager</span> quick reference</h2>
+            <div class="qr-cols">
+              <div>
+                <h3>Clients</h3>
+                <ul>
+                  <li>Search before New client</li>
+                  <li>Same CNIC/NTN is blocked. Similar name: give a reason → Create anyway.</li>
+                  <li>Always set the Assigned manager</li>
+                  <li>Conflict screen: read theirs before saving over</li>
+                </ul>
+              </div>
+              <div>
+                <h3>Cases</h3>
+                <ul>
+                  <li>Queues: Team, Unassigned, Due soon, Overdue</li>
+                  <li>Assign a consultant and a different reviewer</li>
+                  <li>Whoever completed an item cannot verify it</li>
+                  <li>Archive only completed or cancelled cases</li>
+                  <li>Services and Workflows: Publish version N; published versions never change</li>
+                </ul>
+              </div>
+              <div>
+                <h3>Money</h3>
+                <ul>
+                  <li>You can read invoices and <strong>Reverse</strong> payments (with a reason)</li>
+                  <li>You cannot draft invoices or record payments</li>
+                  <li>Reports → Export CSV (audited)</li>
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          <section class="qr-card" id="qr-consultant">
+            <h2><span class="badge consultant">Consultant</span> quick reference</h2>
+            <div class="qr-cols">
+              <div>
+                <h3>Daily</h3>
+                <ul>
+                  <li>Dashboard → Overdue → Due soon → My work</li>
+                  <li>You see clients you manage and cases assigned to you</li>
+                  <li>Open case: you must be the primary consultant</li>
+                </ul>
+              </div>
+              <div>
+                <h3>Documents</h3>
+                <ul>
+                  <li>Upload document → file, checklist item, type</li>
+                  <li>PDF, JPEG, PNG, DOCX, XLSX, CSV</li>
+                  <li>Dropped connection: Retry continues where it stopped</li>
+                  <li>The reviewer (or a manager) verifies documents</li>
+                </ul>
+              </div>
+              <div>
+                <h3>Checklist and status</h3>
+                <ul>
+                  <li>As preparer: Complete / Reopen</li>
+                  <li>As reviewer: Verify / Return (comment required)</li>
+                  <li>Greyed-out status button: read the reason under it</li>
+                  <li>Filed locks the checklist</li>
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          <section class="qr-card" id="qr-billing">
+            <h2><span class="badge billing">Billing</span> quick reference</h2>
+            <div class="qr-cols">
+              <div>
+                <h3>Invoice</h3>
+                <ul>
+                  <li>Case or client page → Create invoice</li>
+                  <li>From a case, the first line is the service and fee</li>
+                  <li>Save draft → Finalize… → Finalize invoice</li>
+                  <li>INV numbers never skip, and finalized invoices never change</li>
+                  <li>"PDF could not be stored" → Generate PDF again</li>
+                </ul>
+              </div>
+              <div>
+                <h3>Payments</h3>
+                <ul>
+                  <li>Record payment: amount, method, received on, reference</li>
+                  <li>Partial is fine; more than outstanding is refused</li>
+                  <li>Receipt (RCP) on each payment row</li>
+                  <li>Wrong payment? Ask a manager to Reverse it.</li>
+                </ul>
+              </div>
+              <div>
+                <h3>Fixing mistakes</h3>
+                <ul>
+                  <li>Void needs no net payments, a reason, and confirmation</li>
+                  <li>Wrong finalized invoice: void it, then create a new one</li>
+                  <li>Reports → Billing → Export CSV</li>
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          <section class="qr-card" id="qr-readonly">
+            <h2><span class="badge readonly">Read-only</span> quick reference</h2>
+            <div class="qr-cols">
+              <div>
+                <h3>You can</h3>
+                <ul>
+                  <li>Search clients and open cases</li>
+                  <li>Open documents (every open is recorded)</li>
+                  <li>Read invoices, reports, and the dashboard</li>
+                  <li>Export report CSVs (audited)</li>
+                </ul>
+              </div>
+              <div>
+                <h3>You cannot</h3>
+                <ul>
+                  <li>Create, edit, archive, upload, or pay</li>
+                  <li>See users, audit history, or settings changes</li>
+                </ul>
+              </div>
+              <div>
+                <h3>Everyone</h3>
+                <ul>
+                  <li>Sign in with a username, then a 6-digit code</li>
+                  <li>30 minutes idle or 12 hours: sign in again</li>
+                  <li>Lost phone: use a recovery code, then Security</li>
+                </ul>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="../assets/search-index.js"></script>
+    <script src="../assets/guide.js"></script>
+  </body>
+</html>

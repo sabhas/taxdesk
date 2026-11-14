@@ -4,6 +4,11 @@ TaxDesk is a single-firm tax practice workspace. This repository is a pnpm
 workspace modular monolith containing the React/Vite web app, Hono Worker API,
 shared Zod contracts, database package, and test utilities.
 
+New to TaxDesk? Open the training guide at
+[`docs/training/index.html`](docs/training/index.html) in a browser (no build or
+server needed). It covers local, staging, and production setup, day-to-day use for
+each role, and a UAT scenario catalogue for every story.
+
 ## Requirements
 
 - Node.js 22+

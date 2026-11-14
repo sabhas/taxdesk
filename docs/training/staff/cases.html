@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tax Cases · TaxDesk Training</title>
+    <link rel="stylesheet" href="../assets/guide.css" />
+  </head>
+  <body data-root="../" data-page="staff/cases.html">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="topbar" id="topbar"></header>
+    <div class="layout">
+      <nav class="sidebar" id="sidebar" aria-label="Guide sections"></nav>
+      <main id="main">
+        <div class="content">
+          <p class="breadcrumb">Track B · Staff</p>
+          <h1>Tax cases</h1>
+          <p class="lede">
+            A case is one piece of work: one client, one service, one tax year. It moves through
+            the statuses of its workflow, and its checklist proves the work was prepared and
+            reviewed.
+          </p>
+          <p>
+            <span class="badge admin">Administrator</span>
+            <span class="badge manager">Manager</span> manage every case ·
+            <span class="badge consultant">Consultant</span> works assigned cases ·
+            <span class="badge billing">Billing</span>
+            <span class="badge readonly">Read-only</span> view all
+          </p>
+
+          <h2 id="queues">Work queues</h2>
+          <p>
+            <span class="path">Cases</span> opens on work queues. "Due dates use the firm
+            calendar", so "today" means today in the firm's timezone.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Queue</th>
+                  <th>Shows</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td><span class="ui">My work</span></td><td>Open cases where you are the primary consultant or reviewer</td></tr>
+                <tr><td><span class="ui">Team</span></td><td>Every open case you are allowed to see</td></tr>
+                <tr><td><span class="ui">Unassigned</span></td><td>Open cases with no primary consultant</td></tr>
+                <tr><td><span class="ui">Due soon</span></td><td>Open cases due today or within the next 7 days</td></tr>
+                <tr><td><span class="ui">Overdue</span></td><td>Past the due date and still open</td></tr>
+                <tr><td><span class="ui">Closed</span></td><td>Completed or cancelled, not yet archived. A <em>Filed</em> case still counts as open work.</td></tr>
+                <tr><td><span class="ui">Archived</span></td><td>Read-only archived cases</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Each queue shows a count, which always matches its list. Filter by Service, Status key
+            (for example <code>in_review</code>), Primary consultant, Reviewer, and Tax year.
+            Columns: Case, Client, Service, Status, Due, Consultant, Reviewer.
+          </p>
+
+          <h2 id="open">Open a case</h2>
+          <ol class="steps">
+            <li>
+              Select <span class="ui">New case</span> on the Cases page, or
+              <span class="ui">Open case</span> on a client's page (the client is pre-filled).
+            </li>
+            <li>
+              Choose the <strong>Client</strong>, <strong>Service</strong>, <strong>Tax
+              year</strong>, and <strong>Workflow</strong> version. The <strong>Due date</strong> is
+              pre-filled from the service's deadline; change it if needed.
+            </li>
+            <li>
+              Choose the <strong>Primary consultant</strong> (required) and an optional
+              <strong>Reviewer</strong>, who must be a different person. Consultants can only name
+              themselves as primary; managers can assign anyone.
+            </li>
+            <li>Add notes and select <span class="ui">Open case</span>.</li>
+          </ol>
+          <p>
+            The case gets a code such as <code>TC-00042</code> and copies the workflow version's
+            statuses and checklist.
+          </p>
+          <div class="callout warn">
+            <strong>Possible duplicate case</strong>
+            <p>
+              If the same client already has an open case for the same service and tax year,
+              either you get <span class="ui">Possible duplicate case</span> and must give a
+              <span class="ui">Reason to open another case</span> before
+              <span class="ui">Open case anyway</span>, or the case is refused, depending on the
+              service's policy.
+            </p>
+          </div>
+
+          <h2 id="page">The case page</h2>
+          <ul>
+            <li>
+              <strong>Summary:</strong> client, service, tax year, due date with an overdue or
+              due-soon flag, fee, workflow version, consultant, and reviewer.
+              <span class="ui">Edit details</span> changes the due date, assignees, and notes.
+            </li>
+            <li><strong>Status:</strong> the current status and a button for each allowed next status.</li>
+            <li><strong>Checklist:</strong> items with Required, Optional, and Needs review badges, plus counts.</li>
+            <li><strong>Documents</strong> and <strong>Invoices</strong> for this case.</li>
+            <li>
+              <strong>Status history</strong> (permanent: who, when, from, to, note) and
+              <strong>Activity</strong> (edits, assignments, checklist decisions).
+            </li>
+          </ul>
+
+          <h2 id="status">Moving the status</h2>
+          <p>
+            Select the button for the next status and add a note if you like. The server checks
+            four things together: the case is still in the status you saw, the move is allowed
+            by the workflow, you have permission, and the checklist conditions are met.
+          </p>
+          <ul>
+            <li>
+              Moves that are not possible yet are greyed out, <strong>with the reason shown
+              underneath</strong> (for example, required checklist items are not complete).
+            </li>
+            <li>The status can only change through these buttons. Nothing else can alter it.</li>
+          </ul>
+
+          <h2 id="checklist">The checklist: preparer and reviewer</h2>
+          <figure class="diagram">
+            <svg viewBox="0 0 760 170" role="img" aria-labelledby="ck-t ck-d">
+              <title id="ck-t">Checklist item life cycle</title>
+              <desc id="ck-d">
+                An open item is completed by the preparer. If review is required, the reviewer
+                verifies it or returns it with a comment, which reopens it. The preparer can also
+                reopen a completed item.
+              </desc>
+              <defs>
+                <marker id="ck-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                  <path d="M0,0 L10,5 L0,10 z" class="d-arrow" />
+                </marker>
+              </defs>
+              <rect x="20" y="55" width="130" height="50" rx="9" class="d-box" />
+              <text x="85" y="85" text-anchor="middle" class="d-text">Open</text>
+              <rect x="280" y="55" width="150" height="50" rx="9" class="d-box hl" />
+              <text x="355" y="85" text-anchor="middle" class="d-text">Completed</text>
+              <rect x="570" y="55" width="160" height="50" rx="9" class="d-box ok" />
+              <text x="650" y="85" text-anchor="middle" class="d-text">Verified</text>
+              <path d="M150,72 L276,72" class="d-line" marker-end="url(#ck-ah)" />
+              <text x="213" y="62" text-anchor="middle" class="d-sub">Complete (preparer)</text>
+              <path d="M276,92 L154,92" class="d-line" marker-end="url(#ck-ah)" />
+              <text x="213" y="112" text-anchor="middle" class="d-sub">Reopen</text>
+              <path d="M430,80 L566,80" class="d-line" marker-end="url(#ck-ah)" />
+              <text x="498" y="70" text-anchor="middle" class="d-sub">Verify (reviewer)</text>
+              <path d="M650,105 C650,160 85,160 85,109" class="d-line dash" marker-end="url(#ck-ah)" />
+              <text x="370" y="152" text-anchor="middle" class="d-sub">Return with comment (reviewer)</text>
+            </svg>
+          </figure>
+          <ul>
+            <li>
+              The <strong>primary consultant</strong> (preparer) selects
+              <span class="ui">Complete</span> or <span class="ui">Reopen</span>.
+            </li>
+            <li>
+              The <strong>reviewer</strong> selects <span class="ui">Verify</span>, or
+              <span class="ui">Return</span> (<span class="ui">Return item to preparer</span>,
+              with a required comment).
+            </li>
+            <li>
+              <strong>Nobody can verify their own work.</strong> Whoever completed an item cannot
+              verify it, even a manager. Managers can also complete and verify items on any case.
+            </li>
+            <li>
+              If an item names a document type and is required, it can only be completed once a
+              <strong>verified document</strong> is linked to it. If that document is later
+              rejected, deleted, or goes missing, the item reopens automatically.
+            </li>
+            <li>
+              <strong>Filed</strong> and <strong>Completed</strong> need every required item
+              complete, and verified where review is required.
+            </li>
+            <li>Once the case is filed, the checklist locks.</li>
+          </ul>
+
+          <h2 id="conflicts">When a colleague got there first</h2>
+          <p>
+            If someone changed the case, moved its status, or decided a checklist item after you
+            loaded the page, your action is refused instead of overwriting theirs. The page
+            explains the conflict and reloads the latest version. Look at what changed, then try
+            again if it still makes sense.
+          </p>
+
+          <h2 id="archive">Archive</h2>
+          <p>
+            Managers and administrators can archive <strong>completed or cancelled</strong> cases
+            (<span class="ui">Archive</span>, then <span class="ui">Archive case</span>). Archived
+            cases leave the working queues, become read-only, and keep all history and
+            documents. Open cases cannot be archived; cancel them first.
+          </p>
+
+          <h2 id="day">A consultant's day</h2>
+          <ol>
+            <li>Open the Dashboard: assigned, overdue, due soon, checklist gaps.</li>
+            <li>Work <span class="ui">Overdue</span>, then <span class="ui">Due soon</span>, then <span class="ui">My work</span>.</li>
+            <li>Upload documents against checklist items and complete items.</li>
+            <li>Move the case to <em>In review</em> when it is ready, and fix anything the reviewer returns.</li>
+          </ol>
+        </div>
+      </main>
+    </div>
+    <script src="../assets/search-index.js"></script>
+    <script src="../assets/guide.js"></script>
+  </body>
+</html>

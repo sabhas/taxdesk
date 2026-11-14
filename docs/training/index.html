@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TaxDesk Training Guide</title>
+    <meta
+      name="description"
+      content="Training guide for TaxDesk: environment setup, day-to-day use by role, and user acceptance testing."
+    />
+    <link rel="stylesheet" href="assets/guide.css" />
+  </head>
+  <body data-root="" data-page="index.html">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="topbar" id="topbar"></header>
+    <div class="layout">
+      <nav class="sidebar" id="sidebar" aria-label="Guide sections"></nav>
+      <main id="main">
+        <div class="content">
+          <p class="breadcrumb">TaxDesk training guide</p>
+          <h1>TaxDesk training guide</h1>
+          <p class="lede">
+            TaxDesk is a private practice-management app for one tax firm: clients, tax cases,
+            documents, invoices and payments, reports, and data migration. This guide teaches
+            people to set it up, use it, and test it.
+          </p>
+
+          <div class="callout warn">
+            <strong>Before you start: this release is not live yet</strong>
+            <p>
+              Epics 0–7 are built and pass every local check. Each epic still needs a staging
+              demonstration and Sprint Review sign-off. Real client data may not be loaded
+              anywhere until the restore rehearsal (TD-708), the security review (TD-709), and the
+              go/no-go decision (TD-710) have passed. See
+              <a href="reference/status-limitations.html">Release status and limits</a>.
+            </p>
+          </div>
+
+          <h2 id="tracks">Pick your track</h2>
+          <div class="cards">
+            <a class="card" href="operators/architecture.html">
+              <span class="kicker">Track A · Operators</span>
+              <h3>Set up and run TaxDesk</h3>
+              <p>
+                Local development, staging, and production; secrets; OneDrive; CI; backups,
+                restores, and lockout recovery.
+              </p>
+            </a>
+            <a class="card" href="staff/getting-started.html">
+              <span class="kicker">Track B · Firm staff</span>
+              <h3>Use TaxDesk day to day</h3>
+              <p>
+                Signing in with MFA, then clients, cases, documents, billing, reports, and
+                administration, explained role by role.
+              </p>
+            </a>
+            <a class="card" href="testing/training-data.html">
+              <span class="kicker">Track C · Testers</span>
+              <h3>Test every user story</h3>
+              <p>
+                Build a training environment with synthetic data, walk through a full day at the
+                firm, then work through the UAT catalogue and record results.
+              </p>
+            </a>
+          </div>
+
+          <h2 id="what-taxdesk-does">What TaxDesk does</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Area</th>
+                  <th>What people can do</th>
+                  <th>Epic / stories</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Platform</td>
+                  <td>
+                    Separate development, staging, and production environments; forward-only
+                    database migrations; CI gates; staging delivery
+                  </td>
+                  <td>Epic 0 · TD-001–TD-007</td>
+                </tr>
+                <tr>
+                  <td><a href="staff/getting-started.html">Identity and access</a></td>
+                  <td>
+                    Username sign-in, mandatory authenticator-app MFA, recovery codes, invitations
+                    as one-time links, five built-in roles, offline lockout recovery
+                  </td>
+                  <td>Epic 1 · TD-101–TD-111</td>
+                </tr>
+                <tr>
+                  <td><a href="staff/clients.html">Clients</a></td>
+                  <td>
+                    Individuals and businesses, encrypted and masked CNIC/NTN, duplicate blocking,
+                    edit-conflict protection, search, archive
+                  </td>
+                  <td>Epic 2 · TD-201–TD-206</td>
+                </tr>
+                <tr>
+                  <td><a href="staff/cases.html">Tax cases</a></td>
+                  <td>
+                    Services, versioned workflows, checklists, preparer/reviewer separation, work
+                    queues, status history
+                  </td>
+                  <td>Epic 3 · TD-301–TD-310</td>
+                </tr>
+                <tr>
+                  <td><a href="staff/documents.html">Documents</a></td>
+                  <td>
+                    Resumable uploads to the firm's OneDrive through TaxDesk, verification, audited
+                    downloads, soft delete, reconciliation
+                  </td>
+                  <td>Epic 4 · TD-401–TD-410</td>
+                </tr>
+                <tr>
+                  <td><a href="staff/billing.html">Billing</a></td>
+                  <td>
+                    Draft and finalize invoices with gapless numbers, PDFs, payments, receipts,
+                    reversals, voids
+                  </td>
+                  <td>Epic 5 · TD-501–TD-510</td>
+                </tr>
+                <tr>
+                  <td><a href="staff/dashboard-reports.html">Dashboard and operations</a></td>
+                  <td>Role-aware dashboard, reports with CSV export, audit history, firm settings</td>
+                  <td>Epic 6 · TD-601–TD-605</td>
+                </tr>
+                <tr>
+                  <td><a href="staff/data-import.html">Migration and recovery</a></td>
+                  <td>
+                    CSV import of clients, cases, and opening balances; encrypted backups; restore
+                    verification; security and readiness reviews
+                  </td>
+                  <td>Epic 7 · TD-701–TD-710</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 id="suggested-plan">Suggested training plan</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Session</th>
+                  <th>Who</th>
+                  <th>Read</th>
+                  <th>Practise</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>1. Platform (half day)</td>
+                  <td><span class="badge operator">Operator</span></td>
+                  <td>Track A, all pages</td>
+                  <td>Run TaxDesk locally, bootstrap an administrator, deploy staging</td>
+                </tr>
+                <tr>
+                  <td>2. Everyone (1 hour)</td>
+                  <td>All staff</td>
+                  <td>
+                    <a href="staff/getting-started.html">Getting started</a>,
+                    <a href="staff/roles.html">Roles</a>,
+                    <a href="reference/security-data-handling.html">Security</a>
+                  </td>
+                  <td>Activate an account, enrol MFA, store recovery codes, sign out</td>
+                </tr>
+                <tr>
+                  <td>3. Casework (2 hours)</td>
+                  <td>
+                    <span class="badge manager">Manager</span>
+                    <span class="badge consultant">Consultant</span>
+                  </td>
+                  <td>Clients, Services and workflows, Cases, Documents</td>
+                  <td>Steps 1–6 of the <a href="testing/end-to-end.html">end-to-end walkthrough</a></td>
+                </tr>
+                <tr>
+                  <td>4. Billing (1 hour)</td>
+                  <td>
+                    <span class="badge billing">Billing</span>
+                    <span class="badge manager">Manager</span>
+                  </td>
+                  <td>Invoices and payments, Dashboard and reports</td>
+                  <td>Steps 7–9 of the walkthrough</td>
+                </tr>
+                <tr>
+                  <td>5. Administration (2 hours)</td>
+                  <td><span class="badge admin">Administrator</span></td>
+                  <td>Administration, Data import, Backup and lockouts</td>
+                  <td>Invite users, connect storage, run an import dry run, review audit history</td>
+                </tr>
+                <tr>
+                  <td>6. UAT (several days)</td>
+                  <td>Testers, Product Owner</td>
+                  <td><a href="testing/scenarios.html">UAT scenario catalogue</a></td>
+                  <td>Run every scenario per role and export the results CSV for sign-off</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 id="conventions">Conventions in this guide</h2>
+          <ul>
+            <li>
+              <span class="ui">Button text</span> is shown exactly as it appears in the app.
+              Navigation items are written like <span class="path">Clients → New client</span>.
+            </li>
+            <li>
+              Role badges show who can do something:
+              <span class="badge admin">Administrator</span>
+              <span class="badge manager">Manager</span>
+              <span class="badge consultant">Consultant</span>
+              <span class="badge billing">Billing</span>
+              <span class="badge readonly">Read-only</span>
+              <span class="badge operator">Operator</span>. An operator is someone with
+              deployment access (Cloudflare, database, GitHub), not an app role.
+            </li>
+            <li>
+              Commands run from the repository root unless stated otherwise. Values in
+              <code>&lt;angle brackets&gt;</code> are placeholders you replace.
+            </li>
+            <li>
+              Story IDs (for example <code>TD-306</code>) match the product requirement documents
+              in <code>docs/product/prd/</code>.
+            </li>
+            <li>
+              Press <kbd>/</kbd> to search. The ◐ button switches light and dark mode, and ⎙
+              prints the current page.
+            </li>
+          </ul>
+
+          <h2 id="sources">Where this guide comes from</h2>
+          <p>
+            Labels, routes, and limits come from the source code (<code>packages/web/src</code>,
+            <code>packages/shared/src</code>). Procedures come from the runbooks in
+            <code>docs/guides/</code> and <code>docs/technical/</code>. If the app and this guide
+            disagree, the app is right; please update the guide. To edit it, change the HTML
+            files in <code>docs/training/</code>, then run
+            <code>node docs/training/tools/build-search-index.mjs</code> to refresh search.
+          </p>
+          <p class="meta">Guide written for the Epic 0–7 release candidate, November 2026.</p>
+        </div>
+      </main>
+    </div>
+    <script src="assets/search-index.js"></script>
+    <script src="assets/guide.js"></script>
+  </body>
+</html>

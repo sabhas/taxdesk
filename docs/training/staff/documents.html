@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Documents · TaxDesk Training</title>
+    <link rel="stylesheet" href="../assets/guide.css" />
+  </head>
+  <body data-root="../" data-page="staff/documents.html">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="topbar" id="topbar"></header>
+    <div class="layout">
+      <nav class="sidebar" id="sidebar" aria-label="Guide sections"></nav>
+      <main id="main">
+        <div class="content">
+          <p class="breadcrumb">Track B · Staff</p>
+          <h1>Documents</h1>
+          <p class="lede">
+            Upload client files once, link them to the checklist, review them, and open them
+            whenever needed. Files are stored in the firm's OneDrive, but you only ever use them
+            through TaxDesk.
+          </p>
+          <p>
+            <span class="badge admin">Administrator</span>
+            <span class="badge manager">Manager</span>
+            <span class="badge consultant">Consultant</span> upload, review, and delete ·
+            <span class="badge readonly">Read-only</span> opens ·
+            <span class="badge billing">Billing</span> has no document access
+          </p>
+
+          <h2 id="where">Where documents live</h2>
+          <p>
+            Every client page and case page has a <strong>Documents</strong> panel. A document
+            always belongs to a client, and optionally to a case and one of its checklist items.
+          </p>
+
+          <h2 id="upload">Upload a document</h2>
+          <ol class="steps">
+            <li>In the Documents panel, select <span class="ui">Upload document</span>.</li>
+            <li>
+              Choose the <strong>File</strong>. Allowed types are PDF, JPEG, PNG, DOCX, XLSX, and
+              CSV, up to the firm's limit (250 MiB by default). Unsafe file names and other types
+              are refused before anything is sent.
+            </li>
+            <li>
+              On a case, pick the <strong>Checklist item</strong> it satisfies. Pick the
+              <strong>Document type</strong> (for example "Bank statement").
+            </li>
+            <li>
+              Select <span class="ui">Upload</span>. The file goes in 5 MiB pieces with a progress
+              bar.
+            </li>
+          </ol>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>During an upload</th>
+                  <th>Do this</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>Need the bandwidth for something else</td><td><span class="ui">Pause</span>, later <span class="ui">Resume</span></td></tr>
+                <tr><td>The connection dropped</td><td><span class="ui">Retry</span>. It continues from where it stopped.</td></tr>
+                <tr><td>Wrong file</td><td><span class="ui">Cancel upload</span> or <span class="ui">Discard upload</span></td></tr>
+                <tr><td>Finished</td><td><span class="ui">Close</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Retrying the last step never creates two copies of the same document.
+          </p>
+
+          <h2 id="open">Open and edit</h2>
+          <ul>
+            <li>
+              <span class="ui">Open</span> downloads the file through TaxDesk. Your access is
+              checked again on every open, so a deactivated or reassigned user cannot use an old
+              link. Every open is recorded in the activity history.
+            </li>
+            <li>
+              <span class="ui">Edit</span>, then <span class="ui">Save</span>, changes the document
+              type or checklist link. It never changes the file itself.
+            </li>
+          </ul>
+
+          <h2 id="review">Review states</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Badge</th>
+                  <th>Meaning</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td><span class="ui">Awaiting review</span></td><td>Uploaded, not yet checked</td><td><span class="ui">Verify</span> or <span class="ui">Reject</span></td></tr>
+                <tr><td><span class="ui">Verified</span></td><td>Checked and accepted</td><td><span class="ui">Reset review</span> to undo</td></tr>
+                <tr><td><span class="ui">Rejected</span></td><td>Not acceptable (the reason is required and shown)</td><td>Upload a better file. <span class="ui">Reset review</span> if rejected by mistake.</td></tr>
+                <tr><td><span class="ui">Missing in storage</span></td><td>Reconciliation could not find the file in OneDrive</td><td>Tell an administrator. Upload it again if you have it.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            <strong>Who can review:</strong> on a case document, the case's reviewer or a
+            manager/administrator. The preparer cannot verify documents on their own case. On a
+            client-level document, managers and administrators.
+          </p>
+          <div class="callout">
+            <strong>Documents and the checklist</strong>
+            <p>
+              A required checklist item that names a document type can only be completed when it
+              has at least one linked, <strong>verified</strong> document. If that document is
+              later rejected, reset, unlinked, deleted, or found missing, the item reopens
+              automatically on open cases, and the change is logged.
+            </p>
+          </div>
+
+          <h2 id="delete">Delete and restore</h2>
+          <ul>
+            <li>
+              <span class="ui">Delete</span> (confirmed with <span class="ui">Delete document</span>)
+              moves the file to OneDrive's recycle bin and hides the record. Its history stays.
+            </li>
+            <li>Turn on <span class="ui">Show deleted documents</span> to see deleted ones.</li>
+            <li>
+              Managers and administrators can <span class="ui">Restore</span> a deleted document
+              while OneDrive can still recover it from the recycle bin.
+            </li>
+          </ul>
+
+          <h2 id="unavailable">When storage is unavailable</h2>
+          <p>
+            If you see <span class="ui">Document storage is unavailable</span>, uploads, opens,
+            deletes, and restores stop with a clear message, while the rest of TaxDesk keeps
+            working. Short outages fix themselves. If it says a reconnect is needed, an
+            administrator selects <span class="ui">Reconnect storage</span>.
+          </p>
+
+          <h2 id="not">What documents do not do (yet)</h2>
+          <ul>
+            <li>No text recognition (OCR) or searching inside files.</li>
+            <li>No editing files in the browser.</li>
+            <li>No virus scanning. Only accept files from known sources.</li>
+            <li>Invoice and receipt PDFs are stored separately and never appear in document lists.</li>
+          </ul>
+        </div>
+      </main>
+    </div>
+    <script src="../assets/search-index.js"></script>
+    <script src="../assets/guide.js"></script>
+  </body>
+</html>

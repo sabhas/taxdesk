@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Troubleshooting · TaxDesk Training</title>
+    <link rel="stylesheet" href="../assets/guide.css" />
+  </head>
+  <body data-root="../" data-page="reference/troubleshooting.html">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="topbar" id="topbar"></header>
+    <div class="layout">
+      <nav class="sidebar" id="sidebar" aria-label="Guide sections"></nav>
+      <main id="main">
+        <div class="content">
+          <p class="breadcrumb">Reference</p>
+          <h1>Troubleshooting</h1>
+          <p class="lede">
+            Symptoms, causes, and fixes, starting with what staff see, then operator problems.
+            Always note the <strong>request ID</strong> from an error message: it links straight
+            to the audit event and the server log.
+          </p>
+
+          <h2 id="staff">Staff-facing problems</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Symptom</th>
+                  <th>Likely cause</th>
+                  <th>Fix</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Authenticator code always rejected</td>
+                  <td>The phone's clock is wrong, or it is the wrong account in the app</td>
+                  <td>Turn on automatic time, and check the account label. Otherwise use a recovery code.</td>
+                </tr>
+                <tr>
+                  <td>"Too many sign-in attempts. Wait a few minutes and try again."</td>
+                  <td>Repeated failures (10 for the account, or 30 from the network, within 15 minutes)</td>
+                  <td>Wait 15 minutes. If it is not you, tell an administrator.</td>
+                </tr>
+                <tr>
+                  <td>"Sign-in verification is not configured"</td>
+                  <td>Turnstile was triggered, but the environment has no Turnstile keys</td>
+                  <td>Operator: set <code>TURNSTILE_SITE_KEY</code> and <code>TURNSTILE_SECRET_KEY</code></td>
+                </tr>
+                <tr>
+                  <td>Activation or reset link refused</td>
+                  <td>Already used, or older than 30 minutes</td>
+                  <td>Administrator: <span class="ui">Reset link</span> creates a new one</td>
+                </tr>
+                <tr>
+                  <td>Signed out unexpectedly</td>
+                  <td>30 minutes idle, the 12-hour limit, or a role, password, MFA, or status change</td>
+                  <td>Sign in again. Repeated surprises: check audit history for the user.</td>
+                </tr>
+                <tr>
+                  <td>"Someone else saved this client" / a case conflict</td>
+                  <td>A colleague saved first (HTTP <code>412</code>)</td>
+                  <td>Review their change, then save over it or discard yours</td>
+                </tr>
+                <tr>
+                  <td>A status button is greyed out</td>
+                  <td>The checklist is not complete or verified, or the move is not allowed</td>
+                  <td>Read the reason under the button</td>
+                </tr>
+                <tr>
+                  <td>"Link and verify a … document before completing this item."</td>
+                  <td>The required item needs a verified document</td>
+                  <td>Upload and link it, then ask the reviewer to verify it</td>
+                </tr>
+                <tr>
+                  <td>A consultant cannot see a client or case</td>
+                  <td>They are not its assigned manager, consultant, or reviewer</td>
+                  <td>A manager assigns them</td>
+                </tr>
+                <tr>
+                  <td>"Document storage is unavailable"</td>
+                  <td>OneDrive outage, or consent revoked</td>
+                  <td>Wait for short outages. Administrator: <span class="ui">Reconnect storage</span>.</td>
+                </tr>
+                <tr>
+                  <td>File refused before upload</td>
+                  <td>Unsupported type, unsafe name, or over the size limit</td>
+                  <td>Convert to PDF/JPEG/PNG/DOCX/XLSX/CSV, rename, or split</td>
+                </tr>
+                <tr>
+                  <td>Document shows "Missing in storage"</td>
+                  <td>The file was deleted or moved in OneDrive outside TaxDesk</td>
+                  <td>Recover it from the OneDrive recycle bin, or upload it again. Run reconciliation.</td>
+                </tr>
+                <tr>
+                  <td>Payment refused</td>
+                  <td>The amount is zero, negative, or more than outstanding</td>
+                  <td>Check the outstanding amount. For a reversal, ask a manager.</td>
+                </tr>
+                <tr>
+                  <td>"PDF could not be stored"</td>
+                  <td>Storage was down when the invoice was finalized</td>
+                  <td><span class="ui">Generate PDF again</span> once storage is healthy</td>
+                </tr>
+                <tr>
+                  <td>Cannot void an invoice</td>
+                  <td>It has net payments</td>
+                  <td>A manager reverses the payments first</td>
+                </tr>
+                <tr>
+                  <td>"TaxDesk is temporarily unavailable"</td>
+                  <td>The API cannot be reached</td>
+                  <td><span class="ui">Try again</span>. If it persists, tell the operator, with the time it happened.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 id="operator">Operator problems</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Symptom</th>
+                  <th>Cause</th>
+                  <th>Fix</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Feature returns <code>503</code></td>
+                  <td>A Worker secret is missing (MFA, client, or storage keys)</td>
+                  <td><code>wrangler secret list --env &lt;env&gt;</code>, set the missing one, redeploy</td>
+                </tr>
+                <tr>
+                  <td>Storage page says not configured (<code>STORAGE_NOT_CONFIGURED</code>)</td>
+                  <td>No <code>ONEDRIVE_CLIENT_ID</code></td>
+                  <td>Set it in the environment's vars and redeploy</td>
+                </tr>
+                <tr>
+                  <td><code>AADSTS50011</code> during the storage connection</td>
+                  <td>The redirect URI does not match</td>
+                  <td>Register exactly <code>&lt;APP_PUBLIC_URL&gt;/settings/storage/callback</code></td>
+                </tr>
+                <tr>
+                  <td><code>AADSTS65001</code> / <code>consent_required</code></td>
+                  <td>Consent not granted</td>
+                  <td>Grant consent for the firm account</td>
+                </tr>
+                <tr>
+                  <td>Consent fails on <code>Files.ReadWrite.AppFolder</code></td>
+                  <td>Added as an application permission instead of delegated</td>
+                  <td>Fix the app registration</td>
+                </tr>
+                <tr>
+                  <td>Activation links point to the wrong host</td>
+                  <td><code>APP_PUBLIC_URL</code> unset or wrong</td>
+                  <td>Set it to the web host and redeploy the API</td>
+                </tr>
+                <tr>
+                  <td>Database requests fail locally; <code>/health</code> fine</td>
+                  <td>Postgres not running, or a wrong local connection string</td>
+                  <td>Start Postgres; check <code>.env</code> and the Hyperdrive override</td>
+                </tr>
+                <tr>
+                  <td><code>db:migrate:verify</code> checksum mismatch</td>
+                  <td>An applied migration file was edited</td>
+                  <td>Revert it. Make a new migration, and run <code>db:migrate:manifest</code> for new files.</td>
+                </tr>
+                <tr>
+                  <td><code>permission denied for schema public</code></td>
+                  <td>The app role cannot create the ledger table</td>
+                  <td>Grant the schema permissions, or run the first migration as the owner</td>
+                </tr>
+                <tr>
+                  <td>The web app shows a <code>503</code> for <code>/api</code> on Pages</td>
+                  <td>Missing or wrong <code>API</code> service binding</td>
+                  <td>Check <code>packages/web/wrangler.toml</code> and the Pages project's binding</td>
+                </tr>
+                <tr>
+                  <td><code>auth:bootstrap</code> refuses</td>
+                  <td>Already bootstrapped (by design)</td>
+                  <td>Use <span class="path">Users</span> or <code>auth:recover</code></td>
+                </tr>
+                <tr>
+                  <td>Everyone's MFA broke after a deploy</td>
+                  <td><code>MFA_ENCRYPTION_KEY</code> changed</td>
+                  <td>Restore the original key from the offline store. Otherwise run <code>disable-mfa</code> for each user.</td>
+                </tr>
+                <tr>
+                  <td>Duplicate check misses obvious CNIC duplicates</td>
+                  <td><code>CLIENT_IDENTIFIER_INDEX_KEY</code> changed</td>
+                  <td>Restore the original key; re-index before any rotation</td>
+                </tr>
+                <tr>
+                  <td>Posture or export issue opened in GitHub</td>
+                  <td>Stale evidence, or a failed or old export</td>
+                  <td>See <a href="../operators/backup-recovery.html">Backup, restore and lockouts</a></td>
+                </tr>
+                <tr>
+                  <td><code>ci:secrets</code> fails</td>
+                  <td>A token-like string in a tracked file</td>
+                  <td>Remove it, or use an obvious placeholder (<code>&lt;…&gt;</code>, <code>EXAMPLE</code>)</td>
+                </tr>
+                <tr>
+                  <td>Rollup native-module error after switching machines</td>
+                  <td><code>node_modules</code> built for another OS or CPU</td>
+                  <td><code>just reinstall-force</code> or <code>pnpm install --force</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 id="report">Reporting a defect</h2>
+          <ol>
+            <li>What you did (steps), what you expected, what happened.</li>
+            <li>Role and username of the test account (never a password).</li>
+            <li>Environment, the release SHA from <code>/health</code>, and the time (with timezone).</li>
+            <li>The request ID from the error message.</li>
+            <li>The UAT case ID, if the defect came from the catalogue.</li>
+            <li>Screenshots of <strong>synthetic</strong> data only.</li>
+          </ol>
+        </div>
+      </main>
+    </div>
+    <script src="../assets/search-index.js"></script>
+    <script src="../assets/guide.js"></script>
+  </body>
+</html>

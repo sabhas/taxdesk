@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dashboard and Reports · TaxDesk Training</title>
+    <link rel="stylesheet" href="../assets/guide.css" />
+  </head>
+  <body data-root="../" data-page="staff/dashboard-reports.html">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="topbar" id="topbar"></header>
+    <div class="layout">
+      <nav class="sidebar" id="sidebar" aria-label="Guide sections"></nav>
+      <main id="main">
+        <div class="content">
+          <p class="breadcrumb">Track B · Staff</p>
+          <h1>Dashboard and reports</h1>
+          <p class="lede">
+            The dashboard tells you what needs attention today. Reports answer questions over a
+            period and export to CSV.
+          </p>
+
+          <h2 id="dashboard">The dashboard</h2>
+          <p>
+            <span class="path">Dashboard</span> greets you with "Welcome, &lt;name&gt;" and shows
+            only the sections your role can use. <strong>Every number is a link</strong> to a list
+            showing exactly those rows.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Section</th>
+                  <th>Figures</th>
+                  <th>Who sees it</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><span class="ui">Cases that need attention</span></td>
+                  <td>
+                    Assigned to me, Overdue, "Due within N days" (the firm's due-soon window), With
+                    checklist gaps, Filing progress (In progress / Filed / Completed)
+                  </td>
+                  <td>Everyone who can read cases</td>
+                </tr>
+                <tr>
+                  <td><span class="ui">Team workload</span></td>
+                  <td>
+                    Unassigned, Open team cases, Overdue team cases, Review queue, and a per-staff
+                    table (open, overdue, due soon, reviewing)
+                  </td>
+                  <td><span class="badge admin">Administrator</span> <span class="badge manager">Manager</span></td>
+                </tr>
+                <tr>
+                  <td><span class="ui">Billing</span></td>
+                  <td>Unpaid invoices, Overdue invoices, Collected this month (net of reversals)</td>
+                  <td>
+                    <span class="badge admin">Administrator</span>
+                    <span class="badge manager">Manager</span>
+                    <span class="badge billing">Billing</span>
+                    <span class="badge readonly">Read-only</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td><span class="ui">Account security</span>, <span class="ui">Your access</span></td>
+                  <td>Your MFA state and your role's permissions</td>
+                  <td>Everyone</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>"This month" and "overdue" use the firm's timezone.</p>
+
+          <h2 id="reports">Reports</h2>
+          <p>
+            <span class="path">Reports</span> has three tabs. Results are paged.
+            <span class="badge consultant">Consultant</span> has no access.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Tab</th>
+                  <th>Filters</th>
+                  <th>Shows</th>
+                  <th>CSV</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Cases</td>
+                  <td>Due-date range, service, status, staff member, tax year, active/archived</td>
+                  <td>Matching cases</td>
+                  <td><span class="ui">Export CSV</span></td>
+                </tr>
+                <tr>
+                  <td><span class="ui">Staff workload</span></td>
+                  <td>—</td>
+                  <td>Open, overdue, due-soon, and reviewing counts per person</td>
+                  <td>—</td>
+                </tr>
+                <tr>
+                  <td>Billing</td>
+                  <td>Date range</td>
+                  <td>Invoiced, Payments received, Reversed, Net collected, Outstanding, Overdue</td>
+                  <td><span class="ui">Export CSV</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <ul>
+            <li>Billing totals always match the invoice pages; they come from the same figures.</li>
+            <li>
+              <strong>Every export is recorded</strong> in audit history. Exported files contain
+              client data: keep them on firm devices and delete them when done.
+            </li>
+            <li>If nothing matches, the report says so. It does not show an empty table without explanation.</li>
+          </ul>
+
+          <h2 id="questions">Questions the reports answer</h2>
+          <div class="table-wrap">
+            <table>
+              <tbody>
+                <tr><td>What's overdue this week, and whose is it?</td><td>Dashboard → Overdue, or Cases report filtered by due date</td></tr>
+                <tr><td>Who is overloaded?</td><td>Staff workload</td></tr>
+                <tr><td>How many 2026 returns are filed?</td><td>Cases report: tax year 2026, status Filed</td></tr>
+                <tr><td>How much did we collect last month?</td><td>Billing tab, last month's date range: Net collected</td></tr>
+                <tr><td>Who owes us money?</td><td>Invoices list, Payment = Unpaid or Partly paid</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    </div>
+    <script src="../assets/search-index.js"></script>
+    <script src="../assets/guide.js"></script>
+  </body>
+</html>

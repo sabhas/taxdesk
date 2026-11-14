@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CI and Delivery · TaxDesk Training</title>
+    <link rel="stylesheet" href="../assets/guide.css" />
+  </head>
+  <body data-root="../" data-page="operators/ci-cd.html">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="topbar" id="topbar"></header>
+    <div class="layout">
+      <nav class="sidebar" id="sidebar" aria-label="Guide sections"></nav>
+      <main id="main">
+        <div class="content">
+          <p class="breadcrumb">Track A · Operators</p>
+          <h1>CI and delivery</h1>
+          <p class="lede">
+            How a change gets from a pull request to staging, and the gates that stop a bad change
+            on the way. Full detail: <code>docs/technical/ci.md</code>.
+          </p>
+
+          <figure class="diagram">
+            <svg viewBox="0 0 860 150" role="img" aria-labelledby="ci-t ci-d">
+              <title id="ci-t">Delivery pipeline</title>
+              <desc id="ci-d">
+                A pull request runs CI with no secrets. A merge to main runs CI again. If it
+                passes, the staging deploy workflow runs. Production is deployed by hand after the
+                go/no-go decision.
+              </desc>
+              <defs>
+                <marker id="ci-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                  <path d="M0,0 L10,5 L0,10 z" class="d-arrow" />
+                </marker>
+              </defs>
+              <rect x="10" y="40" width="160" height="70" rx="9" class="d-box" />
+              <text x="90" y="70" text-anchor="middle" class="d-text">Pull request</text>
+              <text x="90" y="88" text-anchor="middle" class="d-sub">CI, no secrets</text>
+              <rect x="230" y="40" width="160" height="70" rx="9" class="d-box" />
+              <text x="310" y="70" text-anchor="middle" class="d-text">Merge to main</text>
+              <text x="310" y="88" text-anchor="middle" class="d-sub">CI runs again</text>
+              <rect x="450" y="40" width="180" height="70" rx="9" class="d-box hl" />
+              <text x="540" y="70" text-anchor="middle" class="d-text">Deploy staging</text>
+              <text x="540" y="88" text-anchor="middle" class="d-sub">automatic, 12 steps</text>
+              <rect x="690" y="40" width="160" height="70" rx="9" class="d-box ext" />
+              <text x="770" y="70" text-anchor="middle" class="d-text">Production</text>
+              <text x="770" y="88" text-anchor="middle" class="d-sub">manual, after Go</text>
+              <path d="M170,75 L226,75" class="d-line" marker-end="url(#ci-ah)" />
+              <path d="M390,75 L446,75" class="d-line" marker-end="url(#ci-ah)" />
+              <path d="M630,75 L686,75" class="d-line dash" marker-end="url(#ci-ah)" />
+            </svg>
+          </figure>
+
+          <h2 id="workflows">The four workflows</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Workflow</th>
+                  <th>Runs</th>
+                  <th>Does</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>ci.yml</code></td>
+                  <td>Pull requests, pushes to <code>main</code>, manual</td>
+                  <td>
+                    Jobs <strong>Quality gates</strong> (<code>pnpm verify</code>),
+                    <strong>Clean database migrations</strong> (migrate a brand-new Postgres and
+                    run the integration suite), and <strong>Secret history scan</strong>
+                    (gitleaks over the full history)
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>deploy-staging.yml</code></td>
+                  <td>After a successful CI push run on <code>main</code>, or a manual run with a full 40-character SHA</td>
+                  <td>The 12-step staging delivery below</td>
+                </tr>
+                <tr>
+                  <td><code>platform-posture.yml</code></td>
+                  <td>Daily at 03:17 UTC</td>
+                  <td>
+                    Re-checks backup and point-in-time-recovery evidence and the latest export.
+                    Opens <strong>Platform posture check failed</strong> on failure.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>backup-export.yml</code></td>
+                  <td>Daily at 21:41 UTC</td>
+                  <td>
+                    Encrypted <code>pg_dump</code> to R2 and manifest verification. Opens
+                    <strong>Independent backup export failed</strong> on failure.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 id="branch-protection">Branch protection</h2>
+          <p>
+            Protect <code>main</code> and require <strong>Quality gates</strong>,
+            <strong>Clean database migrations</strong>, and <strong>Secret history scan</strong>,
+            with no bypass. Pull-request workflows never enter a GitHub environment or read
+            <code>secrets.*</code>. <code>pnpm ci:workflows</code> enforces this, so editing a file
+            in <code>.github/workflows/</code> can fail CI.
+          </p>
+
+          <h2 id="staging-steps">Staging delivery, step by step</h2>
+          <ol>
+            <li>Check the commit is a full 40-character SHA.</li>
+            <li>Check out exactly that commit.</li>
+            <li>Install from the lockfile.</li>
+            <li><code>pnpm ci:config-posture</code>: the staging Hyperdrive binding is real and the DB client requires TLS.</li>
+            <li><code>pnpm db:migrate:verify</code></li>
+            <li><code>pnpm db:migrate</code> with <code>STAGING_DATABASE_URL</code></li>
+            <li><code>pnpm db:migrate:status --check</code></li>
+            <li><code>pnpm ci:db-posture</code>: TLS session, least-privilege role</li>
+            <li><code>pnpm ci:backup-check</code>: validates <code>PLATFORM_POSTURE_EVIDENCE_JSON</code></li>
+            <li><code>pnpm deploy:api:staging</code> with <code>RELEASE_VERSION</code> set to the SHA</li>
+            <li><code>pnpm deploy:web:staging</code></li>
+            <li>
+              <code>pnpm ci:staging-smoke</code> against <code>STAGING_WEB_URL</code>, expecting
+              the deployed release version
+            </li>
+          </ol>
+
+          <h2 id="failures">When something fails</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Failure</th>
+                  <th>What to do</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>A CI gate</td>
+                  <td>Fix it in the pull request. Never merge around or bypass a required check.</td>
+                </tr>
+                <tr>
+                  <td>Staging deploy</td>
+                  <td>
+                    The previous Worker and Pages versions stay live. Re-run the workflow with the
+                    last good SHA, or fix forward.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Migration</td>
+                  <td>
+                    Its transaction rolls back and no ledger row is written. Add a compensating
+                    migration.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Migration manifest check</td>
+                  <td>
+                    An applied migration file was edited. Revert the edit. For a new file, run
+                    <code>pnpm db:migrate:manifest</code>.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Posture gate</td>
+                  <td>Do not deploy. Restore the control, update the evidence secret, and re-run.</td>
+                </tr>
+                <tr>
+                  <td>Smoke test after deploy</td>
+                  <td>
+                    Treat the release as failed. Look up the request ID in
+                    <code>wrangler tail</code>, and redeploy the last good SHA if needed.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 id="local">Running the gates locally</h2>
+          <pre><code>pnpm verify               # everything the Quality gates job runs
+pnpm ci:selftest          # proves the gates reject deliberately bad input
+pnpm ci:workflows         # workflow security policy
+pnpm ci:config-posture    # staging config and TLS checks</code></pre>
+        </div>
+      </main>
+    </div>
+    <script src="../assets/search-index.js"></script>
+    <script src="../assets/guide.js"></script>
+  </body>
+</html>

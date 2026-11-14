@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Staging Environment · TaxDesk Training</title>
+    <link rel="stylesheet" href="../assets/guide.css" />
+  </head>
+  <body data-root="../" data-page="operators/staging.html">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="topbar" id="topbar"></header>
+    <div class="layout">
+      <nav class="sidebar" id="sidebar" aria-label="Guide sections"></nav>
+      <main id="main">
+        <div class="content">
+          <p class="breadcrumb">Track A · Operators</p>
+          <h1>Staging environment</h1>
+          <p class="lede">
+            Staging is a full copy of production that only ever holds synthetic data. You use it
+            to demonstrate stories, to run UAT, and to rehearse migrations and restores.
+          </p>
+
+          <div class="callout">
+            <strong>Routine staging deploys are automatic</strong>
+            <p>
+              After CI passes on <code>main</code>, the <code>deploy-staging.yml</code> workflow
+              migrates the database, checks posture, deploys, and smoke-tests. Use the steps below
+              only to provision staging for the first time or to repair it. The detailed runbook is
+              <code>docs/guides/staging-deployment.md</code>.
+            </p>
+          </div>
+
+          <h2 id="current-state">Current state of staging</h2>
+          <ul>
+            <li>
+              Staging is provisioned, uses a least-privilege non-owner database role, passes
+              <code>ci:db-posture</code>, and has passed a 15/15 smoke check.
+            </li>
+            <li>The Hyperdrive ID is committed in <code>[env.staging]</code>.</li>
+            <li>
+              Still to configure before the Epic 1–7 features work there: the secrets listed under
+              <a href="#feature-config">step 6</a>, migrations <code>0002</code>–<code>0010</code>,
+              a Microsoft app registration, and the backup secrets and R2 bucket.
+            </li>
+          </ul>
+
+          <h2 id="first-time">First-time provisioning</h2>
+          <ol class="steps">
+            <li>
+              <strong>Tools and login.</strong> Complete
+              <a href="local-setup.html">local setup</a> steps 1–2, then run
+              <code>pnpm exec wrangler login</code> and <code>pnpm exec wrangler whoami</code>.
+            </li>
+            <li>
+              <strong>Database.</strong> Create a separate managed PostgreSQL database (for
+              example <code>taxdesk_staging</code>) with encrypted automated backups and
+              point-in-time recovery. Create a least-privilege application role that does not own
+              the schema and has no superuser, <code>CREATEDB</code>, or
+              <code>CREATEROLE</code> rights. Test the TLS connection:
+              <pre><code>psql "postgres://&lt;app-role&gt;:&lt;password&gt;@&lt;host&gt;:5432/taxdesk_staging?sslmode=require" \
+  -c "select current_database(), current_user;"</code></pre>
+            </li>
+            <li>
+              <strong>Hyperdrive.</strong>
+              <pre><code>pnpm exec wrangler hyperdrive create taxdesk-staging \
+  --connection-string="postgres://&lt;app-role&gt;:&lt;password&gt;@&lt;host&gt;:5432/taxdesk_staging?sslmode=require"</code></pre>
+              Put the returned ID in <code>[[env.staging.hyperdrive]]</code> in
+              <code>packages/api/wrangler.toml</code>, then run
+              <code>pnpm ci:config-posture</code>.
+            </li>
+            <li>
+              <strong>Migrations.</strong>
+              <pre><code>DATABASE_URL="postgres://&lt;app-role&gt;:&lt;password&gt;@&lt;host&gt;:5432/taxdesk_staging?sslmode=require" pnpm db:migrate
+DATABASE_URL="…same…" pnpm db:migrate:status --check
+DATABASE_URL="…same…" pnpm ci:db-posture</code></pre>
+              The first migration needs permission to create tables. If it fails with
+              <code>permission denied for schema public</code>, grant the schema permissions or run
+              that first migration as the owner role.
+            </li>
+            <li>
+              <strong>Deploy the API.</strong> Run <code>pnpm deploy:api:staging</code> and check
+              <code>https://taxdesk-api-staging.&lt;subdomain&gt;.workers.dev/health</code>.
+            </li>
+            <li id="feature-config">
+              <strong>Secrets and variables for Epics 1–7.</strong>
+              <pre><code>for name in MFA_ENCRYPTION_KEY CLIENT_DATA_ENCRYPTION_KEY CLIENT_IDENTIFIER_INDEX_KEY \
+            STORAGE_TOKEN_ENCRYPTION_KEY TURNSTILE_SECRET_KEY; do
+  pnpm exec wrangler secret put "$name" --config packages/api/wrangler.toml --env staging
+done
+pnpm exec wrangler secret list --config packages/api/wrangler.toml --env staging</code></pre>
+              In <code>[env.staging.vars]</code> set <code>TURNSTILE_SITE_KEY</code>,
+              <code>ONEDRIVE_CLIENT_ID</code>, and <code>APP_PUBLIC_URL</code> (the staging
+              Pages URL), then deploy the API again. See
+              <a href="configuration.html">Configuration and secrets</a>.
+            </li>
+            <li>
+              <strong>Pages project (once).</strong>
+              <pre><code>pnpm exec wrangler pages project create taxdesk-web-staging --production-branch main</code></pre>
+              Staging deploys to the <code>staging</code> preview branch, so the
+              <code>[env.preview]</code> binding points to <code>taxdesk-api-staging</code>. Keep
+              <code>main</code> as the project's production branch.
+            </li>
+            <li>
+              <strong>Deploy the web app.</strong> Run <code>pnpm deploy:web:staging</code>. The
+              staging URL looks like <code>https://staging.taxdesk-web-staging.pages.dev</code>.
+            </li>
+            <li>
+              <strong>Same-origin checks.</strong>
+              <pre><code>curl -fsS https://&lt;staging-pages-host&gt;/health | jq -e '.environment == "staging"'
+curl -fsS https://&lt;staging-pages-host&gt;/api/v1/app-info | jq -e '.name == "TaxDesk API"'
+STAGING_WEB_URL=https://&lt;staging-pages-host&gt; pnpm ci:staging-smoke</code></pre>
+            </li>
+            <li>
+              <strong>Bootstrap the firm.</strong> Run
+              <code>DATABASE_URL="…staging…" pnpm auth:bootstrap</code> interactively, sign in, and
+              enrol MFA. Store the staging recovery codes in the firm's vault.
+            </li>
+            <li>
+              <strong>Connect OneDrive</strong> with a dedicated staging Microsoft account. See
+              <a href="onedrive.html">OneDrive document storage</a>.
+            </li>
+            <li>
+              <strong>CI wiring.</strong> Add the GitHub <code>staging</code> environment secrets
+              and variables, and set branch protection. See <a href="ci-cd.html">CI and delivery</a>.
+            </li>
+          </ol>
+
+          <h2 id="health">Health contract</h2>
+          <p>
+            <code>GET /health</code> returns exactly three fields, with
+            <code>Cache-Control: no-store</code>. Anything more is a defect.
+          </p>
+          <pre><code>{ "environment": "staging", "releaseVersion": "&lt;commit sha&gt;", "requestId": "…" }</code></pre>
+          <p>
+            Every API error is a Problem Details JSON body with a <code>requestId</code>. Quote
+            that ID when reporting a problem; it matches the Worker log line and the audit event.
+          </p>
+
+          <h2 id="logs">Watching logs</h2>
+          <pre><code>pnpm exec wrangler tail taxdesk-api-staging</code></pre>
+          <p>
+            Logs are structured JSON with the event name, request ID, and error class only. They
+            never contain secrets, tokens, or document contents.
+          </p>
+
+          <h2 id="uat-readiness">Making staging ready for UAT</h2>
+          <ol>
+            <li>All secrets set, migrations current, health and smoke checks green.</li>
+            <li>Administrator bootstrapped and storage connected (status <span class="ui">Connected</span>).</li>
+            <li>
+              One test account per role, synthetic data imported. See
+              <a href="../testing/training-data.html">Build a training environment</a>.
+            </li>
+            <li>Record the deployed SHA from <code>/health</code> on the UAT results sheet.</li>
+          </ol>
+          <div class="callout danger">
+            <strong>Synthetic data only</strong>
+            <p>
+              Staging must never hold a real client's name, CNIC, NTN, or document, not even "just
+              to try something".
+            </p>
+          </div>
+        </div>
+      </main>
+    </div>
+    <script src="../assets/search-index.js"></script>
+    <script src="../assets/guide.js"></script>
+  </body>
+</html>

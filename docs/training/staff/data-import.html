@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Data Import · TaxDesk Training</title>
+    <link rel="stylesheet" href="../assets/guide.css" />
+  </head>
+  <body data-root="../" data-page="staff/data-import.html">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="topbar" id="topbar"></header>
+    <div class="layout">
+      <nav class="sidebar" id="sidebar" aria-label="Guide sections"></nav>
+      <main id="main">
+        <div class="content">
+          <p class="breadcrumb">Track B · Staff · <span class="badge admin">Administrator</span></p>
+          <h1>Data import</h1>
+          <p class="lede">
+            Bring existing clients, open cases, and opening balances in from spreadsheets. Nothing
+            is written until a dry run is clean and you commit it. A dropped connection never
+            imports anything twice. Full reference: <code>docs/guides/data-import.md</code>.
+          </p>
+
+          <h2 id="templates">The three templates, in order</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Template</th>
+                  <th>Creates</th>
+                  <th>Sample file</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>1</td><td><code>clients.v1</code></td><td>Clients with one primary contact</td><td><code>docs/templates/imports/clients-v1.csv</code></td></tr>
+                <tr><td>2</td><td><code>cases.v1</code></td><td>Open tax cases</td><td><code>docs/templates/imports/cases-v1.csv</code></td></tr>
+                <tr><td>3</td><td><code>opening_balances.v1</code></td><td>One <strong>finalized</strong> invoice per balance</td><td><code>docs/templates/imports/opening-balances-v1.csv</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Download templates from the Templates list on <span class="path">Data import</span>.
+            Before importing cases, create the services they reference and publish their default
+            workflows.
+          </p>
+
+          <h3 id="file-rules">File rules</h3>
+          <ul>
+            <li>UTF-8 CSV. The header must contain exactly the template's columns, in any order.</li>
+            <li>At most 2 MiB, 5,000 rows, and 4,000 characters per cell. Split bigger sources.</li>
+            <li>
+              Every row needs an <code>external_ref</code>: the record's ID in the old system,
+              unique within the file. Re-importing the same reference updates the client, or skips
+              the case or balance, instead of duplicating it.
+            </li>
+            <li>Row 1 is the header, so row 2 is the first data row, just like in a spreadsheet.</li>
+            <li>
+              CNIC is 13 digits for individuals and empty for businesses. NTN is required for
+              businesses. Phones are 7–15 digits. Dates are <code>YYYY-MM-DD</code>. Amounts are
+              PKR above zero with at most two decimals.
+            </li>
+          </ul>
+
+          <h2 id="flow">Dry run, review, commit</h2>
+          <ol class="steps">
+            <li>
+              <strong>Dry run.</strong> Under <span class="ui">New dry run</span>, choose the
+              Template and CSV file, then <span class="ui">Run dry run</span>. TaxDesk records the
+              file's name, size, row count, and checksum (not the file itself) and shows the plan:
+              Create, Update, Skip, Possible duplicates, Errors. Nothing is written yet.
+            </li>
+            <li>
+              <strong>Fix errors.</strong> Each error names the row, the column, and a fixed reason,
+              and never repeats the cell's value. Correct the source and run a
+              <em>new</em> dry run (<span class="ui">Discard</span> the old batch first). A batch
+              with errors can never be committed.
+            </li>
+            <li>
+              <strong>Decide possible duplicates.</strong> For rows that look like an existing
+              client (same name, email, or phone, but not the same CNIC/NTN), select
+              <span class="ui">Decide</span>. Choose
+              <span class="ui">Skip this row (it is the same client)</span> or
+              <span class="ui">Create a new client anyway</span>, write a Reason (at least 10
+              characters), and <span class="ui">Save decision</span>.
+            </li>
+            <li>
+              <strong>Revalidate</strong> if records changed since the dry run, for example after
+              you added a missing service.
+            </li>
+            <li>
+              <strong>Commit.</strong> Choose the <em>same</em> file again and select
+              <span class="ui">Commit import</span>. Rows are written in batches of 100, and each
+              record gets its normal audit event plus the batch code and row number.
+            </li>
+            <li>
+              <strong>Interrupted?</strong> The batch shows <span class="ui">Committing</span>.
+              Choose the same file and select <span class="ui">Resume commit</span>. It continues
+              from the next unwritten row, and no row is ever written twice.
+            </li>
+          </ol>
+
+          <h3 id="statuses">Batch statuses</h3>
+          <p>
+            <span class="ui">Ready to commit</span> · <span class="ui">Needs attention</span> ·
+            <span class="ui">Committing</span> · <span class="ui">Committed</span> ·
+            <span class="ui">Discarded</span>
+          </p>
+
+          <h2 id="reconcile">Check the result</h2>
+          <ul>
+            <li>
+              Each batch shows source rows against created, updated, skipped, failed, and pending
+              rows. For opening balances it also compares money totals.
+              <span class="ui">Reconciled</span> means every row is accounted for.
+            </li>
+            <li>
+              <span class="ui">Exceptions CSV</span> lists every error, skip, duplicate, and
+              decision. <span class="ui">Lineage CSV</span> (after commit) maps every row to the
+              record it created or updated. Neither contains cell values.
+            </li>
+            <li>
+              <span class="ui">Migration reconciliation</span> on the Data import page totals what
+              was imported and shows a random sample of rows to compare against the source.
+            </li>
+          </ul>
+
+          <h2 id="errors">Common refusals</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Message code</th>
+                  <th>Meaning</th>
+                  <th>Fix</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td><code>IMPORT_FILE_INVALID</code> / <code>413</code></td><td>Too big, too many rows, binary, malformed, or a wrong header</td><td>Fix or split the file</td></tr>
+                <tr><td><code>IMPORT_DUPLICATE_SOURCE</code></td><td>This file already has an open batch</td><td>Use or discard that batch</td></tr>
+                <tr><td><code>IMPORT_NOT_COMMITTABLE</code></td><td>Errors or undecided duplicates remain</td><td>Fix them, or decide each duplicate</td></tr>
+                <tr><td><code>IMPORT_SOURCE_MISMATCH</code></td><td>A different file was chosen for commit</td><td>Choose the exact dry-run file</td></tr>
+                <tr><td><code>IMPORT_STALE</code></td><td>Records changed since the dry run</td><td><span class="ui">Revalidate</span>, then review again</td></tr>
+                <tr><td><code>IMPORT_ALREADY_COMMITTED</code></td><td>The batch is already done</td><td>Nothing to do</td></tr>
+                <tr><td><code>IDENTIFIER_CHANGED</code></td><td>A re-import tried to change a CNIC/NTN</td><td>Identifiers cannot change through import</td></tr>
+                <tr><td><code>EXISTING_CASE</code></td><td>An open case already exists for that client, service, and year</td><td>It is linked, not duplicated (informational)</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 id="practice">Practise with synthetic data</h2>
+          <p>An operator can generate realistic fake files:</p>
+          <pre><code>pnpm ops:sample-import --out sample-import --clients 50 --seed 7 --with-exceptions</code></pre>
+          <p>
+            See <a href="../testing/training-data.html">Build a training environment</a>. For the
+            real migration, follow the signed rehearsal checklist in
+            <code>docs/guides/migration-rehearsal.md</code>.
+          </p>
+        </div>
+      </main>
+    </div>
+    <script src="../assets/search-index.js"></script>
+    <script src="../assets/guide.js"></script>
+  </body>
+</html>

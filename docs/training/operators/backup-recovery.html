@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Backup, Restore and Lockouts · TaxDesk Training</title>
+    <link rel="stylesheet" href="../assets/guide.css" />
+  </head>
+  <body data-root="../" data-page="operators/backup-recovery.html">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="topbar" id="topbar"></header>
+    <div class="layout">
+      <nav class="sidebar" id="sidebar" aria-label="Guide sections"></nav>
+      <main id="main">
+        <div class="content">
+          <p class="breadcrumb">Track A · Operators</p>
+          <h1>Backup, restore and lockouts</h1>
+          <p class="lede">
+            The operator procedures for bad days: restoring the database within four hours, and
+            getting a locked-out administrator back in. None of this has an app screen. It all
+            runs from a trusted operator workstation.
+          </p>
+
+          <nav class="toc" aria-label="On this page">
+            <strong>On this page</strong>
+            <ol>
+              <li><a href="#layers">Backup layers</a></li>
+              <li><a href="#ops-commands">ops commands</a></li>
+              <li><a href="#restore">Restore procedure</a></li>
+              <li><a href="#rehearsal">Restore rehearsal</a></li>
+              <li><a href="#lockout">Administrator lockout</a></li>
+            </ol>
+          </nav>
+
+          <h2 id="layers">Backup layers</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Layer</th>
+                  <th>What</th>
+                  <th>Checked by</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Managed backups and point-in-time recovery (PITR)</td>
+                  <td>The database provider's automated backups and write-ahead-log retention</td>
+                  <td><code>ci:backup-check</code> daily, against the operator's posture evidence</td>
+                </tr>
+                <tr>
+                  <td>Independent export</td>
+                  <td>
+                    Daily <code>pg_dump</code>, AES-256-GCM encrypted, in R2 under
+                    <code>&lt;environment&gt;/</code>, kept 35 days
+                  </td>
+                  <td>
+                    <code>backup-export.yml</code> and <code>ci:backup-verify</code>. Fails if the
+                    latest export is missing, failed, older than 30 hours, or kept for less than 30
+                    days.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="callout warn">
+            <strong>Documents are not in the database backup</strong>
+            <p>
+              Files live in OneDrive. A database restore brings back document <em>records</em>,
+              not files. Run <a href="onedrive.html#reconcile">reconciliation</a> after every
+              restore to flag anything missing.
+            </p>
+          </div>
+
+          <h2 id="ops-commands">ops commands</h2>
+          <p>Each prints one JSON line at the end and never prints secrets.</p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Command</th>
+                  <th>Purpose</th>
+                  <th>Main flags</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>pnpm ops:backup-export</code></td>
+                  <td>Encrypted export plus manifest</td>
+                  <td><code>--out --environment --retention-days --storage --key-version</code></td>
+                </tr>
+                <tr>
+                  <td><code>pnpm ops:backup-decrypt</code></td>
+                  <td>Decrypt an export for <code>pg_restore</code></td>
+                  <td><code>--in --out</code></td>
+                </tr>
+                <tr>
+                  <td><code>pnpm ci:backup-verify</code></td>
+                  <td>Check a manifest (and optionally the artifact digest)</td>
+                  <td><code>--manifest --artifact --max-age-hours --min-retention-days --environment</code></td>
+                </tr>
+                <tr>
+                  <td><code>pnpm ops:recovery-snapshot</code></td>
+                  <td>Record counts, money totals, and integrity checks for a database</td>
+                  <td><code>--out</code></td>
+                </tr>
+                <tr>
+                  <td><code>pnpm ops:restore-verify</code></td>
+                  <td>Compare a restored database with the snapshot and the 4-hour target</td>
+                  <td><code>--expected --incident-start --mfa-key-versions --out</code></td>
+                </tr>
+                <tr>
+                  <td><code>pnpm ops:sample-import</code></td>
+                  <td>Synthetic import CSVs for rehearsals and training</td>
+                  <td><code>--out --clients --seed --service --tax-year --as-of --with-exceptions</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 id="restore">Restore procedure (4-hour target)</h2>
+          <p>
+            Start the clock when the decision to restore is made, and record each step's time in
+            the evidence form in <code>docs/guides/backup-and-restore.md</code>.
+          </p>
+          <ol class="steps">
+            <li>
+              <strong>Declare and freeze.</strong> Record the incident start (UTC). Stop writes by
+              deploying the previous build in maintenance, or by removing the Pages route.
+            </li>
+            <li>
+              <strong>Snapshot the source if it still answers:</strong>
+              <pre><code>DATABASE_URL=&lt;source&gt; pnpm ops:recovery-snapshot --out source-snapshot.json</code></pre>
+              If it does not answer, use the last rehearsal snapshot and note that you did.
+            </li>
+            <li>
+              <strong>Choose the path.</strong> Either use <em>PITR</em> in the provider console
+              to restore into a new database, or restore the <em>independent export</em>:
+              <pre><code>pnpm ci:backup-verify --manifest &lt;file&gt;.manifest.json --artifact &lt;file&gt;.dump.enc --max-age-hours 9999
+BACKUP_ENCRYPTION_KEY=&lt;from the offline key store&gt; \
+  pnpm ops:backup-decrypt --in &lt;file&gt;.dump.enc --out restore.dump
+createdb &lt;new database&gt;
+pg_restore --no-owner --no-privileges --exit-on-error -d &lt;new database url&gt; restore.dump</code></pre>
+              Delete <code>restore.dump</code> once the restore is verified.
+            </li>
+            <li>
+              <strong>Roles and posture.</strong> Recreate the least-privilege app role and its
+              grants, then run <code>DATABASE_URL=&lt;new&gt; pnpm ci:db-posture</code>.
+            </li>
+            <li>
+              <strong>Verify.</strong>
+              <pre><code>DATABASE_URL=&lt;new&gt; pnpm ops:restore-verify \
+  --expected source-snapshot.json --incident-start &lt;UTC from step 1&gt; \
+  --mfa-key-versions 1 --out restore-evidence.json</code></pre>
+              It checks migrations and checksums, that the firm is bootstrapped, that an MFA
+              administrator exists, MFA key versions, case status against history, invoice paid
+              amounts against payments minus reversals, counts and money totals, and the elapsed
+              time.
+            </li>
+            <li>
+              <strong>Repoint.</strong> Update the environment's Hyperdrive config to the new
+              database. Confirm the secrets are <em>unchanged</em> (the MFA, client, and storage
+              keys must be the same as before), then redeploy.
+            </li>
+            <li>
+              <strong>Functional check.</strong> Sign in with MFA. Open a client (masked IDs
+              show), a case (status and history), an invoice (balance), and a document (opens).
+              Run <code>pnpm ci:staging-smoke</code> and storage reconciliation.
+            </li>
+            <li><strong>Reopen</strong> and record the total recovery time.</li>
+          </ol>
+
+          <h2 id="rehearsal">Restore rehearsal (TD-708)</h2>
+          <p>
+            Before go-live, and then quarterly: restore staging's latest export into an
+            <strong>isolated</strong> database, run steps 4–7 against it, and keep
+            <code>restore-evidence.json</code> and the completed evidence form. It counts only if
+            it finishes within four hours.
+          </p>
+
+          <h2 id="lockout">Administrator lockout</h2>
+          <p>
+            There is no "forgot password" link and no email. Most problems are fixed inside the
+            app by another administrator. The offline tool is a last resort and needs the
+            environment's <code>DATABASE_URL</code>.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Situation</th>
+                  <th>Try first</th>
+                  <th>Offline action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>A staff member forgot their password</td>
+                  <td>An administrator issues <span class="ui">Reset link</span> under <span class="path">Users</span></td>
+                  <td><code>reset-password</code></td>
+                </tr>
+                <tr>
+                  <td>A staff member lost their authenticator</td>
+                  <td>They sign in with a recovery code, then re-enrol on the <span class="path">Security</span> page</td>
+                  <td><code>disable-mfa</code></td>
+                </tr>
+                <tr>
+                  <td>The only administrator forgot their password</td>
+                  <td>—</td>
+                  <td><code>reset-password</code></td>
+                </tr>
+                <tr>
+                  <td>The only administrator lost the authenticator <em>and</em> the recovery codes</td>
+                  <td>—</td>
+                  <td><code>disable-mfa</code></td>
+                </tr>
+                <tr>
+                  <td>The only administrator was deactivated</td>
+                  <td>—</td>
+                  <td><code>reactivate</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <pre><code>pnpm auth:recover
+# asks for the username and action, then asks you to type the username again
+
+# non-interactive form
+pnpm auth:recover --non-interactive --username admin --action disable-mfa --confirm admin</code></pre>
+          <p>
+            Every action revokes all of that user's sessions and writes a
+            <code>user.recovery_*</code> audit event with no actor. Exit codes: <code>0</code>
+            done, <code>1</code> refused (for example, an unknown user), <code>2</code> usage
+            error.
+          </p>
+          <p><strong>Afterwards:</strong></p>
+          <ol>
+            <li>The user signs in (after <code>disable-mfa</code> they must enrol MFA again) and stores the new recovery codes.</li>
+            <li>An administrator finds the <code>user.recovery_*</code> event in <span class="path">Audit history</span> and logs the operator, the reason, and the time.</li>
+            <li>If compromise is suspected, review <code>auth.login_failed</code> events and deactivate accounts as needed.</li>
+          </ol>
+          <div class="callout tip">
+            <strong>Prevention is cheaper</strong>
+            <p>
+              Keep at least two administrators. Keep recovery codes in the firm's vault.
+              <code>auth:bootstrap</code> never creates a second "first" administrator; promote an
+              existing user from <span class="path">Users</span> instead.
+            </p>
+          </div>
+        </div>
+      </main>
+    </div>
+    <script src="../assets/search-index.js"></script>
+    <script src="../assets/guide.js"></script>
+  </body>
+</html>

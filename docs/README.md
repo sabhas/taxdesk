@@ -31,9 +31,20 @@ docs/
     environments.md                 # Environment isolation, Hyperdrive, deployment, health checks
     ci.md                           # CI gates, staging delivery, secret isolation, recovery posture
     migrations.md                   # Forward-only migrations, ledger, checksums, rollback
+    design-system.md                # Web UI rules and tokens
   guides/
     staging-deployment.md           # First-time staging deployment walkthrough
     onedrive-spike.md               # TD-005 OneDrive Personal feasibility spike runbook
+    administrator-recovery.md       # auth:bootstrap and offline lockout recovery
+    data-import.md                  # CSV templates, dry run, commit, reconciliation
+    backup-and-restore.md           # Independent exports and the four-hour restore procedure
+    migration-rehearsal.md          # TD-706 rehearsal checklist and sign-off
+  training/                         # Static HTML training guide (open index.html in a browser)
+    index.html                      # Start page: operator, staff, and tester tracks
+    operators/ staff/ testing/ reference/
+    assets/                         # Shared CSS/JS, UAT scenario data, generated search index
+    tools/build-search-index.mjs    # Regenerates assets/search-index.js after page edits
+  templates/imports/                # Synthetic CSV import templates
   adr/                              # Immutable architecture decisions
 .pi/
   settings.json                     # Pi agent project configuration
@@ -49,6 +60,10 @@ docs/
 5. Verify every acceptance criterion and the shared [Definition of Done](product/definition-of-done.md).
 6. Update [implementation status](product/status.md) and check off completed acceptance criteria.
 7. For the first staging deployment, follow the [staging deployment guide](guides/staging-deployment.md).
+8. For training, demos, and UAT, open the [training guide](training/index.html). When a
+   feature changes on screen, update the matching page under `training/staff/`, the UAT
+   scenarios in `training/assets/uat-data.js`, and then run
+   `node docs/training/tools/build-search-index.mjs`.
 
 ## Epic index
 
