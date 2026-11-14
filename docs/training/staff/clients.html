@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Clients · TaxDesk Training</title>
+    <link rel="stylesheet" href="../assets/guide.css" />
+  </head>
+  <body data-root="../" data-page="staff/clients.html">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="topbar" id="topbar"></header>
+    <div class="layout">
+      <nav class="sidebar" id="sidebar" aria-label="Guide sections"></nav>
+      <main id="main">
+        <div class="content">
+          <p class="breadcrumb">Track B · Staff</p>
+          <h1>Clients</h1>
+          <p class="lede">
+            The client record is the anchor for cases, documents, and invoices. TaxDesk protects
+            identifiers, stops duplicates, and never lets two people silently overwrite each
+            other.
+          </p>
+          <p>
+            <span class="badge admin">Administrator</span>
+            <span class="badge manager">Manager</span> create and edit ·
+            <span class="badge billing">Billing</span>
+            <span class="badge readonly">Read-only</span> view all ·
+            <span class="badge consultant">Consultant</span> views the clients they manage
+          </p>
+
+          <h2 id="find">Find a client</h2>
+          <p>
+            Open <span class="path">Clients</span>. The search box accepts a client code
+            (<code>CL-00001</code>), a name, a phone number, an email, or an
+            <strong>exact</strong> CNIC/NTN.
+          </p>
+          <ul>
+            <li>
+              Name search ignores capitals, punctuation, and company suffixes, so
+              <em>"khan traders"</em> finds <em>"Khan Traders (Pvt.) Ltd."</em>.
+            </li>
+            <li>
+              Phone numbers match in national or international form (<code>0300…</code> or
+              <code>92300…</code>).
+            </li>
+            <li>
+              Filters: <strong>Type</strong> (Individual, Business), <strong>Manager</strong>
+              (Any manager, Unassigned, or a person), <strong>Status</strong> (Active, Archived,
+              Active and archived). Select <span class="ui">Search</span>.
+            </li>
+            <li>
+              Columns: Client, Type, Identifier (masked), Primary contact, Manager, Status. Use
+              <span class="ui">Load more clients</span> to page through.
+            </li>
+            <li>
+              Consultants see the note "You see the clients assigned to you as manager."
+            </li>
+          </ul>
+
+          <h2 id="create">Create a client</h2>
+          <ol class="steps">
+            <li>Select <span class="ui">New client</span>.</li>
+            <li>
+              Choose the <strong>Client type</strong>. It cannot be changed later.
+              <ul>
+                <li><strong>Individual:</strong> CNIC required (13 digits), NTN optional.</li>
+                <li><strong>Business:</strong> NTN required, no CNIC.</li>
+              </ul>
+            </li>
+            <li>
+              Enter the <strong>Legal name</strong> (required), an optional
+              <strong>Display name</strong>, and the <strong>Assigned manager</strong> (the person
+              responsible; for consultants this decides what they can see).
+            </li>
+            <li>
+              Add up to 10 <strong>contacts</strong> (Name, Relationship, Email, Phone) with
+              <span class="ui">Add contact</span>. Mark exactly one as
+              <span class="ui">Primary contact</span>.
+            </li>
+            <li>Add notes if useful, then select <span class="ui">Check and create client</span>.</li>
+          </ol>
+          <p>
+            TaxDesk gives the client a code such as <code>CL-00042</code>. Codes are never reused.
+          </p>
+
+          <h2 id="duplicates">Duplicate checks</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>What matches</th>
+                  <th>What you see</th>
+                  <th>What you can do</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Same CNIC or NTN as any client, <em>including archived ones</em></td>
+                  <td><span class="ui">This client already exists</span>, with a link to it</td>
+                  <td>Nothing. It is blocked. Open the existing client (restore it if archived).</td>
+                </tr>
+                <tr>
+                  <td>Same name, email, or phone</td>
+                  <td><span class="ui">This client may already exist</span></td>
+                  <td>
+                    Managers and administrators can fill in
+                    <strong>Reason for creating a separate client</strong> and select
+                    <span class="ui">Create anyway</span>. The reason is kept in the client's
+                    history.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 id="identifiers">How CNIC and NTN are protected</h2>
+          <ul>
+            <li>They are encrypted in the database.</li>
+            <li>
+              They are always shown masked, for example <code>•••••-••••567-1</code>. There is no
+              "show full number" button in this release.
+            </li>
+            <li>Activity history records <em>that</em> an identifier changed, never its value.</li>
+            <li>Search finds a client by an exact identifier without revealing it.</li>
+          </ul>
+
+          <h2 id="edit">Edit a client and handle conflicts</h2>
+          <p>
+            Open the client and select <span class="ui">Edit</span>, change what you need, then
+            <span class="ui">Save changes</span>.
+          </p>
+          <p>
+            If a colleague saved the same client while you were editing, you see
+            <span class="ui">Someone else saved this client</span>, with your unsaved input beside
+            the latest version. Choose one:
+          </p>
+          <ul>
+            <li><span class="ui">Discard my changes and use the latest</span></li>
+            <li><span class="ui">Keep reviewing my changes</span></li>
+            <li>
+              <span class="ui">Save my changes over the latest</span>. Only do this after reading
+              what your colleague changed.
+            </li>
+          </ul>
+
+          <h2 id="detail">The client page</h2>
+          <p>
+            It shows the Summary, Contacts, and Notes, and also:
+          </p>
+          <ul>
+            <li><strong>Cases</strong>, with <span class="ui">Open case</span> to start a new one for this client</li>
+            <li><strong>Invoices</strong>, with <span class="ui">Create invoice</span> (Billing and Administrator)</li>
+            <li><strong>Documents</strong>, for client-level files (see <a href="documents.html">Documents</a>)</li>
+            <li>
+              <strong>Activity</strong>: who created, changed, archived, or restored the client,
+              and which fields changed. Use <span class="ui">Show older activity</span> for more.
+            </li>
+          </ul>
+
+          <h2 id="archive">Archive and restore</h2>
+          <p>
+            <span class="ui">Archive</span>, confirmed with <span class="ui">Archive client</span>,
+            hides the client from the default list and makes it read-only. Nothing is deleted.
+            <span class="ui">Restore</span> (<span class="ui">Restore client</span>) brings it
+            back. Archived clients still block duplicates of their CNIC/NTN.
+          </p>
+
+          <h2 id="tips">Good habits</h2>
+          <ul>
+            <li>Search before creating. Most duplicates are caught before you start typing.</li>
+            <li>Always set an assigned manager, otherwise the client appears as "Unassigned".</li>
+            <li>Keep notes factual. Never paste a full CNIC or a password into notes.</li>
+          </ul>
+        </div>
+      </main>
+    </div>
+    <script src="../assets/search-index.js"></script>
+    <script src="../assets/guide.js"></script>
+  </body>
+</html>

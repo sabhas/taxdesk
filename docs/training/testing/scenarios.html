@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>UAT Scenario Catalogue · TaxDesk Training</title>
+    <link rel="stylesheet" href="../assets/guide.css" />
+  </head>
+  <body data-root="../" data-page="testing/scenarios.html">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="topbar" id="topbar"></header>
+    <div class="layout">
+      <nav class="sidebar" id="sidebar" aria-label="Guide sections"></nav>
+      <main id="main">
+        <div class="content">
+          <p class="breadcrumb">Track C · Testers</p>
+          <h1>UAT scenario catalogue</h1>
+          <p class="lede">
+            <span id="uat-count">All</span> scenarios covering every story from TD-001 to TD-710:
+            the happy path, plus the refusals and edge cases that prove the rules hold. Record a
+            result for each, then export a CSV for Sprint Review sign-off.
+          </p>
+
+          <h2 id="how">How to run it</h2>
+          <ol>
+            <li>
+              Prepare the environment with <a href="training-data.html">Build a training
+              environment</a>. Write the environment and the release SHA from
+              <code>/health</code> in the toolbar.
+            </li>
+            <li>Filter by role and sign in as that role's test account, so you change accounts less often.</li>
+            <li>
+              For each scenario choose Pass, Fail, or Blocked, and add notes. For a failure,
+              include the <strong>request ID</strong> from the error and what you saw.
+            </li>
+            <li>
+              Results are saved <strong>in this browser only</strong>. Use
+              <span class="ui">Export CSV</span> regularly and attach the file to the Sprint Review
+              or defect ticket.
+            </li>
+          </ol>
+          <div class="callout">
+            <strong>Positive and negative scenarios</strong>
+            <p>
+              <em>Negative</em> scenarios pass when TaxDesk <strong>refuses</strong> the action or
+              handles the failure safely. A negative scenario that lets the action through is a
+              failure, and usually a security defect: report it immediately.
+            </p>
+          </div>
+          <p class="meta">
+            Operator scenarios need deployment access. Scenarios marked "Any role" can be run with
+            any signed-in account. Link straight to one role with
+            <code>scenarios.html?role=billing</code>.
+          </p>
+
+          <div class="uat-toolbar" id="uat-toolbar" role="region" aria-label="Filters and results"></div>
+          <div id="uat-root"></div>
+          <noscript>
+            <p class="callout warn">
+              The catalogue needs JavaScript. The raw scenarios are in
+              <code>docs/training/assets/uat-data.js</code>.
+            </p>
+          </noscript>
+        </div>
+      </main>
+    </div>
+    <script src="../assets/search-index.js"></script>
+    <script src="../assets/guide.js"></script>
+    <script src="../assets/uat-data.js"></script>
+    <script src="../assets/uat.js"></script>
+  </body>
+</html>

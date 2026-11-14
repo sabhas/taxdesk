@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Glossary · TaxDesk Training</title>
+    <link rel="stylesheet" href="../assets/guide.css" />
+  </head>
+  <body data-root="../" data-page="reference/glossary.html">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="topbar" id="topbar"></header>
+    <div class="layout">
+      <nav class="sidebar" id="sidebar" aria-label="Guide sections"></nav>
+      <main id="main">
+        <div class="content">
+          <p class="breadcrumb">Reference</p>
+          <h1>Glossary</h1>
+          <p class="lede">Terms used in TaxDesk and in this guide.</p>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Term</th>
+                  <th>Meaning</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td id="g-audit">Audit history</td><td>The permanent, append-only record of who did what and when. Administrators search it.</td></tr>
+                <tr><td id="g-blind-index">Blind index</td><td>A keyed fingerprint of a CNIC/NTN that lets TaxDesk find exact matches without storing the number in readable form</td></tr>
+                <tr><td id="g-case">Case (TC-…)</td><td>One client's work for one service and tax year</td></tr>
+                <tr><td id="g-checklist">Checklist item</td><td>A step or document a case needs. It can be required, and can need reviewer verification.</td></tr>
+                <tr><td id="g-client">Client (CL-…)</td><td>An individual or business the firm serves</td></tr>
+                <tr><td id="g-cnic">CNIC</td><td>Computerized National Identity Card number: 13 digits, required for individual clients. Always masked.</td></tr>
+                <tr><td id="g-dry-run">Dry run</td><td>An import check that shows what <em>would</em> happen, without writing anything</td></tr>
+                <tr><td id="g-due-soon">Due soon</td><td>An open case due today or within the next 7 days (the dashboard uses the firm's due-soon setting)</td></tr>
+                <tr><td id="g-etag">ETag / version check</td><td>A record's version number. Saving an older version is refused (HTTP 412) so nobody overwrites a colleague's change.</td></tr>
+                <tr><td id="g-external-ref">external_ref</td><td>A record's ID in the old system, used by imports to link rows and make re-imports safe</td></tr>
+                <tr><td id="g-finalize">Finalize</td><td>Turn a draft invoice into a numbered, frozen one</td></tr>
+                <tr><td id="g-health">/health</td><td>An endpoint reporting only the environment, release version, and request ID</td></tr>
+                <tr><td id="g-hyperdrive">Hyperdrive</td><td>The Cloudflare service that pools the Worker's database connections over TLS</td></tr>
+                <tr><td id="g-idempotency">Idempotency key</td><td>A unique key sent with money, upload, and import commands so a retry never repeats the effect</td></tr>
+                <tr><td id="g-lineage">Lineage CSV</td><td>Import export mapping each source row to the TaxDesk record it created or updated</td></tr>
+                <tr><td id="g-mfa">MFA / TOTP</td><td>Multi-factor authentication with time-based six-digit codes from an authenticator app</td></tr>
+                <tr><td id="g-minor-units">Minor units</td><td>Money stored as whole paisa (PKR × 100) to avoid rounding errors</td></tr>
+                <tr><td id="g-ntn">NTN</td><td>National Tax Number: required for business clients, optional for individuals. Always masked.</td></tr>
+                <tr><td id="g-operator">Operator</td><td>A person with deployment access (Cloudflare, database, GitHub). Not an app role.</td></tr>
+                <tr><td id="g-pitr">PITR</td><td>Point-in-time recovery: the database provider's ability to restore to any moment</td></tr>
+                <tr><td id="g-preparer">Preparer</td><td>The case's primary consultant, who completes checklist items</td></tr>
+                <tr><td id="g-problem-details">Problem Details</td><td>The standard JSON error format every API error uses, including a <code>requestId</code></td></tr>
+                <tr><td id="g-reconciliation">Reconciliation</td><td>(Storage) checking every document record against OneDrive. (Import) checking imported totals against the source.</td></tr>
+                <tr><td id="g-recovery-code">Recovery code</td><td>One of ten single-use codes that replace an authenticator code when the phone is unavailable</td></tr>
+                <tr><td id="g-request-id">Request ID</td><td>A unique ID for every API call, shown in errors and stored in logs and audit</td></tr>
+                <tr><td id="g-reversal">Reversal</td><td>A linked entry that cancels all or part of a payment, without editing the payment</td></tr>
+                <tr><td id="g-reviewer">Reviewer</td><td>The person who verifies checklist items and case documents. Must differ from the preparer.</td></tr>
+                <tr><td id="g-rto">RTO</td><td>Recovery time objective: TaxDesk's target is four hours</td></tr>
+                <tr><td id="g-service">Service</td><td>Something the firm sells, with a default fee, deadline, and workflow</td></tr>
+                <tr><td id="g-sprint-review">Sprint Review</td><td>The meeting where stories are demonstrated on staging and accepted</td></tr>
+                <tr><td id="g-turnstile">Turnstile</td><td>Cloudflare's "are you human" check, shown after repeated failed sign-ins</td></tr>
+                <tr><td id="g-uat">UAT</td><td>User acceptance testing: checking the software does what the firm needs</td></tr>
+                <tr><td id="g-void">Void</td><td>Permanently cancel an invoice that has no net payments. It stays visible.</td></tr>
+                <tr><td id="g-worker">Worker</td><td>The Cloudflare Worker running the TaxDesk API</td></tr>
+                <tr><td id="g-workflow">Workflow template / version</td><td>The statuses, transitions, and checklist a case follows. Published versions never change.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    </div>
+    <script src="../assets/search-index.js"></script>
+    <script src="../assets/guide.js"></script>
+  </body>
+</html>

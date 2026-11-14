@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Build a Training Environment · TaxDesk Training</title>
+    <link rel="stylesheet" href="../assets/guide.css" />
+  </head>
+  <body data-root="../" data-page="testing/training-data.html">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="topbar" id="topbar"></header>
+    <div class="layout">
+      <nav class="sidebar" id="sidebar" aria-label="Guide sections"></nav>
+      <main id="main">
+        <div class="content">
+          <p class="breadcrumb">Track C · Testers</p>
+          <h1>Build a training environment</h1>
+          <p class="lede">
+            Every class and every UAT run starts from the same known setup: one account per role,
+            a published workflow, a service, and a few hundred synthetic clients. This takes about
+            45 minutes the first time.
+          </p>
+
+          <div class="callout danger">
+            <strong>Synthetic data only</strong>
+            <p>
+              Use local or staging only. Never type a real client's name, CNIC, NTN, phone number,
+              or document into a training environment, and never take screenshots of real data
+              for training material.
+            </p>
+          </div>
+
+          <h2 id="environment">1. Pick the environment</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>Local</th>
+                  <th>Staging</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>Best for</td><td>Classroom practice, one person, resettable</td><td>Formal UAT, sign-off, documents with real OneDrive</td></tr>
+                <tr><td>Setup</td><td><a href="../operators/local-setup.html">Local development setup</a></td><td><a href="../operators/staging.html">Staging environment</a></td></tr>
+                <tr><td>Documents</td><td>Only with a development Microsoft app</td><td>Yes, once storage is connected</td></tr>
+                <tr><td>Reset</td><td>Drop and recreate the database</td><td>Ask an operator. Never drop staging casually.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 id="accounts">2. Create one account per role</h2>
+          <p>
+            Sign in as the bootstrapped administrator, go to <span class="path">Users</span>, and
+            invite these accounts. The tests rely on two consultants, so preparer and reviewer
+            can be different people.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Username</th>
+                  <th>Display name</th>
+                  <th>Role</th>
+                  <th>Used for</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td><code>admin</code></td><td>Training Admin</td><td><span class="badge admin">Administrator</span></td><td>Bootstrapped. Setup, imports, audit.</td></tr>
+                <tr><td><code>t.admin2</code></td><td>Second Admin</td><td><span class="badge admin">Administrator</span></td><td>Lockout scenarios, and admin-on-admin actions</td></tr>
+                <tr><td><code>t.manager</code></td><td>Mona Manager</td><td><span class="badge manager">Manager</span></td><td>Clients, assignment, reversals</td></tr>
+                <tr><td><code>t.consultant</code></td><td>Kamran Consultant</td><td><span class="badge consultant">Consultant</span></td><td>Preparer</td></tr>
+                <tr><td><code>t.reviewer</code></td><td>Rida Reviewer</td><td><span class="badge consultant">Consultant</span></td><td>Reviewer, and the "not assigned" checks</td></tr>
+                <tr><td><code>t.billing</code></td><td>Bilal Billing</td><td><span class="badge billing">Billing</span></td><td>Invoices and payments</td></tr>
+                <tr><td><code>t.readonly</code></td><td>Rehan Readonly</td><td><span class="badge readonly">Read-only</span></td><td>Denied-action checks</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>For each account:</p>
+          <ol>
+            <li>Copy the one-time link and open it in a <strong>private browser window</strong> (or a separate browser profile).</li>
+            <li>Set the password (store the training passwords in a shared training vault entry).</li>
+            <li>
+              Enrol MFA. One authenticator app can hold all seven training accounts. Label each one
+              clearly, for example "TaxDesk training · t.billing".
+            </li>
+            <li>Save the recovery codes in the vault too. Some tests use them.</li>
+          </ol>
+          <div class="callout tip">
+            <strong>Testing several roles at once</strong>
+            <p>
+              Sessions use cookies, so one browser profile holds one user. Use separate browser
+              profiles (or different browsers) to keep, say, the consultant and reviewer signed in
+              side by side.
+            </p>
+          </div>
+
+          <h2 id="setup">3. Firm setup (as admin)</h2>
+          <ol class="steps">
+            <li>
+              <span class="path">Firm settings</span>: check the timezone is
+              <code>Asia/Karachi</code> and keep the prefixes <code>INV</code>/<code>RCP</code>.
+            </li>
+            <li>
+              <span class="path">Document storage</span>: connect OneDrive (staging, or local with
+              a development app).
+            </li>
+            <li>
+              <span class="path">Workflows</span>: <span class="ui">New template</span> named
+              "Annual return", keep the starter content, <span class="ui">Save draft</span>,
+              <span class="ui">Publish version 1</span>.
+            </li>
+            <li>
+              <span class="path">Services</span>: <span class="ui">New service</span> named exactly
+              <strong>Income tax return</strong> (the sample generator uses this name), fee 25,000,
+              deadline 30 days, duplicate policy <em>Warn</em>, default workflow "Annual return".
+              Add a second service, "Sales tax registration", with policy <em>Block</em> for the
+              duplicate-block tests.
+            </li>
+          </ol>
+
+          <h2 id="sample">4. Generate and import synthetic data</h2>
+          <pre><code>pnpm ops:sample-import --out training-data --clients 200 --seed 7 --with-exceptions
+ls training-data
+# cases-v1.csv  clients-v1.csv  opening_balances-v1.csv  source-totals.json</code></pre>
+          <ul>
+            <li>
+              Same seed, same files, every time. Names come from a fixed word list, CNICs use the
+              impossible <code>00000</code> region, and emails use <code>example.test</code>.
+            </li>
+            <li>
+              <code>--with-exceptions</code> adds rows that <em>must</em> be caught: a bad email,
+              an in-file duplicate, and a possible duplicate. Good for training the review step.
+            </li>
+            <li>Defaults: service "Income tax return", tax year 2026, as-of date 2026-06-30.</li>
+            <li>Keep <code>training-data/</code> out of git. Treat it as disposable.</li>
+          </ul>
+          <p>
+            Then import as admin in order (clients, cases, opening balances), following
+            <a href="../staff/data-import.html">Data import</a>. Compare the totals with
+            <code>source-totals.json</code>.
+          </p>
+
+          <h2 id="assign">5. Make the data useful for each role</h2>
+          <p>
+            Imported clients and cases have no manager or consultant, so a consultant sees nothing
+            yet. As <code>t.manager</code>:
+          </p>
+          <ol>
+            <li>Set the assigned manager of 5 clients to <code>t.consultant</code>, and of 2 others to <code>t.reviewer</code>.</li>
+            <li>Assign 5 open cases to <code>t.consultant</code>, with <code>t.reviewer</code> as reviewer.</li>
+            <li>Leave a few cases unassigned (for the Unassigned queue), and set one due date in the past (Overdue) and one within 7 days (Due soon).</li>
+          </ol>
+
+          <h2 id="files">6. Synthetic documents</h2>
+          <p>
+            Make a handful of harmless files: a one-page PDF saying "SAMPLE CNIC COPY –
+            TRAINING", a PNG, a small XLSX, and one large file (over 10 MiB) to watch chunked
+            upload, pause, and resume. Also keep a <code>.exe</code> or <code>.zip</code> to check
+            that unsupported types are refused.
+          </p>
+
+          <h2 id="snapshot">7. Snapshot it</h2>
+          <p>Locally, save the prepared database so every class starts identical:</p>
+          <pre><code>pg_dump -Fc -d taxdesk_development -f training-baseline.dump
+# later, to reset:
+dropdb taxdesk_development &amp;&amp; createdb --owner taxdesk taxdesk_development
+pg_restore --no-owner -d taxdesk_development training-baseline.dump</code></pre>
+          <p class="meta">
+            Restoring the database does not restore OneDrive files. Run reconciliation, or simply
+            upload the sample files again.
+          </p>
+        </div>
+      </main>
+    </div>
+    <script src="../assets/search-index.js"></script>
+    <script src="../assets/guide.js"></script>
+  </body>
+</html>

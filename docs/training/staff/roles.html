@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Roles and Permissions · TaxDesk Training</title>
+    <link rel="stylesheet" href="../assets/guide.css" />
+  </head>
+  <body data-root="../" data-page="staff/roles.html">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="topbar" id="topbar"></header>
+    <div class="layout">
+      <nav class="sidebar" id="sidebar" aria-label="Guide sections"></nav>
+      <main id="main">
+        <div class="content">
+          <p class="breadcrumb">Track B · Staff</p>
+          <h1>Roles and permissions</h1>
+          <p class="lede">
+            TaxDesk has five fixed roles. An administrator gives each user a role on the
+            <span class="path">Users</span> page. There is no custom-role editor.
+          </p>
+
+          <h2 id="roles">The five roles</h2>
+          <div class="cards">
+            <div class="card">
+              <span class="badge admin">Administrator</span>
+              <p>
+                Everything: users, settings, document storage, data import, audit history, and
+                every record.
+              </p>
+            </div>
+            <div class="card">
+              <span class="badge manager">Manager</span>
+              <p>
+                Sees all clients and cases, manages clients, services, and workflows, assigns
+                work, reviews. Reads billing and can <em>reverse</em> payments, but cannot create
+                invoices or record payments.
+              </p>
+            </div>
+            <div class="card">
+              <span class="badge consultant">Consultant</span>
+              <p>
+                Works on assigned cases: checklists and documents. Sees only clients they manage
+                and cases assigned to them. No billing or reports.
+              </p>
+            </div>
+            <div class="card">
+              <span class="badge billing">Billing</span>
+              <p>
+                Invoices, payments, receipts, voids, and billing reports. Sees all clients and
+                cases but not documents. Cannot reverse payments.
+              </p>
+            </div>
+            <div class="card">
+              <span class="badge readonly">Read-only</span>
+              <p>
+                Views clients, cases, documents, invoices, reports, and the dashboard. Changes
+                nothing.
+              </p>
+            </div>
+          </div>
+
+          <div class="callout">
+            <strong>Hidden is not the same as protected</strong>
+            <p>
+              The app hides menu items and buttons your role cannot use, but the server checks
+              every request again. Typing a URL or guessing a record ID never reveals data.
+              A record you may not see and a record that does not exist get the same "access
+              denied" answer, so guessing an ID confirms nothing.
+            </p>
+          </div>
+
+          <h2 id="tasks">Who can do what</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Task</th>
+                  <th class="c">Admin</th>
+                  <th class="c">Manager</th>
+                  <th class="c">Consultant</th>
+                  <th class="c">Billing</th>
+                  <th class="c">Read-only</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>Invite, change role, reset, deactivate users</td><td class="c yes">✓</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
+                <tr><td>Edit firm settings</td><td class="c yes">✓</td><td class="c no">view</td><td class="c no">view</td><td class="c no">view</td><td class="c no">view</td></tr>
+                <tr><td>Connect document storage, run reconciliation</td><td class="c yes">✓</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
+                <tr><td>Import data (CSV)</td><td class="c yes">✓</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
+                <tr><td>Audit history</td><td class="c yes">✓</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
+                <tr><td>View clients</td><td class="c yes">all</td><td class="c yes">all</td><td class="c yes">own</td><td class="c yes">all</td><td class="c yes">all</td></tr>
+                <tr><td>Create, edit, archive clients; override duplicate warnings</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
+                <tr><td>Services and workflow templates</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
+                <tr><td>View cases</td><td class="c yes">all</td><td class="c yes">all</td><td class="c yes">assigned</td><td class="c yes">all</td><td class="c yes">all</td></tr>
+                <tr><td>Open a case</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">for self</td><td class="c no">—</td><td class="c no">—</td></tr>
+                <tr><td>Assign consultant and reviewer</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
+                <tr><td>Move status, work the checklist</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">assigned</td><td class="c no">—</td><td class="c no">—</td></tr>
+                <tr><td>Archive a closed case</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
+                <tr><td>View and download documents</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">assigned</td><td class="c no">—</td><td class="c yes">✓</td></tr>
+                <tr><td>Upload and delete documents</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">assigned</td><td class="c no">—</td><td class="c no">—</td></tr>
+                <tr><td>Verify or reject documents and checklist items</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">as reviewer</td><td class="c no">—</td><td class="c no">—</td></tr>
+                <tr><td>Restore a deleted document</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
+                <tr><td>View invoices</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">—</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+                <tr><td>Draft, finalize, void invoices; record payments</td><td class="c yes">✓</td><td class="c no">—</td><td class="c no">—</td><td class="c yes">✓</td><td class="c no">—</td></tr>
+                <tr><td>Reverse a payment</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
+                <tr><td>Reports and CSV export</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">—</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+                <tr><td>Dashboard</td><td class="c yes">full</td><td class="c yes">full</td><td class="c yes">own work</td><td class="c yes">cases + billing</td><td class="c yes">cases + billing</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="meta">
+            Why a manager can reverse but not record payments: it separates duties. The person who
+            takes money in is not the person who can take it back out.
+          </p>
+
+          <h2 id="menu">What each role sees in the side menu</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Menu item</th>
+                  <th>Needs</th>
+                  <th class="c">Admin</th>
+                  <th class="c">Manager</th>
+                  <th class="c">Consultant</th>
+                  <th class="c">Billing</th>
+                  <th class="c">Read-only</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>Dashboard</td><td>—</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+                <tr><td>Clients</td><td><code>clients.read</code></td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+                <tr><td>Cases</td><td><code>cases.read_*</code></td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+                <tr><td>Invoices</td><td><code>billing.read</code></td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">—</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+                <tr><td>Reports</td><td><code>reports.read</code></td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">—</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+                <tr><td>Services, Workflows</td><td><code>services.manage</code></td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
+                <tr><td>Security</td><td>—</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+                <tr><td>Users</td><td><code>users.manage</code></td><td class="c yes">✓</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
+                <tr><td>Firm settings</td><td><code>firm.settings.read</code></td><td class="c yes">✓</td><td class="c yes">view</td><td class="c yes">view</td><td class="c yes">view</td><td class="c yes">view</td></tr>
+                <tr><td>Document storage</td><td><code>storage.manage</code></td><td class="c yes">✓</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
+                <tr><td>Data import</td><td><code>imports.manage</code></td><td class="c yes">✓</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
+                <tr><td>Audit history</td><td><code>audit.read</code></td><td class="c yes">✓</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 id="permissions">Full permission catalogue</h2>
+          <details>
+            <summary>All 23 permissions by role (from <code>ROLE_DEFINITIONS</code>)</summary>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Permission</th>
+                    <th class="c">Admin</th>
+                    <th class="c">Manager</th>
+                    <th class="c">Consultant</th>
+                    <th class="c">Billing</th>
+                    <th class="c">Read-only</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>firm.settings.read</code></td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+                  <tr><td><code>firm.settings.manage</code></td><td class="c yes">✓</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
+                  <tr><td><code>users.read</code></td><td class="c yes">✓</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
+                  <tr><td><code>users.manage</code></td><td class="c yes">✓</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
+                  <tr><td><code>audit.read</code></td><td class="c yes">✓</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
+                  <tr><td><code>clients.read</code></td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+                  <tr><td><code>clients.read_all</code></td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">—</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+                  <tr><td><code>clients.manage</code></td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
+                  <tr><td><code>services.manage</code></td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
+                  <tr><td><code>cases.read_all</code></td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">—</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+                  <tr><td><code>cases.read_assigned</code></td><td class="c yes">✓</td><td class="c no">—</td><td class="c yes">✓</td><td class="c no">—</td><td class="c no">—</td></tr>
+                  <tr><td><code>cases.manage</code></td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
+                  <tr><td><code>cases.work_assigned</code></td><td class="c yes">✓</td><td class="c no">—</td><td class="c yes">✓</td><td class="c no">—</td><td class="c no">—</td></tr>
+                  <tr><td><code>cases.assign</code></td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
+                  <tr><td><code>documents.read</code></td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">—</td><td class="c yes">✓</td></tr>
+                  <tr><td><code>documents.manage</code></td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">—</td><td class="c no">—</td></tr>
+                  <tr><td><code>storage.manage</code></td><td class="c yes">✓</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
+                  <tr><td><code>billing.read</code></td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">—</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+                  <tr><td><code>billing.manage</code></td><td class="c yes">✓</td><td class="c no">—</td><td class="c no">—</td><td class="c yes">✓</td><td class="c no">—</td></tr>
+                  <tr><td><code>billing.payments.reverse</code></td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
+                  <tr><td><code>reports.read</code></td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">—</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+                  <tr><td><code>dashboard.read</code></td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+                  <tr><td><code>imports.manage</code></td><td class="c yes">✓</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </details>
+
+          <h2 id="choosing">Choosing a role for someone</h2>
+          <ul>
+            <li><strong>Partners and office heads:</strong> Manager. Give Administrator to two trusted people only.</li>
+            <li><strong>Tax consultants and preparers:</strong> Consultant.</li>
+            <li><strong>Accounts and front desk taking payments:</strong> Billing.</li>
+            <li><strong>Auditors, interns, and observers:</strong> Read-only.</li>
+          </ul>
+          <p>
+            Give the smallest role that lets the person do their job. Changing a role signs the
+            user out everywhere, and the change appears in audit history.
+          </p>
+        </div>
+      </main>
+    </div>
+    <script src="../assets/search-index.js"></script>
+    <script src="../assets/guide.js"></script>
+  </body>
+</html>

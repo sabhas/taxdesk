@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Configuration and Secrets · TaxDesk Training</title>
+    <link rel="stylesheet" href="../assets/guide.css" />
+  </head>
+  <body data-root="../" data-page="operators/configuration.html">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="topbar" id="topbar"></header>
+    <div class="layout">
+      <nav class="sidebar" id="sidebar" aria-label="Guide sections"></nav>
+      <main id="main">
+        <div class="content">
+          <p class="breadcrumb">Track A · Operators</p>
+          <h1>Configuration and secrets</h1>
+          <p class="lede">
+            Every value TaxDesk reads, where it lives in each environment, and what happens if it
+            is missing or changed.
+          </p>
+
+          <div class="callout danger">
+            <strong>One secret set per environment</strong>
+            <p>
+              Generate new values for development, staging, and production. Never copy a key from
+              one environment to another, never commit one, and never paste one into chat or a
+              ticket. A missing secret makes the dependent feature return <code>503</code>. It
+              never turns the protection off.
+            </p>
+          </div>
+
+          <h2 id="worker-secrets">API Worker secrets</h2>
+          <p>
+            Set with <code>pnpm exec wrangler secret put &lt;NAME&gt; --config
+            packages/api/wrangler.toml --env &lt;staging|production&gt;</code>. Locally, put them in
+            <code>packages/api/.dev.vars</code>.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Purpose</th>
+                  <th>If lost or changed</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>MFA_ENCRYPTION_KEY</code></td>
+                  <td>Encrypts every user's TOTP secret</td>
+                  <td>
+                    Nobody's authenticator works any more. Every user must go through
+                    <code>auth:recover … disable-mfa</code> and enrol again.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>CLIENT_DATA_ENCRYPTION_KEY</code></td>
+                  <td>Encrypts client CNIC and NTN values</td>
+                  <td>Stored identifiers can no longer be decrypted. Treat it as irreplaceable.</td>
+                </tr>
+                <tr>
+                  <td><code>CLIENT_IDENTIFIER_INDEX_KEY</code></td>
+                  <td>
+                    A different key for the identifier "blind index" used for duplicate blocking
+                    and exact CNIC/NTN search
+                  </td>
+                  <td>
+                    Duplicate detection and identifier search silently stop matching. Never rotate
+                    it without re-indexing every client.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>STORAGE_TOKEN_ENCRYPTION_KEY</code></td>
+                  <td>Encrypts OneDrive tokens and upload-session handles</td>
+                  <td>An administrator reconnects storage. No documents are lost.</td>
+                </tr>
+                <tr>
+                  <td><code>TURNSTILE_SECRET_KEY</code></td>
+                  <td>Verifies the Cloudflare Turnstile challenge after repeated failed sign-ins</td>
+                  <td>Throttled sign-ins return <code>503</code> until it is set</td>
+                </tr>
+                <tr>
+                  <td><code>ONEDRIVE_CLIENT_SECRET</code></td>
+                  <td>Only for a confidential Microsoft app registration. Public clients use PKCE.</td>
+                  <td>Storage connection and token refresh fail</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>Generate each 32-byte key separately:</p>
+          <pre><code>openssl rand -base64 32 | tr '+/' '-_' | tr -d '='</code></pre>
+          <p>
+            Store a copy of every key in the firm's offline key store (for example a password
+            manager vault owned by the firm, not a person). Restores need the same keys.
+          </p>
+
+          <h2 id="worker-vars">API Worker variables (not secret)</h2>
+          <p>
+            Set in <code>packages/api/wrangler.toml</code> under <code>[vars]</code>,
+            <code>[env.staging.vars]</code>, or <code>[env.production.vars]</code>.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Purpose</th>
+                  <th>Default</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>ENVIRONMENT</code></td>
+                  <td><code>development</code>, <code>staging</code>, or <code>production</code></td>
+                  <td>Set per environment</td>
+                </tr>
+                <tr>
+                  <td><code>RELEASE_VERSION</code></td>
+                  <td>Shown by <code>/health</code>. CI sets it to the deployed commit SHA.</td>
+                  <td><code>0.0.0</code> locally</td>
+                </tr>
+                <tr>
+                  <td><code>APP_PUBLIC_URL</code></td>
+                  <td>
+                    Base URL of activation and reset links, and of the OneDrive redirect URI
+                    (<code>&lt;APP_PUBLIC_URL&gt;/settings/storage/callback</code>)
+                  </td>
+                  <td>The request origin. Set it explicitly once storage is used.</td>
+                </tr>
+                <tr>
+                  <td><code>APP_ORIGIN</code></td>
+                  <td>Extra comma-separated origins accepted by the Origin check on changes</td>
+                  <td>None</td>
+                </tr>
+                <tr>
+                  <td><code>TURNSTILE_SITE_KEY</code></td>
+                  <td>Public Turnstile site key sent to the browser</td>
+                  <td>None</td>
+                </tr>
+                <tr>
+                  <td><code>ONEDRIVE_CLIENT_ID</code></td>
+                  <td>Application (client) ID of this environment's Microsoft app registration</td>
+                  <td>None. Storage is "not configured" without it.</td>
+                </tr>
+                <tr>
+                  <td><code>ONEDRIVE_AUTHORITY</code></td>
+                  <td>Microsoft identity tenant segment</td>
+                  <td><code>consumers</code> (OneDrive Personal)</td>
+                </tr>
+                <tr>
+                  <td><code>DOCUMENT_MAX_UPLOAD_BYTES</code></td>
+                  <td>
+                    Hard upload ceiling. The firm setting can lower it but never raise it above
+                    this.
+                  </td>
+                  <td><code>262144000</code> (250 MiB)</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 id="bindings">Bindings</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Where</th>
+                  <th>Binding</th>
+                  <th>Value per environment</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>API Worker</td>
+                  <td><code>HYPERDRIVE</code></td>
+                  <td>
+                    development: placeholder ID plus <code>localConnectionString</code>;
+                    staging: <code>2c20141d82af41759636c76e43c0da4c</code>; production:
+                    <strong>still the placeholder</strong>
+                    <code>REPLACE_WITH_PRODUCTION_HYPERDRIVE_ID</code>
+                  </td>
+                </tr>
+                <tr>
+                  <td>Web (Pages)</td>
+                  <td><code>API</code> service binding</td>
+                  <td>
+                    <code>taxdesk-api</code> (local), <code>taxdesk-api-staging</code> (preview),
+                    <code>taxdesk-api-production</code> (production)
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>The Worker has no KV, R2, or D1 binding. R2 is used only by the backup workflow.</p>
+
+          <h2 id="cli-env">Command-line tool variables</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Used by</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>DATABASE_URL</code></td>
+                  <td>
+                    <code>db:migrate*</code>, <code>auth:bootstrap</code>,
+                    <code>auth:recover</code>, <code>ops:*</code>, <code>ci:db-posture</code>.
+                    Precedence: <code>--database-url</code>, then the shell, then
+                    <code>.env.local</code>, then <code>.env</code>.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE</code></td>
+                  <td>Overrides the local database for <code>pnpm dev:api</code></td>
+                </tr>
+                <tr>
+                  <td><code>TAXDESK_MIGRATIONS_TEST_DATABASE_URL</code>, <code>TAXDESK_API_TEST_DATABASE_URL</code></td>
+                  <td>Database integration test suites (database name must end in <code>_test</code>)</td>
+                </tr>
+                <tr>
+                  <td><code>BACKUP_ENCRYPTION_KEY</code></td>
+                  <td><code>ops:backup-export</code> and <code>ops:backup-decrypt</code></td>
+                </tr>
+                <tr>
+                  <td><code>STAGING_WEB_URL</code></td>
+                  <td><code>ci:staging-smoke</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 id="github">GitHub environment secrets and variables</h2>
+          <p>
+            These live in the protected <code>staging</code> GitHub environment (later the same
+            names in <code>production</code>). Pull-request workflows can never read them.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Kind</th>
+                  <th>Purpose</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>CLOUDFLARE_API_TOKEN</code>, <code>CLOUDFLARE_ACCOUNT_ID</code></td>
+                  <td>Secret</td>
+                  <td>Deploy the Worker and Pages</td>
+                </tr>
+                <tr>
+                  <td><code>STAGING_DATABASE_URL</code></td>
+                  <td>Secret</td>
+                  <td>Run migrations and the posture check during deploy</td>
+                </tr>
+                <tr>
+                  <td><code>PLATFORM_POSTURE_EVIDENCE_JSON</code></td>
+                  <td>Secret</td>
+                  <td>
+                    The operator's signed statement that managed backups, point-in-time recovery,
+                    exports, and alerting are in place (format in <code>docs/technical/ci.md</code>)
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>BACKUP_ENCRYPTION_KEY</code></td>
+                  <td>Secret</td>
+                  <td>Encrypts daily exports. Keep an offline copy: without it no export can be restored.</td>
+                </tr>
+                <tr>
+                  <td><code>STAGING_BACKUP_DATABASE_URL</code></td>
+                  <td>Secret</td>
+                  <td>Read-only connection for <code>pg_dump</code> (TLS)</td>
+                </tr>
+                <tr>
+                  <td><code>BACKUP_R2_API_TOKEN</code></td>
+                  <td>Secret</td>
+                  <td>Object read/write on the backup bucket only</td>
+                </tr>
+                <tr>
+                  <td><code>STAGING_WEB_URL</code></td>
+                  <td>Variable</td>
+                  <td>Staging Pages URL for the smoke test</td>
+                </tr>
+                <tr>
+                  <td><code>BACKUP_BUCKET</code></td>
+                  <td>Variable</td>
+                  <td>R2 bucket name. Add a 35-day lifecycle rule.</td>
+                </tr>
+                <tr>
+                  <td><code>PG_CLIENT_MAJOR</code></td>
+                  <td>Variable</td>
+                  <td>Optional <code>pg_dump</code> major version (default 17, must be ≥ the server's)</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 id="firm-settings">Settings that live in the app, not in config</h2>
+          <p>
+            The firm name, timezone, currency, invoice and receipt prefixes, upload limit, and
+            "due soon" window are stored in the database. An administrator edits them under
+            <span class="path">Firm settings</span>. See
+            <a href="../staff/administration.html#firm-settings">Administration</a>.
+          </p>
+
+          <h2 id="checklist">Per-environment checklist</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th class="c">Local</th>
+                  <th class="c">Staging</th>
+                  <th class="c">Production</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>Own PostgreSQL database with a least-privilege app role</td><td class="c">○</td><td class="c">✓</td><td class="c">✓</td></tr>
+                <tr><td>Own Hyperdrive config, ID in <code>wrangler.toml</code></td><td class="c">—</td><td class="c">✓</td><td class="c">✓</td></tr>
+                <tr><td>4 encryption keys + Turnstile secret</td><td class="c">✓</td><td class="c">✓</td><td class="c">✓</td></tr>
+                <tr><td>Turnstile site key</td><td class="c">test key</td><td class="c">✓</td><td class="c">✓</td></tr>
+                <tr><td>Own Microsoft app registration and <code>ONEDRIVE_CLIENT_ID</code></td><td class="c">optional</td><td class="c">✓</td><td class="c">✓</td></tr>
+                <tr><td><code>APP_PUBLIC_URL</code> set to the real host</td><td class="c">preset</td><td class="c">✓</td><td class="c">✓</td></tr>
+                <tr><td>Migrations current (<code>db:migrate:status --check</code>)</td><td class="c">✓</td><td class="c">✓</td><td class="c">✓</td></tr>
+                <tr><td>Firm bootstrapped and admin MFA enrolled</td><td class="c">✓</td><td class="c">✓</td><td class="c">✓</td></tr>
+                <tr><td>Backup secrets, R2 bucket, posture evidence</td><td class="c">—</td><td class="c">✓</td><td class="c">✓</td></tr>
+                <tr><td>Keys copied to the offline key store</td><td class="c">—</td><td class="c">✓</td><td class="c">✓</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="meta">✓ required · ○ recommended · — not applicable</p>
+        </div>
+      </main>
+    </div>
+    <script src="../assets/search-index.js"></script>
+    <script src="../assets/guide.js"></script>
+  </body>
+</html>

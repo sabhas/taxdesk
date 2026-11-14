@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Security and Data Handling · TaxDesk Training</title>
+    <link rel="stylesheet" href="../assets/guide.css" />
+  </head>
+  <body data-root="../" data-page="reference/security-data-handling.html">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="topbar" id="topbar"></header>
+    <div class="layout">
+      <nav class="sidebar" id="sidebar" aria-label="Guide sections"></nav>
+      <main id="main">
+        <div class="content">
+          <p class="breadcrumb">Reference</p>
+          <h1>Security and data handling</h1>
+          <p class="lede">
+            TaxDesk holds national tax identifiers, financial records, and client documents. The
+            software does a lot to protect them. These are the habits it relies on people to keep.
+          </p>
+
+          <h2 id="everyone">For everyone</h2>
+          <ol>
+            <li><strong>Never share your account.</strong> Every action is recorded under your name.</li>
+            <li>
+              <strong>Keep MFA on a phone only you use.</strong> Store recovery codes in the firm's
+              vault or a locked drawer, never in email or chat.
+            </li>
+            <li><strong>Sign out on shared computers</strong>, and lock your screen when you step away.</li>
+            <li>
+              <strong>Treat exports as sensitive.</strong> Report CSVs and downloaded documents
+              contain client data. Keep them on firm devices and delete them when done.
+            </li>
+            <li>
+              <strong>Do not copy identifiers out of TaxDesk</strong> into notes, chat, or
+              spreadsheets. TaxDesk never shows full CNIC/NTN for a reason.
+            </li>
+            <li><strong>Only upload files from known sources.</strong> Documents are not virus-scanned.</li>
+            <li>
+              <strong>Report anything odd straight away:</strong> codes you did not request,
+              someone else's name in your activity, or records you should not see.
+            </li>
+          </ol>
+
+          <h2 id="admins">For administrators</h2>
+          <ul>
+            <li>
+              Deliver activation and reset links privately, one to one. They are valid for 30
+              minutes and work once. Never post them in group channels or tickets.
+            </li>
+            <li>Give the smallest role that works. Review users monthly. Deactivate leavers on their last day.</li>
+            <li>Keep exactly two or three administrators, each with MFA.</li>
+            <li>Watch audit history for <code>auth.login_failed</code> spikes and unexpected exports.</li>
+            <li>Use a firm-owned Microsoft account for OneDrive, protected with MFA. Never browse or rearrange the TaxDesk app folder by hand.</li>
+          </ul>
+
+          <h2 id="operators">For operators</h2>
+          <ul>
+            <li>Separate secrets per environment, stored in Cloudflare and GitHub and in an offline vault. Never in git, chat, or tickets.</li>
+            <li>Never run <code>auth:recover</code> or migrations against a non-test database without approval, and record why.</li>
+            <li>Prefer interactive prompts: command-line passwords end up in shell history.</li>
+            <li>Delete decrypted backup files (<code>restore.dump</code>) as soon as a restore is verified.</li>
+            <li>Use a least-privilege database role for the app, and a read-only one for backups.</li>
+          </ul>
+
+          <h2 id="test-data">Test and training data</h2>
+          <div class="callout danger">
+            <strong>Synthetic only, everywhere except production</strong>
+            <p>
+              Local, staging, demos, screenshots, bug reports, slides, and this guide use invented
+              data only. Use <code>ops:sample-import</code> or the example templates: CNICs in the
+              impossible <code>00000</code> region, emails at <code>example.test</code>. Never
+              "borrow" a real client to make a demo look realistic.
+            </p>
+          </div>
+
+          <h2 id="built-in">What TaxDesk does for you</h2>
+          <div class="table-wrap">
+            <table>
+              <tbody>
+                <tr><th>Sign-in</th><td>PBKDF2 password hashes, mandatory TOTP, rate limiting, a Turnstile challenge after repeated failures, generic error messages</td></tr>
+                <tr><th>Sessions</th><td>Secure, HTTP-only, SameSite=Strict <code>__Host-</code> cookie; 30-minute idle and 12-hour limits; revoked on role or security changes</td></tr>
+                <tr><th>Authorization</th><td>Checked on the server for every request; a hidden record and a missing record look the same</td></tr>
+                <tr><th>Identifiers</th><td>CNIC/NTN encrypted, with a separate keyed index for exact search; always masked on screen and in audit</td></tr>
+                <tr><th>Storage</th><td>OneDrive tokens encrypted; app-folder-only access; every document open re-checked and audited</td></tr>
+                <tr><th>Integrity</th><td>Append-only audit and status history; immutable finalized invoices and payments; version checks on edits</td></tr>
+                <tr><th>Browser</th><td>Content Security Policy and security headers; Origin checks on changes</td></tr>
+                <tr><th>Logs</th><td>Structured logs carry only request IDs and error classes, never secrets, tokens, or document contents</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    </div>
+    <script src="../assets/search-index.js"></script>
+    <script src="../assets/guide.js"></script>
+  </body>
+</html>

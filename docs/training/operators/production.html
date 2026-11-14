@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Production Go-Live · TaxDesk Training</title>
+    <link rel="stylesheet" href="../assets/guide.css" />
+  </head>
+  <body data-root="../" data-page="operators/production.html">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="topbar" id="topbar"></header>
+    <div class="layout">
+      <nav class="sidebar" id="sidebar" aria-label="Guide sections"></nav>
+      <main id="main">
+        <div class="content">
+          <p class="breadcrumb">Track A · Operators</p>
+          <h1>Production go-live</h1>
+          <p class="lede">
+            Production holds real client data, so it has a gate in front of it. This page lists
+            what must be true first, then how to provision and deploy.
+          </p>
+
+          <div class="callout danger">
+            <strong>Production is not provisioned yet</strong>
+            <p>
+              The production Hyperdrive ID in <code>packages/api/wrangler.toml</code> is still
+              <code>REPLACE_WITH_PRODUCTION_HYPERDRIVE_ID</code>. No production deploy is automated:
+              production is deployed by hand, only after a recorded Go decision.
+            </p>
+          </div>
+
+          <h2 id="gate">The go-live gate</h2>
+          <p>
+            All of these must be true and recorded in
+            <code>docs/product/production-readiness-review.md</code> (TD-710):
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Gate</th>
+                  <th>Evidence</th>
+                  <th>Story</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Every epic 0–7 demonstrated on staging and accepted at Sprint Review</td>
+                  <td>Sprint Review notes, a UAT results CSV from <a href="../testing/scenarios.html">the catalogue</a></td>
+                  <td>All</td>
+                </tr>
+                <tr>
+                  <td>Managed backups and point-in-time recovery are on</td>
+                  <td>Current <code>PLATFORM_POSTURE_EVIDENCE_JSON</code>, <code>ci:backup-check</code> green</td>
+                  <td>TD-006, TD-707</td>
+                </tr>
+                <tr>
+                  <td>Independent encrypted export works</td>
+                  <td><code>backup-export.yml</code> green 3 days running, <code>ci:backup-verify</code> green</td>
+                  <td>TD-707</td>
+                </tr>
+                <tr>
+                  <td>Alerts work</td>
+                  <td>A deliberate failure opened an issue</td>
+                  <td>TD-707</td>
+                </tr>
+                <tr>
+                  <td>Restore rehearsal within 4 hours, in an isolated environment</td>
+                  <td>Evidence form plus <code>restore-evidence.json</code></td>
+                  <td>TD-708</td>
+                </tr>
+                <tr>
+                  <td>OneDrive healthy on staging, reconciliation finds nothing missing</td>
+                  <td>Document storage page and reconciliation run</td>
+                  <td>TD-404, TD-410</td>
+                </tr>
+                <tr>
+                  <td>Migration rehearsal signed</td>
+                  <td>Signed <code>docs/guides/migration-rehearsal.md</code> checklist</td>
+                  <td>TD-706</td>
+                </tr>
+                <tr>
+                  <td>Security review signed, no open critical or high findings</td>
+                  <td><code>docs/product/security-review-2026-11.md</code></td>
+                  <td>TD-709</td>
+                </tr>
+                <tr>
+                  <td>Go decision with a named rollback owner and trigger</td>
+                  <td>Readiness review, section 3</td>
+                  <td>TD-710</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 id="provision">Provisioning production</h2>
+          <p>
+            Follow the same steps as <a href="staging.html#first-time">staging</a>, with these
+            differences:
+          </p>
+          <ol class="steps">
+            <li>
+              <strong>Separate everything.</strong> New database, new least-privilege role, new
+              Hyperdrive config (<code>taxdesk-production</code>), new keys, new Turnstile widget,
+              new Microsoft app registration with the production redirect URI, and a firm-owned
+              Microsoft account for OneDrive.
+            </li>
+            <li>
+              <strong>Update <code>wrangler.toml</code>.</strong> Replace the production Hyperdrive
+              placeholder and set <code>[env.production.vars]</code>:
+              <code>RELEASE_VERSION</code>, <code>APP_PUBLIC_URL</code>,
+              <code>TURNSTILE_SITE_KEY</code>, <code>ONEDRIVE_CLIENT_ID</code>. Merge this
+              through a normal pull request so CI checks it.
+            </li>
+            <li>
+              <strong>Secrets.</strong> Run <code>wrangler secret put … --env production</code> for
+              each Worker secret. Store copies in the offline key store before going further.
+            </li>
+            <li>
+              <strong>Migrate and check posture.</strong>
+              <pre><code>DATABASE_URL="&lt;production url, sslmode=require&gt;" pnpm db:migrate
+DATABASE_URL="…" pnpm db:migrate:status --check
+DATABASE_URL="…" pnpm ci:db-posture</code></pre>
+            </li>
+            <li>
+              <strong>Deploy the exact commit that passed staging.</strong>
+              <pre><code>git checkout &lt;approved-sha&gt;
+pnpm install --frozen-lockfile
+pnpm exec wrangler pages project create taxdesk-web-production --production-branch main   # first time only
+pnpm deploy:api:production
+pnpm deploy:web:production</code></pre>
+            </li>
+            <li>
+              <strong>Verify.</strong> Check <code>/health</code> (it should report
+              <code>production</code> and the approved release version) and
+              <code>/api/v1/app-info</code> on the production host.
+            </li>
+            <li>
+              <strong>Bootstrap and secure.</strong> Run <code>pnpm auth:bootstrap</code>
+              interactively. The administrator enrols MFA and stores the recovery codes in the
+              firm's vault. Invite a <strong>second administrator</strong> straight away, so a
+              single lost phone never needs the offline recovery tool.
+            </li>
+            <li>
+              <strong>Configure the firm.</strong> Review <span class="path">Firm settings</span>,
+              connect <span class="path">Document storage</span>, create services and publish
+              workflows.
+            </li>
+            <li>
+              <strong>Production backups.</strong> Add a <code>production</code> GitHub environment
+              with the backup secrets (same names as staging) and confirm the first export and
+              posture runs are green.
+            </li>
+            <li>
+              <strong>Import</strong> with the same templates and steps you rehearsed (Epic 8
+              pilot), then reconcile. See <a href="../staff/data-import.html">Data import</a>.
+            </li>
+          </ol>
+
+          <h2 id="rollback">Rollback</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Situation</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>The new release misbehaves but the data is fine</td>
+                  <td>
+                    Check out the last good SHA and run the two production deploy commands again.
+                    Migrations are forward-only, so only roll back code that is compatible with
+                    the current schema.
+                  </td>
+                </tr>
+                <tr>
+                  <td>A migration is wrong</td>
+                  <td>Write a new compensating migration. Never edit or delete an applied one.</td>
+                </tr>
+                <tr>
+                  <td>The data is damaged or lost</td>
+                  <td>
+                    Stop writes, then follow <a href="backup-recovery.html#restore">the restore
+                    procedure</a> (4-hour target)
+                  </td>
+                </tr>
+                <tr>
+                  <td>Suggested triggers</td>
+                  <td>
+                    A data-integrity check fails, sign-in is unavailable for 30 minutes, or
+                    reconciliation does not match after the production import
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 id="day-two">Ongoing operations</h2>
+          <ul>
+            <li><strong>Daily:</strong> check the backup export and platform posture workflows. Act on any issue they open.</li>
+            <li><strong>Weekly:</strong> look at <span class="path">Document storage</span> health and run reconciliation.</li>
+            <li>
+              <strong>Monthly:</strong> review users and roles, deactivate leavers, and scan
+              <span class="path">Audit history</span> for <code>auth.login_failed</code> spikes.
+            </li>
+            <li><strong>Quarterly:</strong> run a restore rehearsal, and review dependencies and the security review.</li>
+            <li><strong>On staff departure:</strong> deactivate the account the same day. This ends their sessions immediately.</li>
+          </ul>
+        </div>
+      </main>
+    </div>
+    <script src="../assets/search-index.js"></script>
+    <script src="../assets/guide.js"></script>
+  </body>
+</html>

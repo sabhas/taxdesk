@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>End-to-End Walkthrough · TaxDesk Training</title>
+    <link rel="stylesheet" href="../assets/guide.css" />
+  </head>
+  <body data-root="../" data-page="testing/end-to-end.html">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="topbar" id="topbar"></header>
+    <div class="layout">
+      <nav class="sidebar" id="sidebar" aria-label="Guide sections"></nav>
+      <main id="main">
+        <div class="content">
+          <p class="breadcrumb">Track C · Testers</p>
+          <h1>End-to-end walkthrough: a day at the firm</h1>
+          <p class="lede">
+            One client's annual return, from first contact to the money in the bank, handled by
+            five people. Run it as a group exercise; it takes 60–90 minutes. It uses the accounts
+            from <a href="training-data.html">Build a training environment</a>.
+          </p>
+
+          <figure class="diagram">
+            <svg viewBox="0 0 900 120" role="img" aria-labelledby="e2e-t e2e-d">
+              <title id="e2e-t">Walkthrough stages</title>
+              <desc id="e2e-d">Client, then case, then documents, then review, then filed, then invoice, then payment, then reports and audit.</desc>
+              <defs>
+                <marker id="e2e-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                  <path d="M0,0 L10,5 L0,10 z" class="d-arrow" />
+                </marker>
+              </defs>
+              <g>
+                <rect x="5" y="35" width="95" height="50" rx="9" class="d-box" /><text x="52" y="65" text-anchor="middle" class="d-text">Client</text>
+                <rect x="118" y="35" width="95" height="50" rx="9" class="d-box" /><text x="165" y="65" text-anchor="middle" class="d-text">Case</text>
+                <rect x="231" y="35" width="105" height="50" rx="9" class="d-box" /><text x="283" y="65" text-anchor="middle" class="d-text">Documents</text>
+                <rect x="354" y="35" width="95" height="50" rx="9" class="d-box" /><text x="401" y="65" text-anchor="middle" class="d-text">Review</text>
+                <rect x="467" y="35" width="95" height="50" rx="9" class="d-box ok" /><text x="514" y="65" text-anchor="middle" class="d-text">Filed</text>
+                <rect x="580" y="35" width="95" height="50" rx="9" class="d-box" /><text x="627" y="65" text-anchor="middle" class="d-text">Invoice</text>
+                <rect x="693" y="35" width="95" height="50" rx="9" class="d-box" /><text x="740" y="65" text-anchor="middle" class="d-text">Payment</text>
+                <rect x="806" y="35" width="90" height="50" rx="9" class="d-box hl" /><text x="851" y="65" text-anchor="middle" class="d-text">Audit</text>
+              </g>
+              <path d="M100,60 L114,60" class="d-line" marker-end="url(#e2e-ah)" />
+              <path d="M213,60 L227,60" class="d-line" marker-end="url(#e2e-ah)" />
+              <path d="M336,60 L350,60" class="d-line" marker-end="url(#e2e-ah)" />
+              <path d="M449,60 L463,60" class="d-line" marker-end="url(#e2e-ah)" />
+              <path d="M562,60 L576,60" class="d-line" marker-end="url(#e2e-ah)" />
+              <path d="M675,60 L689,60" class="d-line" marker-end="url(#e2e-ah)" />
+              <path d="M788,60 L802,60" class="d-line" marker-end="url(#e2e-ah)" />
+            </svg>
+          </figure>
+
+          <h2 id="s1">1. A new client walks in <span class="badge manager">t.manager</span></h2>
+          <ol>
+            <li>
+              <span class="path">Clients</span>: search "Ayesha Training". No results. Select
+              <span class="ui">New client</span>.
+            </li>
+            <li>
+              Individual, legal name <em>Ayesha Training</em>, CNIC <code>00000-0000001-1</code>,
+              assigned manager <code>t.consultant</code>, primary contact with an
+              <code>@example.test</code> email. Select
+              <span class="ui">Check and create client</span>.
+            </li>
+            <li><strong>Check:</strong> a <code>CL-…</code> code is assigned, and the CNIC shows masked.</li>
+            <li>
+              Try to create a second client with the same CNIC. <strong>Check:</strong>
+              <span class="ui">This client already exists</span> blocks it.
+            </li>
+          </ol>
+
+          <h2 id="s2">2. Open the case <span class="badge consultant">t.consultant</span></h2>
+          <ol>
+            <li>Sign in as the consultant. <strong>Check:</strong> Ayesha appears under Clients (you are her manager).</li>
+            <li>
+              On her page, select <span class="ui">Open case</span>: service "Income tax return",
+              tax year 2026, you as primary consultant, <code>t.reviewer</code> as reviewer.
+            </li>
+            <li><strong>Check:</strong> the due date is pre-filled 30 days ahead, the case opens in <em>Intake</em>, and it appears under <span class="ui">My work</span>.</li>
+          </ol>
+
+          <h2 id="s3">3. Collect documents <span class="badge consultant">t.consultant</span></h2>
+          <ol>
+            <li>Move the status to <em>Collecting documents</em>.</li>
+            <li>
+              Try to move straight to <em>Filed</em>. <strong>Check:</strong> there is no such
+              button (it is not an allowed move).
+            </li>
+            <li>
+              <span class="ui">Upload document</span>: the sample CNIC PDF, checklist item "Client
+              identity document", type "CNIC copy". Upload a bank statement and a salary
+              certificate the same way.
+            </li>
+            <li>Upload the large file, select <span class="ui">Pause</span>, then <span class="ui">Resume</span>. <strong>Check:</strong> it completes.</li>
+          </ol>
+
+          <h2 id="s4">4. Try to complete too early <span class="badge consultant">t.consultant</span></h2>
+          <ol>
+            <li>Move to <em>In preparation</em>.</li>
+            <li>
+              Select <span class="ui">Complete</span> on "Client identity document".
+              <strong>Check:</strong> refused with "Link and verify a CNIC copy document before
+              completing this item."
+            </li>
+            <li>
+              <strong>Check:</strong> the preparer cannot verify documents on their own case;
+              that is the reviewer's (or a manager's) job.
+            </li>
+            <li>Move to <em>In review</em>.</li>
+          </ol>
+
+          <h2 id="s5">5. Review the documents <span class="badge consultant">t.reviewer</span></h2>
+          <ol>
+            <li>Sign in as the reviewer. <strong>Check:</strong> the case is in <span class="ui">My work</span>.</li>
+            <li>
+              <span class="ui">Verify</span> the CNIC copy and the bank statement.
+              <span class="ui">Reject</span> the salary certificate with the reason "Wrong year".
+            </li>
+            <li>Move the case back to <em>In preparation</em>.</li>
+          </ol>
+
+          <h2 id="s6">6. Complete, review, and file</h2>
+          <ol>
+            <li>
+              <span class="badge consultant">t.consultant</span> completes "Client identity
+              document" and "Bank statements", then uploads a corrected salary certificate.
+            </li>
+            <li><span class="badge consultant">t.reviewer</span> verifies the new salary certificate.</li>
+            <li><span class="badge consultant">t.consultant</span> completes "Income evidence" and moves the case to <em>In review</em>.</li>
+            <li>
+              <span class="badge consultant">t.reviewer</span> selects <span class="ui">Return</span>
+              on "Bank statements" with the comment "Add the savings account".
+              <strong>Check:</strong> <em>Filed</em> is greyed out with the reason shown.
+            </li>
+            <li><span class="badge consultant">t.consultant</span> completes "Bank statements" again.</li>
+            <li>
+              <span class="badge consultant">t.reviewer</span> verifies "Bank statements" and
+              "Income evidence", then moves the case to <em>Filed</em>.
+            </li>
+            <li><strong>Check:</strong> the checklist is now locked, and the status history shows every move with who and when.</li>
+          </ol>
+          <div class="callout">
+            <strong>Separation of duties</strong>
+            <p>
+              Whoever completed an item can never verify it, not even a manager. That is what
+              makes the review meaningful.
+            </p>
+          </div>
+
+          <h2 id="s7">7. Bill the work <span class="badge billing">t.billing</span></h2>
+          <ol>
+            <li>
+              Open the case and select <span class="ui">Create invoice</span>. <strong>Check:</strong>
+              the first line is "Income tax return" at 25,000.
+            </li>
+            <li>Add a line "Advisory call", quantity 1, 5,000. Discount 2,000. <span class="ui">Save draft</span>. <strong>Check:</strong> total 28,000.</li>
+            <li><span class="ui">Finalize…</span> → <span class="ui">Finalize invoice</span>. <strong>Check:</strong> it gets <code>INV-…</code>, and <span class="ui">Download PDF</span> works.</li>
+          </ol>
+
+          <h2 id="s8">8. Take payments <span class="badge billing">t.billing</span></h2>
+          <ol>
+            <li><span class="ui">Record payment</span>: 10,000, Cash. <strong>Check:</strong> <span class="ui">Partly paid</span>, outstanding 18,000, receipt <code>RCP-…</code>.</li>
+            <li>Try to record 20,000. <strong>Check:</strong> refused as more than outstanding.</li>
+            <li>Record 18,000 by Bank transfer. <strong>Check:</strong> <span class="ui">Paid</span>.</li>
+            <li><strong>Check:</strong> there is no <span class="ui">Reverse</span> button for the Billing role.</li>
+          </ol>
+
+          <h2 id="s9">9. Correct a mistake <span class="badge manager">t.manager</span></h2>
+          <ol>
+            <li>The 18,000 was recorded in error. On that payment, select <span class="ui">Reverse</span>, amount 18,000, reason "Bank transfer bounced".</li>
+            <li><strong>Check:</strong> back to <span class="ui">Partly paid</span>, and both the payment and the reversal appear in the history.</li>
+            <li>Move the case to <em>Completed</em> (as manager).</li>
+          </ol>
+
+          <h2 id="s10">10. Look back <span class="badge admin">admin</span></h2>
+          <ol>
+            <li><span class="path">Dashboard</span>: check the billing figures and filing progress, and click a number to confirm it lists exactly those rows.</li>
+            <li><span class="path">Reports</span> → Billing, this month: invoiced 28,000, reversed 18,000.</li>
+            <li>
+              <span class="path">Audit history</span>, action <code>billing.*</code>: finalize,
+              payments, and reversal, each with actor and request ID. Search the case ID to see its
+              whole story.
+            </li>
+            <li>Archive the case. <strong>Check:</strong> it leaves the queues, is read-only, and still has its history.</li>
+          </ol>
+
+          <div class="callout tip">
+            <strong>Discussion questions for the class</strong>
+            <ul>
+              <li>Why could the consultant not verify their own work?</li>
+              <li>Why does a manager reverse payments, but not record them?</li>
+              <li>What would you do if a document showed "Missing in storage"?</li>
+              <li>Where would you look to find out who changed a client's phone number last week?</li>
+            </ul>
+          </div>
+        </div>
+      </main>
+    </div>
+    <script src="../assets/search-index.js"></script>
+    <script src="../assets/guide.js"></script>
+  </body>
+</html>

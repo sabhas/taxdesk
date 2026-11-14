@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Administration · TaxDesk Training</title>
+    <link rel="stylesheet" href="../assets/guide.css" />
+  </head>
+  <body data-root="../" data-page="staff/administration.html">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="topbar" id="topbar"></header>
+    <div class="layout">
+      <nav class="sidebar" id="sidebar" aria-label="Guide sections"></nav>
+      <main id="main">
+        <div class="content">
+          <p class="breadcrumb">Track B · Staff · <span class="badge admin">Administrator</span></p>
+          <h1>Administration</h1>
+          <p class="lede">
+            Managing people, firm settings, document storage, and the audit trail. Only
+            administrators see these pages; everyone else can view firm settings.
+          </p>
+
+          <nav class="toc" aria-label="On this page">
+            <strong>On this page</strong>
+            <ol>
+              <li><a href="#users">Users</a></li>
+              <li><a href="#invite">Invite a user</a></li>
+              <li><a href="#manage">Change role, reset, deactivate</a></li>
+              <li><a href="#firm-settings">Firm settings</a></li>
+              <li><a href="#storage">Document storage</a></li>
+              <li><a href="#audit">Audit history</a></li>
+              <li><a href="#routine">Administrator routine</a></li>
+            </ol>
+          </nav>
+
+          <h2 id="users">Users</h2>
+          <p>
+            <span class="path">Users</span> lists everyone, with their <strong>Name</strong>
+            (display name and username), <strong>Role</strong>, <strong>Status</strong>
+            (<span class="ui">Active</span>, <span class="ui">Invited</span>,
+            <span class="ui">Deactivated</span>), and <strong>MFA</strong>
+            (<span class="ui">Enabled</span> or <span class="ui">Not set up</span>).
+          </p>
+          <div class="callout">
+            <strong>TaxDesk sends no email</strong>
+            <p>
+              Activation and reset links are shown to you <em>once</em>. You deliver them yourself:
+              in person, by phone, or through the firm's private chat. Never post them in a
+              group channel.
+            </p>
+          </div>
+
+          <h3 id="invite">Invite a user</h3>
+          <ol class="steps">
+            <li>
+              In the <span class="ui">Invite a user</span> card, enter a
+              <span class="ui">Username</span> (permanent, cannot be changed later, for example
+              <code>a.khan</code>), a <span class="ui">Display name</span>, and a
+              <span class="ui">Role</span>.
+            </li>
+            <li>Select <span class="ui">Send invitation</span>.</li>
+            <li>
+              A <span class="ui">One-time link</span> card appears with the full link and its
+              expiry time. Select <span class="ui">Copy link</span>, deliver it, then
+              <span class="ui">Dismiss</span>.
+            </li>
+            <li>
+              The person has <strong>30 minutes</strong> to open it. If they miss it, use
+              <span class="ui">Reset link</span> on their row to make a new one.
+            </li>
+          </ol>
+
+          <h3 id="manage">Change role, reset, deactivate</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Action</th>
+                  <th>How</th>
+                  <th>Effect</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Change role</td>
+                  <td>Pick a new role in the row's dropdown. It applies <strong>immediately</strong>, with no Save button.</td>
+                  <td>The user is signed out everywhere and sees the new role's menu next time</td>
+                </tr>
+                <tr>
+                  <td>Reset</td>
+                  <td><span class="ui">Reset link</span>, then deliver the one-time link</td>
+                  <td>The user sets a new password through the link. Their sessions end.</td>
+                </tr>
+                <tr>
+                  <td>Deactivate</td>
+                  <td>
+                    <span class="ui">Deactivate</span>, then confirm in
+                    <span class="ui">Deactivate &lt;name&gt;?</span>
+                  </td>
+                  <td>
+                    Sessions end immediately and sign-in stops. Their history and audit trail are
+                    kept.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Reactivate</td>
+                  <td><span class="ui">Reactivate</span></td>
+                  <td>The user can sign in again</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="callout warn">
+            <strong>Do not lock yourselves out</strong>
+            <p>
+              Keep at least two active administrators with MFA. If the last one is locked out, an
+              operator has to run the offline recovery tool (see
+              <a href="../operators/backup-recovery.html#lockout">lockouts</a>).
+            </p>
+          </div>
+
+          <h2 id="firm-settings">Firm settings</h2>
+          <p>
+            Everyone can open <span class="path">Firm settings</span>. Only administrators can
+            change it; others see "Your role can view but not change firm settings."
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Field</th>
+                  <th>Rules</th>
+                  <th>Default</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Firm name</td>
+                  <td>Shown across the app</td>
+                  <td>Set at bootstrap</td>
+                </tr>
+                <tr>
+                  <td>Timezone</td>
+                  <td>
+                    Any IANA zone. Shortcuts: Asia/Karachi, UTC, Asia/Dubai, Europe/London,
+                    America/New_York. It drives due dates, "overdue", and "this month".
+                  </td>
+                  <td><code>Asia/Karachi</code></td>
+                </tr>
+                <tr>
+                  <td>Currency</td>
+                  <td>PKR only for now</td>
+                  <td>PKR</td>
+                </tr>
+                <tr>
+                  <td>Invoice number prefix</td>
+                  <td>2–6 capital letters. Applies only to numbers issued after the change.</td>
+                  <td><code>INV</code> (for example <code>INV-00001</code>)</td>
+                </tr>
+                <tr>
+                  <td>Receipt number prefix</td>
+                  <td>2–6 capital letters</td>
+                  <td><code>RCP</code></td>
+                </tr>
+                <tr>
+                  <td>Document size limit (MiB)</td>
+                  <td>1–250. The effective limit is the lower of this and the deployment's ceiling.</td>
+                  <td>250</td>
+                </tr>
+                <tr>
+                  <td>Dashboard due-soon window (days)</td>
+                  <td>1–60. Used by the "Due soon" queue and the dashboard.</td>
+                  <td>7</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Select <span class="ui">Save settings</span>. Each change is audited with its old and
+            new values. If someone else saved in the meantime you get a conflict and must reload.
+          </p>
+
+          <h2 id="storage">Document storage</h2>
+          <p>
+            <span class="path">Document storage</span> connects the firm's OneDrive once, shows
+            its health, and runs reconciliation. The buttons are
+            <span class="ui">Connect storage</span> / <span class="ui">Reconnect storage</span>,
+            <span class="ui">Check now</span>, <span class="ui">Disconnect</span>, and
+            <span class="ui">Run reconciliation</span>. The details, states, and setup are in
+            <a href="../operators/onedrive.html">OneDrive document storage</a>.
+          </p>
+          <p>
+            When storage needs attention, staff see "Document storage is unavailable" on document
+            panels, and administrators get a reconnect button right there.
+          </p>
+
+          <h2 id="audit">Audit history</h2>
+          <p>
+            Every material change is recorded permanently: sign-ins and failures, user changes,
+            client, case, document, and billing changes, exports, imports, and settings. Nobody
+            can edit or delete an audit event.
+          </p>
+          <ul>
+            <li>
+              <strong>Filters:</strong> From date, To date, Action, Actor user ID, Entity type,
+              Entity ID, Request ID. Then <span class="ui">Search</span> or
+              <span class="ui">Clear</span>.
+            </li>
+            <li>
+              <strong>Action wildcards:</strong> <code>billing.*</code> finds every billing event,
+              and <code>auth.*</code> every sign-in event.
+            </li>
+            <li>
+              <strong>Columns:</strong> When, Actor, Action, Entity, Changes, Request. Use
+              <span class="ui">Load more</span> for older events.
+            </li>
+            <li>
+              Sensitive values are masked. Identifiers show as, for example,
+              <code>•••••-••••567-1</code>, and secrets never appear.
+            </li>
+            <li>
+              The <strong>request ID</strong> links an error message a user saw to the exact audit
+              event and server log line.
+            </li>
+          </ul>
+          <p>Useful actions to know:</p>
+          <div class="table-wrap">
+            <table>
+              <tbody>
+                <tr><td><code>firm.bootstrapped</code></td><td>The firm was created</td></tr>
+                <tr><td><code>auth.login_failed</code></td><td>A failed sign-in (watch for spikes)</td></tr>
+                <tr><td><code>user.recovery_*</code></td><td>An operator used the offline recovery tool</td></tr>
+                <tr><td><code>client.created</code>, <code>case.created</code></td><td>New records, including from imports</td></tr>
+                <tr><td><code>billing.invoice_finalized</code></td><td>An invoice got its number</td></tr>
+                <tr><td><code>import.row_decided</code>, <code>import.committed</code>, <code>import.exceptions_exported</code></td><td>Data import activity</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 id="routine">Administrator routine</h2>
+          <ul>
+            <li><strong>New joiner:</strong> invite with the smallest suitable role, and check MFA shows Enabled the next day.</li>
+            <li><strong>Leaver:</strong> deactivate on their last day, and reassign their clients and cases.</li>
+            <li><strong>Weekly:</strong> check storage health, and run reconciliation if anything looks off.</li>
+            <li>
+              <strong>Monthly:</strong> review users (anyone still <span class="ui">Invited</span>
+              or with MFA <span class="ui">Not set up</span>?) and scan audit history for
+              <code>auth.*</code> failures.
+            </li>
+          </ul>
+        </div>
+      </main>
+    </div>
+    <script src="../assets/search-index.js"></script>
+    <script src="../assets/guide.js"></script>
+  </body>
+</html>

@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Local Development Setup · TaxDesk Training</title>
+    <link rel="stylesheet" href="../assets/guide.css" />
+  </head>
+  <body data-root="../" data-page="operators/local-setup.html">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="topbar" id="topbar"></header>
+    <div class="layout">
+      <nav class="sidebar" id="sidebar" aria-label="Guide sections"></nav>
+      <main id="main">
+        <div class="content">
+          <p class="breadcrumb">Track A · Operators</p>
+          <h1>Local development setup</h1>
+          <p class="lede">
+            Run the full app on your own machine with a local PostgreSQL database and synthetic
+            data. This is also the quickest training environment for staff.
+          </p>
+
+          <nav class="toc" aria-label="On this page">
+            <strong>On this page</strong>
+            <ol>
+              <li><a href="#prerequisites">Prerequisites</a></li>
+              <li><a href="#install">Install dependencies</a></li>
+              <li><a href="#database">Create the database</a></li>
+              <li><a href="#env">Database connection files</a></li>
+              <li><a href="#migrate">Apply migrations</a></li>
+              <li><a href="#secrets">Local Worker secrets</a></li>
+              <li><a href="#bootstrap">Create the first administrator</a></li>
+              <li><a href="#run">Start the app</a></li>
+              <li><a href="#first-login">First sign-in</a></li>
+              <li><a href="#quality">Quality checks and tests</a></li>
+              <li><a href="#reset">Reset to a clean database</a></li>
+            </ol>
+          </nav>
+
+          <h2 id="prerequisites">1. Prerequisites</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Tool</th>
+                  <th>Version</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Node.js</td>
+                  <td>22 or newer</td>
+                  <td>Required by <code>engines</code> in <code>package.json</code></td>
+                </tr>
+                <tr>
+                  <td>pnpm</td>
+                  <td>10 (pinned to <code>pnpm@10.33.0</code>)</td>
+                  <td>
+                    Run <code>corepack enable</code> and the pinned version is picked up
+                    automatically
+                  </td>
+                </tr>
+                <tr>
+                  <td>PostgreSQL</td>
+                  <td>17 recommended</td>
+                  <td>
+                    A local server, for example <code>brew install postgresql@17</code> on macOS.
+                    Client tools (<code>createdb</code>, <code>psql</code>) are needed too.
+                  </td>
+                </tr>
+                <tr>
+                  <td>OpenSSL</td>
+                  <td>any</td>
+                  <td>Used to generate local encryption keys</td>
+                </tr>
+                <tr>
+                  <td><code>just</code></td>
+                  <td>optional</td>
+                  <td>
+                    Shortcuts such as <code>just verify</code> and <code>just doctor</code>
+                    (<code>brew install just</code>)
+                  </td>
+                </tr>
+                <tr>
+                  <td>Authenticator app</td>
+                  <td>any TOTP app</td>
+                  <td>
+                    For example Google Authenticator, Microsoft Authenticator, 1Password, or
+                    Authy. MFA is mandatory, even locally.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 id="install">2. Install dependencies</h2>
+          <pre><code>git clone &lt;repository-url&gt; taxdesk
+cd taxdesk
+corepack enable
+pnpm install --frozen-lockfile</code></pre>
+          <div class="callout">
+            <strong>Moving between machines</strong>
+            <p>
+              If <code>node_modules</code> was installed on a different operating system or CPU
+              (for example a shared drive), run <code>pnpm install --force</code> or
+              <code>just reinstall-force</code>. Never delete <code>pnpm-lock.yaml</code> to fix a
+              routine install problem.
+            </p>
+          </div>
+
+          <h2 id="database">3. Create the local database</h2>
+          <p>
+            The development Worker connects to
+            <code>postgres://taxdesk:taxdesk@localhost:5432/taxdesk_development</code> by default.
+            The easiest path is to create exactly that role and database:
+          </p>
+          <pre><code># macOS with Homebrew
+brew services start postgresql@17
+
+# Create the local role (password: taxdesk) and database
+createuser --pwprompt taxdesk
+createdb --owner taxdesk taxdesk_development</code></pre>
+          <p>
+            Any PostgreSQL works, including Docker or a managed development database. If you use
+            different credentials, set them in the next step.
+          </p>
+          <div class="callout tip">
+            <strong>TLS only applies outside development</strong>
+            <p>
+              In the <code>development</code> environment the Worker connects without TLS, so a
+              plain local Postgres works. Staging and production always require TLS.
+            </p>
+          </div>
+
+          <h2 id="env">4. Database connection files</h2>
+          <p>Two different tools need the connection string:</p>
+          <ul>
+            <li>
+              <strong>The command-line tools</strong> (<code>db:migrate</code>,
+              <code>auth:*</code>, <code>ops:*</code>) read <code>DATABASE_URL</code>.
+            </li>
+            <li>
+              <strong>The local API Worker</strong> reads its Hyperdrive binding. The binding
+              defaults to the URL above and can be overridden with
+              <code>CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE</code>.
+            </li>
+          </ul>
+          <pre><code>cp .env.example .env</code></pre>
+          <p>Then uncomment and edit the values in <code>.env</code>:</p>
+          <pre><code>DATABASE_URL=postgres://taxdesk:taxdesk@localhost:5432/taxdesk_development?sslmode=disable
+# Only needed if you are not using the default local database:
+# CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE=postgres://&lt;user&gt;:&lt;password&gt;@&lt;host&gt;:5432/&lt;db&gt;</code></pre>
+          <p>
+            <code>.env</code> and <code>.env.local</code> are git-ignored, and
+            <code>.env.local</code> wins over <code>.env</code>. A value in your shell, or
+            <code>--database-url</code>, wins over both. Use <code>sslmode=disable</code> only for
+            a local database.
+          </p>
+
+          <h2 id="migrate">5. Apply the database migrations</h2>
+          <pre><code>pnpm db:migrate:verify    # checks migration files against the checksum manifest
+pnpm db:migrate           # applies 0001–0010 in order
+pnpm db:migrate:status    # every migration should show as applied</code></pre>
+          <p>
+            The migrations also seed the five built-in roles and their permissions. Migrations are
+            forward-only: never edit one that has been applied anywhere. See
+            <code>docs/technical/migrations.md</code>.
+          </p>
+
+          <h2 id="secrets">6. Local Worker secrets</h2>
+          <p>
+            Without these keys, the related features return <code>503</code> instead of running
+            unprotected. Create <code>packages/api/.dev.vars</code> (git-ignored) from the
+            example:
+          </p>
+          <pre><code>cp packages/api/.dev.vars.example packages/api/.dev.vars
+
+# Generate a separate key for each line below (run the command once per key)
+openssl rand -base64 32 | tr '+/' '-_' | tr -d '='</code></pre>
+          <p>Add these lines to <code>packages/api/.dev.vars</code>:</p>
+          <pre><code>MFA_ENCRYPTION_KEY=&lt;generated key 1&gt;
+CLIENT_DATA_ENCRYPTION_KEY=&lt;generated key 2&gt;
+CLIENT_IDENTIFIER_INDEX_KEY=&lt;generated key 3&gt;
+STORAGE_TOKEN_ENCRYPTION_KEY=&lt;generated key 4&gt;
+
+# Cloudflare Turnstile public test keys (always pass). Only needed once a login is throttled.
+TURNSTILE_SITE_KEY=1x00000000000000000000AA
+TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
+
+# Optional: a development Microsoft app registration, to try document uploads locally
+# ONEDRIVE_CLIENT_ID=&lt;application (client) id&gt;</code></pre>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Missing value</th>
+                  <th>What stops working locally</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>MFA_ENCRYPTION_KEY</code></td>
+                  <td>MFA enrolment, so nobody can get past first sign-in</td>
+                </tr>
+                <tr>
+                  <td>Client keys</td>
+                  <td>Creating clients, editing identifiers, CNIC/NTN search, client import</td>
+                </tr>
+                <tr>
+                  <td><code>STORAGE_TOKEN_ENCRYPTION_KEY</code>, <code>ONEDRIVE_CLIENT_ID</code></td>
+                  <td>
+                    Document storage. The storage page reports "not configured". Uploads and
+                    invoice PDFs cannot be stored, but invoices themselves still work.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Turnstile keys</td>
+                  <td>
+                    After 5 failed sign-ins for one account (or 15 from one network) within 15
+                    minutes, sign-in returns "Sign-in verification is not configured"
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            To try documents locally, follow <a href="onedrive.html">OneDrive document storage</a>
+            with the redirect URI <code>http://localhost:5173/settings/storage/callback</code>.
+            Keep the keys in <code>.dev.vars</code> stable: changing
+            <code>MFA_ENCRYPTION_KEY</code> breaks everyone's MFA, and changing the client keys
+            makes existing identifiers unreadable.
+          </p>
+
+          <h2 id="bootstrap">7. Create the firm and the first administrator</h2>
+          <pre><code>pnpm auth:bootstrap</code></pre>
+          <p>
+            It asks for the firm name, the administrator's username, display name, and password
+            (twice, with at least 12 characters). It creates the firm settings (timezone
+            <code>Asia/Karachi</code> by default) and writes a <code>firm.bootstrapped</code>
+            audit event. It refuses to run a second time. For a throwaway database you can use
+            flags:
+          </p>
+          <pre><code>pnpm auth:bootstrap --non-interactive \
+  --firm-name "Training Firm" --username admin --display-name "Training Admin" \
+  --password "&lt;a generated test password&gt;"</code></pre>
+          <div class="callout warn">
+            <strong>Passwords on the command line end up in shell history</strong>
+            <p>Use the interactive prompts for any database that matters.</p>
+          </div>
+
+          <h2 id="run">8. Start the API and the web app</h2>
+          <p>Use two terminals:</p>
+          <pre><code># Terminal 1: API Worker on http://localhost:8787
+pnpm dev:api
+
+# Terminal 2: web app on http://localhost:5173 (forwards /api and /health to 8787)
+pnpm dev:web</code></pre>
+          <p>Check the API is up:</p>
+          <pre><code>curl -s http://localhost:8787/health
+# {"environment":"development","releaseVersion":"0.0.0","requestId":"…"}</code></pre>
+
+          <h2 id="first-login">9. First sign-in</h2>
+          <ol class="steps">
+            <li>Open <code>http://localhost:5173</code>.</li>
+            <li>
+              On <span class="ui">Sign in to TaxDesk</span>, enter the username and password from
+              step 7.
+            </li>
+            <li>
+              You are taken to <span class="ui">Set up multi-factor authentication</span>. Scan
+              the QR code, enter the six-digit code, and select <span class="ui">Enable MFA</span>.
+            </li>
+            <li>
+              Save the ten recovery codes, then select
+              <span class="ui">I have saved these codes</span>.
+            </li>
+            <li>
+              Continue with <a href="../testing/training-data.html">Build a training environment</a>
+              to add staff accounts and synthetic data.
+            </li>
+          </ol>
+
+          <h2 id="quality">10. Quality checks and tests</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Command</th>
+                  <th>What it does</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>pnpm verify</code></td>
+                  <td>
+                    The full CI gate: typecheck, lint, format check, tests, migration verify,
+                    secret scan, workflow policy, config posture, self-test, build
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>pnpm typecheck</code> · <code>pnpm lint</code> · <code>pnpm test</code> · <code>pnpm build</code></td>
+                  <td>Run one gate across every package</td>
+                </tr>
+                <tr>
+                  <td><code>pnpm format</code> / <code>pnpm format:check</code></td>
+                  <td>Rewrite or check Prettier formatting</td>
+                </tr>
+                <tr>
+                  <td><code>pnpm ci:secrets</code></td>
+                  <td>
+                    Scan tracked files for secrets and forbidden files (<code>.env</code>,
+                    <code>.dev.vars</code>, <code>.wrangler/</code>)
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>Run one test file, or one named test, in a single package:</p>
+          <pre><code>pnpm --filter @taxdesk/api test -- src/routes/auth.test.ts
+pnpm --filter @taxdesk/api test -- src/routes/auth.test.ts -t "&lt;test name&gt;"</code></pre>
+          <p>
+            The PostgreSQL integration suites are skipped unless you point them at a disposable
+            database whose name ends in <code>_test</code>:
+          </p>
+          <pre><code>createdb --owner taxdesk taxdesk_migrations_test
+createdb --owner taxdesk taxdesk_api_test
+
+TAXDESK_MIGRATIONS_TEST_DATABASE_URL=postgres://taxdesk:taxdesk@localhost:5432/taxdesk_migrations_test?sslmode=disable \
+  pnpm test:migrations
+
+TAXDESK_API_TEST_DATABASE_URL=postgres://taxdesk:taxdesk@localhost:5432/taxdesk_api_test?sslmode=disable \
+  pnpm test:api-db</code></pre>
+
+          <h2 id="reset">11. Reset to a clean database</h2>
+          <p>
+            To start training again from nothing, drop and recreate the
+            <strong>local</strong> database, then repeat steps 5 and 7. Never do this against
+            staging or production.
+          </p>
+          <pre><code>dropdb taxdesk_development
+createdb --owner taxdesk taxdesk_development
+pnpm db:migrate
+pnpm auth:bootstrap</code></pre>
+          <p>
+            Faster alternative: take <code>pg_dump</code> of a prepared training database once,
+            and restore it before each class.
+          </p>
+        </div>
+      </main>
+    </div>
+    <script src="../assets/search-index.js"></script>
+    <script src="../assets/guide.js"></script>
+  </body>
+</html>

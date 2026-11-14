@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Invoices and Payments · TaxDesk Training</title>
+    <link rel="stylesheet" href="../assets/guide.css" />
+  </head>
+  <body data-root="../" data-page="staff/billing.html">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="topbar" id="topbar"></header>
+    <div class="layout">
+      <nav class="sidebar" id="sidebar" aria-label="Guide sections"></nav>
+      <main id="main">
+        <div class="content">
+          <p class="breadcrumb">Track B · Staff</p>
+          <h1>Invoices and payments</h1>
+          <p class="lede">
+            Bill for case work, take payments, and correct mistakes, all without ever editing
+            financial history. Amounts are in PKR.
+          </p>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Role</th>
+                  <th class="c">Read invoices</th>
+                  <th class="c">Draft, finalize, pay, void</th>
+                  <th class="c">Reverse a payment</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td><span class="badge admin">Administrator</span></td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+                <tr><td><span class="badge manager">Manager</span></td><td class="c yes">✓</td><td class="c no">—</td><td class="c yes">✓</td></tr>
+                <tr><td><span class="badge billing">Billing</span></td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">—</td></tr>
+                <tr><td><span class="badge readonly">Read-only</span></td><td class="c yes">✓</td><td class="c no">—</td><td class="c no">—</td></tr>
+                <tr><td><span class="badge consultant">Consultant</span></td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 id="lifecycle">Invoice life cycle</h2>
+          <figure class="diagram">
+            <svg viewBox="0 0 760 180" role="img" aria-labelledby="inv-t inv-d">
+              <title id="inv-t">Invoice life cycle</title>
+              <desc id="inv-d">
+                A draft can be edited and then finalized, which gives it a number and freezes it.
+                A finalized invoice receives payments, which can be reversed. A draft, or a
+                finalized invoice with no net payments, can be voided.
+              </desc>
+              <defs>
+                <marker id="inv-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                  <path d="M0,0 L10,5 L0,10 z" class="d-arrow" />
+                </marker>
+              </defs>
+              <rect x="20" y="40" width="150" height="60" rx="9" class="d-box" />
+              <text x="95" y="66" text-anchor="middle" class="d-text">Draft</text>
+              <text x="95" y="84" text-anchor="middle" class="d-sub">editable, no number</text>
+              <rect x="300" y="40" width="170" height="60" rx="9" class="d-box hl" />
+              <text x="385" y="66" text-anchor="middle" class="d-text">Finalized</text>
+              <text x="385" y="84" text-anchor="middle" class="d-sub">INV-00001, frozen</text>
+              <rect x="590" y="40" width="150" height="60" rx="9" class="d-box ok" />
+              <text x="665" y="66" text-anchor="middle" class="d-text">Paid</text>
+              <text x="665" y="84" text-anchor="middle" class="d-sub">outstanding = 0</text>
+              <rect x="300" y="130" width="170" height="40" rx="9" class="d-box bad" />
+              <text x="385" y="155" text-anchor="middle" class="d-text">Void</text>
+              <path d="M170,70 L296,70" class="d-line" marker-end="url(#inv-ah)" />
+              <text x="233" y="60" text-anchor="middle" class="d-sub">Finalize</text>
+              <path d="M470,62 L586,62" class="d-line" marker-end="url(#inv-ah)" />
+              <text x="528" y="54" text-anchor="middle" class="d-sub">payments</text>
+              <path d="M586,82 L474,82" class="d-line dash" marker-end="url(#inv-ah)" />
+              <text x="528" y="98" text-anchor="middle" class="d-sub">reversal</text>
+              <path d="M95,100 C95,150 220,152 296,150" class="d-line dash" marker-end="url(#inv-ah)" />
+              <path d="M385,100 L385,126" class="d-line dash" marker-end="url(#inv-ah)" />
+              <text x="440" y="118" class="d-sub">no net payments</text>
+            </svg>
+            <figcaption>
+              Payment state is shown separately: <span class="ui">Unpaid</span>,
+              <span class="ui">Partly paid</span>, <span class="ui">Paid</span>.
+            </figcaption>
+          </figure>
+
+          <h2 id="create">Create and edit a draft</h2>
+          <ol class="steps">
+            <li>
+              Open the case (or client) and select <span class="ui">Create invoice</span>. From a
+              case, the first line is the service name and its fee. From a client, the draft starts
+              empty. Invoices are only created this way, not from the Invoices list.
+            </li>
+            <li>
+              Edit line items (Description, Quantity, <span class="ui">Unit amount (PKR)</span>).
+              Use <span class="ui">Add line</span>, move lines up or down, or remove them.
+            </li>
+            <li>
+              Set the <span class="ui">Discount (PKR)</span>, the Issue date (leave it empty to use
+              the finalize date), the Due date, and Notes.
+            </li>
+            <li>
+              Select <span class="ui">Save draft</span>. The totals on screen are a preview; the
+              server recalculates them on save. Negative totals are refused.
+            </li>
+          </ol>
+
+          <h2 id="finalize">Finalize</h2>
+          <p>
+            Select <span class="ui">Finalize…</span>, then <span class="ui">Finalize invoice</span>
+            in <span class="ui">Finalize this invoice?</span>. The invoice:
+          </p>
+          <ul>
+            <li>
+              gets the next number, with <strong>no gaps</strong> (<code>INV-00001</code>,
+              <code>INV-00002</code>, …), even if two people finalize at the same moment;
+            </li>
+            <li>is frozen: lines and amounts can never change;</li>
+            <li>
+              gets a PDF stored in document storage, available from
+              <span class="ui">Download PDF</span>.
+            </li>
+          </ul>
+          <p>
+            If you clicked twice or the network retried, you still get one invoice and one
+            number. If storage was down, the invoice is saved anyway and shows
+            <span class="ui">PDF could not be stored</span>. Select
+            <span class="ui">Generate PDF again</span> later.
+          </p>
+
+          <h2 id="payments">Record a payment</h2>
+          <ol class="steps">
+            <li>On the invoice, select <span class="ui">Record payment</span>.</li>
+            <li>
+              In <span class="ui">Record a payment</span>, enter the Amount (PKR), Method (Cash,
+              Bank transfer, Cheque, Card, Other), Received on, and an optional Reference (for
+              example a cheque number).
+            </li>
+            <li>Save. The balance updates and a receipt (<code>RCP-00001</code>) with its own PDF is created.</li>
+          </ol>
+          <ul>
+            <li>Partial payments are fine. The state becomes <span class="ui">Partly paid</span>.</li>
+            <li>
+              Zero, negative, and more-than-outstanding amounts are refused, even when two people
+              pay at the same time.
+            </li>
+            <li>Submitting the same payment twice (double click, retry) records it once.</li>
+            <li>Download a receipt with <span class="ui">Receipt</span> on the payment row.</li>
+          </ul>
+
+          <h2 id="reverse">Reverse a payment</h2>
+          <p>
+            <span class="badge admin">Administrator</span>
+            <span class="badge manager">Manager</span> only. Use this when a payment was recorded
+            by mistake or a cheque bounced.
+          </p>
+          <ol class="steps">
+            <li>On the payment row, select <span class="ui">Reverse</span>.</li>
+            <li>
+              Enter the <span class="ui">Amount to reverse (PKR)</span> (all or part) and a
+              Reason.
+            </li>
+          </ol>
+          <p>
+            The original payment stays in the history, and a linked reversal entry is added. You
+            cannot reverse more than was paid, even with two reversals at once.
+          </p>
+
+          <h2 id="void">Void an invoice</h2>
+          <p>
+            <span class="ui">Void invoice</span> is allowed for a draft, or for a finalized invoice
+            with <strong>no net payments</strong> (reverse any payments first). Give a reason and
+            confirm in <span class="ui">Void this invoice?</span>. Voiding is permanent. The invoice
+            stays visible with its number and history. To fix a wrong finalized invoice: void it,
+            then create a new one.
+          </p>
+
+          <h2 id="list">Finding invoices</h2>
+          <p>
+            <span class="path">Invoices</span> lists every invoice ("Invoices and what is still
+            owed"). Filter by Status (Draft, Finalized, Void) and Payment. Columns: Invoice,
+            Client, Due, Total, Outstanding, Status. Case and client pages show their own invoices.
+            The invoice page shows Issue date, Due date, Subtotal, Discount, Total, Paid,
+            Outstanding, the line items, the PDF, and Payments and receipts.
+          </p>
+          <div class="callout">
+            <strong>Billing never moves a case</strong>
+            <p>Paying or voiding an invoice does not change the case's status, and the other way round.</p>
+          </div>
+
+          <h2 id="rules">Money rules to remember</h2>
+          <ul>
+            <li>Finalized invoices, payments, and reversals are never edited or deleted.</li>
+            <li>Corrections are always new entries: a reversal, or a void plus a new invoice.</li>
+            <li>Numbers never have gaps and are never reused. A changed prefix applies only to new numbers.</li>
+          </ul>
+        </div>
+      </main>
+    </div>
+    <script src="../assets/search-index.js"></script>
+    <script src="../assets/guide.js"></script>
+  </body>
+</html>

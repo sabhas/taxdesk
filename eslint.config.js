@@ -13,6 +13,8 @@ export default tseslint.config(
       '**/*.config.*',
       '**/vite.config.*',
       '**/drizzle.config.*',
+      // Static, build-free training guide (plain browser scripts); Prettier ignores docs/ too.
+      'docs/**',
     ],
   },
   eslint.configs.recommended,

@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Release Status and Limits · TaxDesk Training</title>
+    <link rel="stylesheet" href="../assets/guide.css" />
+  </head>
+  <body data-root="../" data-page="reference/status-limitations.html">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="topbar" id="topbar"></header>
+    <div class="layout">
+      <nav class="sidebar" id="sidebar" aria-label="Guide sections"></nav>
+      <main id="main">
+        <div class="content">
+          <p class="breadcrumb">Start</p>
+          <h1>Release status and limits</h1>
+          <p class="lede">
+            What is finished, what still needs sign-off, and what TaxDesk deliberately does not do
+            yet. Snapshot of <code>docs/product/status.md</code> as of 14 November 2026. Check that
+            file for the live state.
+          </p>
+
+          <h2 id="status">Where each epic stands</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Epic</th>
+                  <th>Built and checked locally</th>
+                  <th>Still needed before "done"</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>0 · Foundation</td>
+                  <td>Yes (TD-001–TD-006). Staging deployed, posture and smoke green.</td>
+                  <td>Posture evidence confirmed by a CI deploy; a failing-check demonstration; TD-007 staging visual check</td>
+                </tr>
+                <tr>
+                  <td>1 · Identity and MFA</td>
+                  <td>Yes</td>
+                  <td>Staging <code>MFA_ENCRYPTION_KEY</code>, Turnstile keys, migrations 0002–0004, demonstration</td>
+                </tr>
+                <tr>
+                  <td>2 · Clients</td>
+                  <td>Yes</td>
+                  <td>Staging client keys, migration 0005, demonstration</td>
+                </tr>
+                <tr>
+                  <td>3 · Cases</td>
+                  <td>Yes</td>
+                  <td>Migration 0006, demonstration</td>
+                </tr>
+                <tr>
+                  <td>4 · Documents</td>
+                  <td>Yes</td>
+                  <td>Microsoft app, storage key, <code>ONEDRIVE_CLIENT_ID</code>, migration 0007, a test against a real OneDrive account</td>
+                </tr>
+                <tr>
+                  <td>5 · Billing</td>
+                  <td>Yes</td>
+                  <td>Migration 0008, demonstration</td>
+                </tr>
+                <tr>
+                  <td>6 · Dashboard</td>
+                  <td>Yes</td>
+                  <td>Migration 0009, demonstration, real-browser accessibility pass</td>
+                </tr>
+                <tr>
+                  <td>7 · Migration and recovery</td>
+                  <td>TD-701–TD-705 yes; TD-706–TD-710 tooling and runbooks</td>
+                  <td>Migration 0010, backup secrets and R2, signed migration rehearsal, restore within 4 hours, security sign-off, go/no-go</td>
+                </tr>
+                <tr>
+                  <td>8 · Pilot and launch</td>
+                  <td>Not started</td>
+                  <td>Blocked by Epic 7</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Every epic also needs Sprint Review acceptance. The
+            <a href="../testing/scenarios.html">UAT catalogue</a> is designed to produce that
+            evidence.
+          </p>
+
+          <h2 id="not-in-release">Not in this release</h2>
+          <ul>
+            <li>No public sign-up, no social or Microsoft sign-in for staff, no email delivery of any kind.</li>
+            <li>No password-reset email: administrators issue reset links.</li>
+            <li>No list of active sessions, and no custom roles.</li>
+            <li>One currency (PKR). One firm per deployment.</li>
+            <li>No client portal: clients never sign in.</li>
+            <li>No way to view a full CNIC/NTN on screen.</li>
+            <li>No OCR, search inside documents, document editing, or malware scanning.</li>
+            <li>No document storage other than OneDrive Personal.</li>
+            <li>No backup or restore screens: these are operator command-line tools.</li>
+            <li>Workflows are per firm. There is no library of shared templates beyond the starter.</li>
+          </ul>
+
+          <h2 id="known">Known gaps and documentation notes</h2>
+          <ul>
+            <li>
+              The Epic 5 and Epic 6 PRDs still say <code>not_started</code> with unchecked boxes,
+              although both are implemented (see their release notes and status). This guide
+              follows the implemented behaviour.
+            </li>
+            <li>
+              The TD-704 PRD mentions a <em>manager</em> making import decisions, but only
+              administrators have <code>imports.manage</code>. This guide follows the code.
+            </li>
+            <li>
+              The staging deployment guide's step 4 still shows a placeholder Hyperdrive ID; the
+              real staging ID is committed.
+            </li>
+            <li>
+              The production Hyperdrive ID is still a placeholder. Production does not exist yet.
+            </li>
+            <li>
+              Status notes that <code>ci:secrets</code> flagged two synthetic values in an Epic 4
+              test file during Epic 5. Check that <code>pnpm verify</code> is green before a
+              demonstration.
+            </li>
+          </ul>
+
+          <h2 id="rule">The one rule that overrides everything</h2>
+          <div class="callout danger">
+            <strong>No real client data before the gate</strong>
+            <p>
+              No real client data in any environment until the restore rehearsal (TD-708), the
+              security review (TD-709), and the go/no-go decision (TD-710) have passed. Even after
+              that, real data only ever goes into production.
+            </p>
+          </div>
+        </div>
+      </main>
+    </div>
+    <script src="../assets/search-index.js"></script>
+    <script src="../assets/guide.js"></script>
+  </body>
+</html>
