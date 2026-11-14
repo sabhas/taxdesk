@@ -19,6 +19,8 @@ import { ClientFormPage } from './pages/clients/ClientFormPage.js';
 import { ClientsPage } from './pages/clients/ClientsPage.js';
 import { DashboardPage } from './pages/DashboardPage.js';
 import { FirmSettingsPage } from './pages/FirmSettingsPage.js';
+import { ImportBatchPage } from './pages/imports/ImportBatchPage.js';
+import { ImportsPage } from './pages/imports/ImportsPage.js';
 import { LoginPage, type MfaChallengeState } from './pages/LoginPage.js';
 import { MfaChallengePage } from './pages/MfaChallengePage.js';
 import { MfaEnrollmentPage } from './pages/MfaEnrollmentPage.js';
@@ -47,6 +49,7 @@ const PAGES: Readonly<Record<string, ReactNode>> = {
   [ROUTE_PATHS.services]: <ServicesPage />,
   [ROUTE_PATHS.workflows]: <WorkflowsPage />,
   [ROUTE_PATHS.storage]: <StorageSettingsPage />,
+  [ROUTE_PATHS.imports]: <ImportsPage />,
 };
 
 /**
@@ -255,6 +258,10 @@ function AppContent() {
               <ReportsPage section="billing" />
             </>
           }
+        />
+        <Route
+          path={`${ROUTE_PATHS.imports}/:batchId`}
+          element={can('imports.manage') ? <ImportBatchPage /> : <PermissionDenied />}
         />
         <Route
           path={`${ROUTE_PATHS.workflows}/:templateId`}

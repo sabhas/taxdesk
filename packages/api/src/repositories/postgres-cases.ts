@@ -675,6 +675,10 @@ export function createPostgresCaseRepository(executor: SqlExecutor): CaseReposit
       }
     },
     findById: async (id) => await findOne(id, false),
+    findByCode: async (caseCode) => {
+      const rows = await executor.query(`${CASE_SELECT} WHERE c.case_code = $1`, [caseCode]);
+      return rows[0] === undefined ? null : mapCase(rows[0]);
+    },
     lockById: async (id) => await findOne(id, true),
     updateDetails: async (input) =>
       await reload(

@@ -77,9 +77,9 @@ describe('permission and MFA guards', () => {
 
   it('blocks application routes until MFA is enrolled and verified', () => {
     const pending = { ...actorFor('administrator'), mfaEnrolled: false, mfaVerified: false };
-    expect(() => assertMfaReady(pending)).toThrowError(/multi-factor authentication/i);
+    expect(() => assertMfaReady(pending)).toThrow(/multi-factor authentication/i);
     const enrolled = { ...actorFor('administrator'), mfaVerified: false };
-    expect(() => assertMfaReady(enrolled)).toThrowError(/Complete multi-factor/i);
+    expect(() => assertMfaReady(enrolled)).toThrow(/Complete multi-factor/i);
     expect(() => assertMfaReady(actorFor('administrator'))).not.toThrow();
   });
 });

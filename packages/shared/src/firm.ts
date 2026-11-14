@@ -75,8 +75,8 @@ export const FirmSettingsSchema = z
     documentMaxUploadBytes: DocumentMaxUploadBytesSchema,
     /** Cases due within this many days count as "due soon" everywhere. */
     dueSoonDays: DueSoonDaysSchema,
-    createdAt: z.string().datetime(),
-    updatedAt: z.string().datetime(),
+    createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime(),
     version: z.number().int().positive(),
   })
   .strict();

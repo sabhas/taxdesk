@@ -99,8 +99,8 @@ const MAX_PROMPT_ATTEMPTS = 3;
 async function askUntilValid(
   io: BootstrapCliIo,
   ask: () => Promise<string>,
-  schema: z.ZodType<unknown>,
-  message: (issues: readonly z.ZodIssue[]) => string,
+  schema: z.ZodType,
+  message: (issues: readonly z.core.$ZodIssue[]) => string,
 ): Promise<string> {
   let lastMessage = '';
   for (let attempt = 0; attempt < MAX_PROMPT_ATTEMPTS; attempt += 1) {

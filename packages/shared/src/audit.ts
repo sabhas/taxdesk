@@ -20,13 +20,13 @@ export type AuditMetadataValue = z.infer<typeof AuditMetadataValueSchema>;
 export const AuditEventSchema = z
   .object({
     id: UuidSchema,
-    occurredAt: z.string().datetime(),
+    occurredAt: z.iso.datetime(),
     actorUserId: UuidSchema.nullable(),
     action: AuditActionSchema,
     entityType: z.string().min(1).max(80),
     entityId: UuidSchema.nullable(),
     requestId: z.string().min(1).max(128),
-    metadata: z.record(AuditMetadataValueSchema),
+    metadata: z.record(z.string(), AuditMetadataValueSchema),
   })
   .strict();
 
@@ -118,4 +118,11 @@ export const AUDIT_ACTIONS = {
   receiptPdfFailed: 'billing.receipt_pdf_failed',
   receiptPdfDownloaded: 'billing.receipt_pdf_downloaded',
   reportExported: 'report.exported',
+  importValidated: 'import.validated',
+  importRevalidated: 'import.revalidated',
+  importRowDecided: 'import.row_decided',
+  importDiscarded: 'import.discarded',
+  importCommitStarted: 'import.commit_started',
+  importCommitted: 'import.committed',
+  importExceptionsExported: 'import.exceptions_exported',
 } as const;

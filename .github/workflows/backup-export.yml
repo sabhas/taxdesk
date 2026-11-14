@@ -1,0 +1,100 @@
+name: Independent backup export
+
+# TD-707: a daily encrypted logical export of the staging database, stored
+# outside the database provider (Cloudflare R2) with a manifest that records
+# success or failure, the source schema version, and retention. The manifest is
+# uploaded even when the export fails, so the scheduled posture check sees the
+# failure; this job also alerts an operator directly.
+
+on:
+  schedule:
+    - cron: '41 21 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: backup-export-staging
+  cancel-in-progress: false
+
+jobs:
+  export:
+    name: Export staging database
+    environment:
+      name: staging
+      url: ${{ vars.STAGING_WEB_URL }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install the PostgreSQL client matching the server
+        env:
+          PG_CLIENT_MAJOR: ${{ vars.PG_CLIENT_MAJOR || '17' }}
+        run: |
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y "postgresql-client-${PG_CLIENT_MAJOR}"
+          echo "/usr/lib/postgresql/${PG_CLIENT_MAJOR}/bin" >> "$GITHUB_PATH"
+
+      - name: Export and encrypt
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_BACKUP_DATABASE_URL }}
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+          RELEASE_VERSION: ${{ github.sha }}
+        run: pnpm ops:backup-export --out exports --environment staging --retention-days 35 --storage cloudflare-r2
+
+      - name: Upload to independent storage
+        if: always()
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.BACKUP_R2_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          BACKUP_BUCKET: ${{ vars.BACKUP_BUCKET }}
+        run: |
+          test -f exports/latest.manifest.json
+          for file in exports/*.dump.enc exports/*.manifest.json; do
+            [ -f "$file" ] || continue
+            pnpm exec wrangler r2 object put "$BACKUP_BUCKET/staging/$(basename "$file")" --file "$file" --remote
+          done
+
+      - name: Verify the uploaded export
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.BACKUP_R2_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          BACKUP_BUCKET: ${{ vars.BACKUP_BUCKET }}
+        run: |
+          pnpm exec wrangler r2 object get "$BACKUP_BUCKET/staging/latest.manifest.json" --file uploaded.manifest.json --remote
+          pnpm ci:backup-verify --manifest uploaded.manifest.json --artifact "$(ls exports/*.dump.enc)" --environment staging
+
+      - name: Alert an operator
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Independent backup export failed"
+          body="The staging encrypted export or its upload failed. Review the run: $RUN_URL"
+          existing=$(gh issue list --state open --search "in:title \"$title\"" --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "$title" --body "$body"
+          fi

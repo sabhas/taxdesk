@@ -236,8 +236,8 @@ const invoiceSummaryFields = {
   paidMinor: MinorAmountSchema,
   outstandingMinor: MinorAmountSchema,
   pdfState: BillingPdfStateSchema,
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
   version: z.number().int().positive(),
 };
 
@@ -249,9 +249,9 @@ export const InvoiceSchema = z
     ...invoiceSummaryFields,
     items: z.array(InvoiceItemSchema),
     notes: z.string().max(INVOICE_LIMITS.notesMax),
-    finalizedAt: z.string().datetime().nullable(),
+    finalizedAt: z.iso.datetime().nullable(),
     voidReason: z.string().max(INVOICE_LIMITS.reasonMax).nullable(),
-    voidedAt: z.string().datetime().nullable(),
+    voidedAt: z.iso.datetime().nullable(),
   })
   .strict();
 
@@ -328,7 +328,7 @@ export type ReversePaymentRequest = z.infer<typeof ReversePaymentRequestSchema>;
 export const VoidInvoiceRequestSchema = z
   .object({
     reason: reasonField,
-    confirm: z.literal(true, { errorMap: () => ({ message: 'Confirm the void.' }) }),
+    confirm: z.literal(true, { error: 'Confirm the void.' }),
   })
   .strict();
 
@@ -340,7 +340,7 @@ export const PaymentReversalSchema = z
     amountMinor: MinorAmountSchema,
     reason: z.string().min(1).max(INVOICE_LIMITS.reasonMax),
     reversedByName: z.string().nullable(),
-    reversedAt: z.string().datetime(),
+    reversedAt: z.iso.datetime(),
   })
   .strict();
 
@@ -356,7 +356,7 @@ export const PaymentSchema = z
     receivedOn: IsoDateSchema,
     reference: z.string().max(INVOICE_LIMITS.referenceMax),
     recordedByName: z.string().nullable(),
-    recordedAt: z.string().datetime(),
+    recordedAt: z.iso.datetime(),
     reversedMinor: MinorAmountSchema,
     reversals: z.array(PaymentReversalSchema),
     receiptPdfState: BillingPdfStateSchema,

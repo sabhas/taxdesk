@@ -44,7 +44,7 @@ export const DOCUMENT_CONTENT_TYPE_KEYS = Object.keys(DOCUMENT_CONTENT_TYPES) as
 ];
 
 export const DocumentContentTypeSchema = z.enum(DOCUMENT_CONTENT_TYPE_KEYS, {
-  errorMap: () => ({ message: 'Upload a PDF, JPEG, PNG, DOCX, XLSX, or CSV file.' }),
+  error: 'Upload a PDF, JPEG, PNG, DOCX, XLSX, or CSV file.',
 });
 
 /** Comma-separated `accept` attribute for file inputs. */
@@ -111,7 +111,7 @@ export function unsafeFileNameReason(fileName: string): string | null {
 export const DocumentFileNameSchema = z.string().superRefine((value, ctx) => {
   const reason = unsafeFileNameReason(value);
   if (reason !== null) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: reason });
+    ctx.addIssue({ code: 'custom', message: reason });
   }
 });
 
@@ -180,7 +180,7 @@ export const UploadCreateRequestSchema = z
   .superRefine((value, ctx) => {
     if (value.checklistItemId !== null && value.caseId === null) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: 'custom',
         path: ['checklistItemId'],
         message: 'A checklist item can only be linked through its case.',
       });
@@ -188,7 +188,7 @@ export const UploadCreateRequestSchema = z
     const expected = contentTypeForFileName(value.fileName);
     if (expected !== null && expected !== value.contentType) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: 'custom',
         path: ['contentType'],
         message: 'The file type does not match the file name extension.',
       });
@@ -206,7 +206,7 @@ export const UploadSessionSchema = z
     /** Bytes the provider has accepted; the next chunk starts here. */
     nextOffset: z.number().int().nonnegative(),
     chunkBytes: z.number().int().positive(),
-    expiresAt: z.string().datetime(),
+    expiresAt: z.iso.datetime(),
   })
   .strict();
 export type UploadSession = z.infer<typeof UploadSessionSchema>;
@@ -241,12 +241,12 @@ export const DocumentSchema = z
     verificationState: DocumentVerificationStateSchema,
     verificationNote: z.string().nullable(),
     verifiedByName: z.string().nullable(),
-    verifiedAt: z.string().datetime().nullable(),
+    verifiedAt: z.iso.datetime().nullable(),
     providerState: DocumentProviderStateSchema,
-    lastReconciledAt: z.string().datetime().nullable(),
+    lastReconciledAt: z.iso.datetime().nullable(),
     uploadedByName: z.string().nullable(),
-    uploadedAt: z.string().datetime(),
-    deletedAt: z.string().datetime().nullable(),
+    uploadedAt: z.iso.datetime(),
+    deletedAt: z.iso.datetime().nullable(),
     deletedByName: z.string().nullable(),
     version: z.number().int().positive(),
     permissions: z
@@ -320,7 +320,7 @@ export const DocumentReviewRequestSchema = z
   .superRefine((value, ctx) => {
     if (value.decision === 'rejected' && (value.note === undefined || value.note.length === 0)) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: 'custom',
         path: ['note'],
         message: 'Explain why the document is rejected.',
       });

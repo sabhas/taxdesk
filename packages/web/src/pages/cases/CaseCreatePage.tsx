@@ -182,7 +182,7 @@ export function CaseCreatePage() {
       for (const issue of parsed.error.issues) {
         const field = String(issue.path[0] ?? '') as FieldName;
         const friendly =
-          issue.code === 'invalid_string' && field !== 'dueDate'
+          issue.code === 'invalid_format' && field !== 'dueDate'
             ? 'Choose an option.'
             : issue.message;
         next[field] ??= friendly;

@@ -18,7 +18,7 @@ import { protect } from '../middleware/auth.js';
 
 export const reportRoutes = new Hono<AppEnv>();
 
-export function parseQuery<T>(c: Context<AppEnv>, schema: z.ZodType<T, z.ZodTypeDef, unknown>): T {
+export function parseQuery<T>(c: Context<AppEnv>, schema: z.ZodType<T>): T {
   const parsed = schema.safeParse(c.req.query());
   if (!parsed.success) {
     throw new AuthError(400, 'VALIDATION_FAILED', 'Check the filters.', {

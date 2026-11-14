@@ -1,0 +1,3 @@
+external_ref,client_ref,service,tax_year,due_date,status,primary_consultant_username,reviewer_username,notes
+LEGACY-T-0001,LEGACY-C-0001,Income tax return,2026,2026-09-30,,,,
+LEGACY-T-0002,CL-00002,Income tax return,2026,,,,,Synthetic row

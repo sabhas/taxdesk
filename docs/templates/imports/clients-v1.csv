@@ -1,0 +1,3 @@
+external_ref,client_type,legal_name,display_name,cnic,ntn,contact_name,contact_relationship,contact_email,contact_phone,assigned_manager_username,notes
+LEGACY-C-0001,individual,Sample Person One,Sample One,00000-0000001-1,,Sample Person One,self,sample.one@example.test,0300 0000001,,Synthetic example row
+LEGACY-C-0002,business,Sample Trading Company (Pvt.) Ltd.,Sample Trading,,0000002-1,Sample Accountant,accountant,accounts@example.test,,,

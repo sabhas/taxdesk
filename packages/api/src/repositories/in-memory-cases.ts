@@ -288,6 +288,10 @@ export function createInMemoryCaseRepository(
       const record = state.cases.get(id);
       return record === undefined ? null : withClient(record);
     },
+    findByCode: async (caseCode) => {
+      const record = [...state.cases.values()].find((taxCase) => taxCase.caseCode === caseCode);
+      return record === undefined ? null : withClient(record);
+    },
     lockById: async (id) => {
       const record = state.cases.get(id);
       return record === undefined ? null : withClient(record);

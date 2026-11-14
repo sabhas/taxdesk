@@ -221,10 +221,10 @@ export const CaseChecklistItemSchema = z
     instructions: z.string().max(2000),
     state: ChecklistItemStateSchema,
     completedBy: CasePersonSchema.nullable(),
-    completedAt: z.string().datetime().nullable(),
+    completedAt: z.iso.datetime().nullable(),
     preparerComment: z.string().max(CASE_LIMITS.commentMax),
     reviewedBy: CasePersonSchema.nullable(),
-    reviewedAt: z.string().datetime().nullable(),
+    reviewedAt: z.iso.datetime().nullable(),
     reviewComment: z.string().max(CASE_LIMITS.commentMax),
     version: z.number().int().positive(),
   })
@@ -341,9 +341,9 @@ export const TaxCaseSchema = z
     availableTransitions: z.array(CaseAvailableTransitionSchema),
     allowedActions: CaseAllowedActionsSchema,
     state: CaseStateSchema,
-    archivedAt: z.string().datetime().nullable(),
-    createdAt: z.string().datetime(),
-    updatedAt: z.string().datetime(),
+    archivedAt: z.iso.datetime().nullable(),
+    createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime(),
     version: z.number().int().positive(),
   })
   .strict();
@@ -363,7 +363,7 @@ export const CaseListItemSchema = z
     primaryConsultant: CasePersonSchema.nullable(),
     reviewer: CasePersonSchema.nullable(),
     state: CaseStateSchema,
-    updatedAt: z.string().datetime(),
+    updatedAt: z.iso.datetime(),
   })
   .strict();
 
@@ -465,7 +465,7 @@ export const CaseStatusHistoryEntrySchema = z
     to: CaseStatusRefSchema,
     actor: CasePersonSchema.nullable(),
     note: z.string().max(CASE_LIMITS.transitionNoteMax),
-    occurredAt: z.string().datetime(),
+    occurredAt: z.iso.datetime(),
   })
   .strict();
 
@@ -506,7 +506,7 @@ export type CaseActivityAction = z.infer<typeof CaseActivityActionSchema>;
 export const CaseActivitySchema = z
   .object({
     id: UuidV7Schema,
-    occurredAt: z.string().datetime(),
+    occurredAt: z.iso.datetime(),
     action: CaseActivityActionSchema,
     actor: CasePersonSchema.nullable(),
     changedFields: z.array(CaseFieldSchema),

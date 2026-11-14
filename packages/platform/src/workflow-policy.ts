@@ -16,7 +16,15 @@ export interface WorkflowPolicyResult {
 
 const WORKFLOW_DIRECTORY = '.github/workflows';
 
-const REQUIRED_WORKFLOWS = ['ci.yml', 'deploy-staging.yml', 'platform-posture.yml'];
+const REQUIRED_WORKFLOWS = [
+  'ci.yml',
+  'deploy-staging.yml',
+  'platform-posture.yml',
+  'backup-export.yml',
+];
+
+/** Scheduled jobs that alert an operator by opening an issue (TD-006, TD-707). */
+const ALERTING_WORKFLOWS = new Set(['platform-posture.yml', 'backup-export.yml']);
 
 const CI_REQUIRED_COMMANDS = [
   'pnpm install --frozen-lockfile',
@@ -58,6 +66,17 @@ function runsCommand(content: string, command: string): boolean {
   });
 }
 
+/** Like `runsCommand`, but also finds the command inside a multi-line `run: |` block. */
+function invokesCommand(content: string, command: string): boolean {
+  return (
+    runsCommand(content, command) ||
+    content.split('\n').some((line) => {
+      const trimmed = line.trim();
+      return trimmed === command || trimmed.startsWith(`${command} `);
+    })
+  );
+}
+
 function usesReferences(content: string): string[] {
   return [...content.matchAll(/^\s*(?:-\s*)?uses:\s*([^\s#]+)/gm)]
     .map((match) => match[1])
@@ -84,9 +103,12 @@ function violationsForWorkflow(file: string, content: string): WorkflowViolation
 
   if (
     ISSUES_WRITE_PATTERN.test(content) &&
-    !(file === 'platform-posture.yml' && content.includes('gh issue create'))
+    !(ALERTING_WORKFLOWS.has(file) && content.includes('gh issue create'))
   ) {
-    add('WRITE_PERMISSION', 'Only the scheduled posture alert workflow may request issues: write.');
+    add(
+      'WRITE_PERMISSION',
+      'Only the scheduled posture and backup alert workflows may request issues: write.',
+    );
   }
 
   for (const reference of usesReferences(content)) {
@@ -211,6 +233,30 @@ function workflowSpecificViolations(file: string, content: string): WorkflowViol
     }
     if (!content.includes('gh issue create')) {
       add('ALERT_CHANNEL_MISSING', 'A failed check must open an operator-visible issue.');
+    }
+    if (!invokesCommand(content, 'pnpm ci:backup-verify')) {
+      add(
+        'EXPORT_VERIFY_MISSING',
+        'The scheduled check must verify the latest independent export manifest.',
+      );
+    }
+  }
+
+  if (file === 'backup-export.yml') {
+    if (!/^\s{2}schedule\s*:/m.test(content)) {
+      add('BACKUP_SCHEDULE_MISSING', 'The independent export must run on a schedule.');
+    }
+    if (!hasEnvironment(content)) {
+      add('BACKUP_ENVIRONMENT_MISSING', 'The export must run in a protected environment.');
+    }
+    if (!runsCommand(content, 'pnpm ops:backup-export')) {
+      add('BACKUP_EXPORT_MISSING', 'The workflow must run the encrypted export.');
+    }
+    if (!content.includes('if: failure()') || !content.includes('gh issue create')) {
+      add('ALERT_STEP_MISSING', 'A failed export must open an operator-visible issue.');
+    }
+    if (content.includes('secrets.PRODUCTION')) {
+      add('PRODUCTION_SECRET_IN_STAGING', 'The staging export must not read production secrets.');
     }
   }
 

@@ -24,6 +24,7 @@ import { BillingService } from './domain/billing/billing-service.js';
 import { BillingDocumentService } from './domain/billing/billing-documents.js';
 import { AuditExplorerService } from './domain/reports/audit-explorer-service.js';
 import { ReportService } from './domain/reports/report-service.js';
+import { ImportService } from './domain/imports/import-service.js';
 import { createPdfRenderer, type PdfRenderer } from './domain/billing/pdf/renderer.js';
 import type { StorageGateway } from './storage/gateway.js';
 import type { DocumentStorageProvider } from './storage/provider.js';
@@ -58,6 +59,7 @@ export interface AppDependencies {
   readonly billingDocumentService: BillingDocumentService;
   readonly reportService: ReportService;
   readonly auditExplorerService: AuditExplorerService;
+  readonly importService: ImportService;
   readonly clock: () => Date;
   readonly close: () => Promise<void>;
 }
@@ -179,6 +181,10 @@ export function composeDependencies(options: ComposeDependenciesOptions): AppDep
   });
 
   const caseService = new CaseService({ repositories, unitOfWork, clock });
+  const identifiers =
+    options.identifiers !== undefined
+      ? options.identifiers
+      : identifierProtectorFromConfig(options.authConfig);
   const billingService = new BillingService({ repositories, unitOfWork, clock });
 
   return {
@@ -225,10 +231,7 @@ export function composeDependencies(options: ComposeDependenciesOptions): AppDep
     clientService: new ClientService({
       repositories,
       unitOfWork,
-      identifiers:
-        options.identifiers !== undefined
-          ? options.identifiers
-          : identifierProtectorFromConfig(options.authConfig),
+      identifiers,
       clock,
     }),
     serviceTypeService: new ServiceTypeService({ repositories, unitOfWork, clock }),
@@ -246,6 +249,7 @@ export function composeDependencies(options: ComposeDependenciesOptions): AppDep
       clock,
     }),
     auditExplorerService: new AuditExplorerService({ repositories }),
+    importService: new ImportService({ repositories, unitOfWork, identifiers, clock }),
     billingDocumentService: new BillingDocumentService({
       repositories,
       unitOfWork,

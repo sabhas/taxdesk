@@ -25,6 +25,7 @@ import { storageRoutes } from './routes/storage.js';
 import { documentRoutes } from './routes/documents.js';
 import { billingRoutes } from './routes/billing.js';
 import { reportRoutes } from './routes/reports.js';
+import { importRoutes } from './routes/imports.js';
 import type { AppEnv } from './types.js';
 
 export interface CreateAppOptions {
@@ -52,6 +53,7 @@ const PROTECTED_PREFIXES = [
   '/api/v1/payments/*',
   '/api/v1/dashboard/*',
   '/api/v1/reports/*',
+  '/api/v1/imports/*',
 ] as const;
 
 function titleForStatus(status: number): string {
@@ -68,6 +70,8 @@ function titleForStatus(status: number): string {
       return 'Conflict';
     case 412:
       return 'Precondition Failed';
+    case 413:
+      return 'Content Too Large';
     case 428:
       return 'Precondition Required';
     case 429:
@@ -120,6 +124,7 @@ export function createApp(options: CreateAppOptions = {}): Hono<AppEnv> {
   app.route('/api/v1', documentRoutes);
   app.route('/api/v1', billingRoutes);
   app.route('/api/v1', reportRoutes);
+  app.route('/api/v1', importRoutes);
 
   app.notFound((c) => {
     return problemDetailsResponse(c, {

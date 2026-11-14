@@ -25,6 +25,12 @@
     "ci:staging-smoke": "pnpm --filter @taxdesk/platform run smoke",
     "ci:db-posture": "pnpm --filter @taxdesk/platform run db-posture",
     "ci:backup-check": "pnpm --filter @taxdesk/platform run backup-check",
+    "ci:backup-verify": "pnpm --filter @taxdesk/platform run ops backup-verify",
+    "ops:backup-export": "pnpm --filter @taxdesk/platform run ops backup-export",
+    "ops:backup-decrypt": "pnpm --filter @taxdesk/platform run ops backup-decrypt",
+    "ops:recovery-snapshot": "pnpm --filter @taxdesk/platform run ops recovery-snapshot",
+    "ops:restore-verify": "pnpm --filter @taxdesk/platform run ops restore-verify",
+    "ops:sample-import": "pnpm --filter @taxdesk/platform run ops sample-import",
     "spike:onedrive": "pnpm --filter @taxdesk/onedrive-spike run spike",
     "dev:api": "wrangler dev --config packages/api/wrangler.toml",
     "dev:web": "pnpm --filter @taxdesk/web dev",
@@ -35,7 +41,7 @@
     "verify": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm db:migrate:verify && pnpm ci:secrets && pnpm ci:workflows && pnpm ci:config-posture && pnpm ci:selftest && pnpm build",
     "auth:bootstrap": "pnpm --filter @taxdesk/api run auth:bootstrap",
     "auth:recover": "pnpm --filter @taxdesk/api run auth:recover",
-    "test:api-db": "pnpm --filter @taxdesk/api run test -- src/repositories/postgres.integration.test.ts src/repositories/postgres-documents.integration.test.ts src/repositories/postgres-billing.integration.test.ts src/repositories/postgres-reports.integration.test.ts"
+    "test:api-db": "pnpm --filter @taxdesk/api run test -- src/repositories/postgres.integration.test.ts src/repositories/postgres-documents.integration.test.ts src/repositories/postgres-billing.integration.test.ts src/repositories/postgres-reports.integration.test.ts src/repositories/postgres-imports.integration.test.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
@@ -47,7 +53,7 @@
     "prettier": "^3.4.2",
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.18.1",
-    "vitest": "^2.1.8",
+    "vitest": "^4.1.12",
     "wrangler": "^4.156.0"
   }
 }

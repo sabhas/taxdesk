@@ -116,7 +116,28 @@ branch-protection checks, environment secrets, and recovery evidence contract.
 | Prove failing gates are rejected           | `pnpm ci:selftest`      |
 | Verify staging TLS and database role       | `pnpm ci:db-posture`    |
 | Validate recovery/export/alerting evidence | `pnpm ci:backup-check`  |
+| Check the latest independent export        | `pnpm ci:backup-verify` |
 | Smoke-test a deployed staging host         | `pnpm ci:staging-smoke` |
+
+## Data import, backup, and recovery (Epic 7)
+
+Administrators import existing clients, active cases, and opening balances
+from versioned CSV templates in **Data import**; see
+[`docs/guides/data-import.md`](docs/guides/data-import.md). Backups and
+restores follow [`docs/guides/backup-and-restore.md`](docs/guides/backup-and-restore.md),
+and the migration rehearsal follows
+[`docs/guides/migration-rehearsal.md`](docs/guides/migration-rehearsal.md).
+
+| Task                                                         | Command                      |
+| ------------------------------------------------------------ | ---------------------------- |
+| Encrypted `pg_dump` export of `DATABASE_URL` with a manifest | `pnpm ops:backup-export`     |
+| Decrypt an export for `pg_restore`                           | `pnpm ops:backup-decrypt`    |
+| Record counts, money totals, and integrity of a database     | `pnpm ops:recovery-snapshot` |
+| Verify a restored database against the source and the RTO    | `pnpm ops:restore-verify`    |
+| Generate synthetic, production-shaped import files           | `pnpm ops:sample-import`     |
+
+Each command prints `--help` usage and one JSON report line; none prints a
+connection string, key, or record content.
 
 ## OneDrive Personal feasibility spike
 

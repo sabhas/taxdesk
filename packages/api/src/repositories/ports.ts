@@ -64,7 +64,21 @@ import type {
   PaymentRecord,
   PaymentReversalRecord,
 } from '../domain/billing/types.js';
-import type { BillingPdfState, WorkflowDefinition } from '@taxdesk/shared';
+import type {
+  ImportBatchChanges,
+  ImportBatchListCursor,
+  ImportBatchRecord,
+  ImportEntityRef,
+  ImportLineageSample,
+  ImportReconciliationTotals,
+  ImportRowDecisionRecord,
+  ImportRowFilter,
+  ImportRowOutcomeInput,
+  ImportRowPlan,
+  ImportRowRecord,
+  ImportRowTotals,
+} from '../domain/imports/types.js';
+import type { BillingPdfState, ImportKind, WorkflowDefinition } from '@taxdesk/shared';
 
 export interface PaginatedAuditEvents {
   readonly events: readonly AuditEventRecord[];
@@ -245,6 +259,8 @@ export interface ClientRepository {
   nextClientNumber(): Promise<number>;
   create(client: ClientRecord, contacts: readonly ClientContactRecord[]): Promise<void>;
   findById(id: string): Promise<ClientRecord | null>;
+  /** Exact client code (`CL-00001`), archived clients included. */
+  findByCode(clientCode: string): Promise<ClientRecord | null>;
   listContacts(clientIds: readonly string[]): Promise<ClientContactRecord[]>;
   /** Optimistic update; `null` when `expectedVersion` is stale or the client is missing. */
   update(input: {
@@ -353,6 +369,8 @@ export interface CaseRepository {
     items: readonly CaseChecklistItemRecord[],
   ): Promise<void>;
   findById(id: string): Promise<TaxCaseRecord | null>;
+  /** Exact case code (`TC-00001`), archived cases included. */
+  findByCode(caseCode: string): Promise<TaxCaseRecord | null>;
   /** Reads and row-locks a case for the rest of the transaction. */
   lockById(id: string): Promise<TaxCaseRecord | null>;
   updateDetails(input: {
@@ -621,6 +639,82 @@ export interface IdempotencyRepository {
   }): Promise<void>;
 }
 
+/** Raised when a second open batch would hold the same source checksum. */
+export class DuplicateImportSourceError extends Error {
+  constructor() {
+    super('An open import batch already holds this file.');
+    this.name = 'DuplicateImportSourceError';
+  }
+}
+
+/** Raised when a second row would create a record for the same external reference. */
+export class DuplicateImportLineageError extends Error {
+  constructor() {
+    super('This external reference already created a record.');
+    this.name = 'DuplicateImportLineageError';
+  }
+}
+
+/** CSV import batches, their row plans, and committed lineage (TD-702–TD-706). */
+export interface ImportRepository {
+  /** Draws the next batch-code number. Numbers are never reused. */
+  nextBatchNumber(): Promise<number>;
+  /** Throws `DuplicateImportSourceError` when an open batch has the checksum. */
+  createBatch(batch: ImportBatchRecord, rows: readonly ImportRowPlan[]): Promise<void>;
+  findBatch(id: string): Promise<ImportBatchRecord | null>;
+  /** Reads and row-locks a batch for the rest of the transaction. */
+  lockBatch(id: string): Promise<ImportBatchRecord | null>;
+  /** The batch that is not discarded and holds this checksum. */
+  findOpenBySourceChecksum(checksum: string): Promise<ImportBatchRecord | null>;
+  /** Optimistic update; `null` when `expectedVersion` is stale. */
+  updateBatch(input: {
+    readonly id: string;
+    readonly changes: ImportBatchChanges;
+    readonly expectedVersion: number;
+    readonly at: string;
+  }): Promise<ImportBatchRecord | null>;
+  /** Newest first. */
+  listBatches(input: {
+    readonly limit: number;
+    readonly after: ImportBatchListCursor | null;
+  }): Promise<{ readonly batches: readonly ImportBatchRecord[]; readonly hasMore: boolean }>;
+  /** Ordered by row number. */
+  listRows(
+    filter: ImportRowFilter,
+  ): Promise<{ readonly rows: readonly ImportRowRecord[]; readonly hasMore: boolean }>;
+  /** Every row of a batch, ordered by row number (at most the row limit). */
+  allRows(batchId: string): Promise<ImportRowRecord[]>;
+  findRow(batchId: string, rowNumber: number): Promise<ImportRowRecord | null>;
+  /**
+   * Replaces the plan of rows that have no outcome yet. A row's decision is
+   * kept only while the row is still a review; otherwise it is cleared.
+   */
+  replanRows(batchId: string, rows: readonly ImportRowPlan[], at: string): Promise<void>;
+  /** Records a decision on a review row; `null` when the row version is stale. */
+  decideRow(input: {
+    readonly batchId: string;
+    readonly rowNumber: number;
+    readonly decision: ImportRowDecisionRecord;
+    readonly expectedVersion: number;
+    readonly at: string;
+  }): Promise<ImportRowRecord | null>;
+  /** Rows without an outcome, ordered by row number. */
+  pendingRows(batchId: string, limit: number): Promise<ImportRowRecord[]>;
+  /**
+   * Writes a row's outcome and lineage once. Throws
+   * `DuplicateImportLineageError` if another row already created a record for
+   * the same external reference.
+   */
+  recordOutcome(input: ImportRowOutcomeInput): Promise<void>;
+  /** The newest committed record linked to an external reference. */
+  findLineage(kind: ImportKind, externalRef: string): Promise<ImportEntityRef | null>;
+  /** Outcome counts and amounts of one batch (reconciliation summary). */
+  rowTotals(batchId: string): Promise<ImportRowTotals>;
+  reconciliationTotals(): Promise<ImportReconciliationTotals>;
+  /** A random sample of committed rows with a linked record. */
+  sampleLineage(limit: number): Promise<ImportLineageSample[]>;
+}
+
 export interface LoginAttemptRepository {
   record(record: LoginAttemptRecord): Promise<void>;
   countFailures(input: {
@@ -656,6 +750,7 @@ export interface Repositories {
   readonly numberSequences: NumberSequenceRepository;
   readonly idempotency: IdempotencyRepository;
   readonly billingReports: BillingReportRepository;
+  readonly imports: ImportRepository;
 }
 
 /**

@@ -223,6 +223,12 @@ export function createPostgresClientRepository(executor: SqlExecutor): ClientRep
       const rows = await executor.query('SELECT * FROM clients WHERE id = $1', [id]);
       return rows[0] === undefined ? null : mapClient(rows[0]);
     },
+    findByCode: async (clientCode) => {
+      const rows = await executor.query('SELECT * FROM clients WHERE client_code = $1', [
+        clientCode,
+      ]);
+      return rows[0] === undefined ? null : mapClient(rows[0]);
+    },
     listContacts: async (clientIds) => {
       if (clientIds.length === 0) {
         return [];

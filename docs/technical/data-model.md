@@ -267,6 +267,44 @@ Dashboards and reports are read models over existing tables:
   cursor. Metadata is masked before display (secrets, hashes, and identifier-like
   values become `[masked]`).
 
+## Data import (Epic 7)
+
+Migration `0010_data_import.sql` adds `import_batches`, `import_batch_rows`,
+the `import_batch_code_seq` sequence, and the administrator-only
+`imports.manage` permission. See
+[ADR 0009](../adr/0009-data-import-and-independent-backups.md) and the
+[data import guide](../guides/data-import.md).
+
+- `import_batches` hold one uploaded file's facts (`batch_code` `IMP-00001`,
+  kind, template ID, file name, size ≤ 2 MiB, row count ≤ 5,000, SHA-256
+  `source_checksum`), the plan counts (`plan_create`, `plan_update`,
+  `plan_skip`, `plan_review`, `plan_error`; they sum to the row count; decided
+  reviews count as create or skip), the opening-balance `source_amount_minor`,
+  and the status `validated` → `committing` → `committed`, or `blocked` /
+  `discarded`. A partial unique index allows one non-discarded batch per
+  checksum. Committing needs `plan_error = 0` and `plan_review = 0`, and sets
+  an immutable `commit_idempotency_key`. A trigger forbids deletes, changes to
+  the file facts, and any change once committed or discarded.
+- `import_batch_rows` hold one row's plan (`action` create/update/skip/review/
+  error, `reason_code`, `errors` as `{column, code, message}` with fixed
+  messages, the matched record), its decision (`decision`, `decision_reason`
+  10–500 characters, `decided_by`, `decided_at`, only on review rows), and its
+  outcome (`created`/`updated`/`skipped`/`failed`, `outcome_code`, and the
+  linked `entity_type`, `entity_id`, `entity_code`). Rows store no cell values
+  and never a plaintext identifier. A partial unique index on
+  `(kind, external_ref)` for `outcome = 'created'` allows one created record
+  per source reference. A trigger forbids deletes and any change once a row
+  has an outcome (permanent lineage).
+- Imported records are ordinary clients, cases, and finalized invoices; their
+  creation audit events carry `importBatch` and `importRow`. Opening-balance
+  invoices are created as drafts and finalized in the same transaction with a
+  number from the invoice counter; an imported case at a later status has its
+  initial status and the imported status in its history.
+- Import audit events (`import.validated`, `import.revalidated`,
+  `import.row_decided`, `import.discarded`, `import.commit_started`,
+  `import.committed`, `import.exceptions_exported`) record batch codes, counts,
+  row numbers, decisions and their reasons, and matched record codes.
+
 ## Integrity rules
 
 - Tax identifiers use encrypted ciphertext for display and an HMAC blind index for exact duplicate detection.

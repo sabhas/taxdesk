@@ -5,6 +5,7 @@ import {
   HardDrive,
   Receipt,
   ChartColumn,
+  FileUp,
   ListChecks,
   Tags,
   LayoutDashboard,
@@ -32,6 +33,7 @@ export const ROUTE_PATHS = {
   reportsBilling: '/reports/billing',
   services: '/services',
   workflows: '/workflows',
+  imports: '/imports',
   /** The storage OAuth callback redirects here (`?result=`). */
   storage: STORAGE_SETTINGS_PATH,
   /** The storage provider redirects the browser here after consent. */
@@ -76,6 +78,10 @@ export function newCasePath(clientId?: string): string {
 
 export function invoicePath(invoiceId: string): string {
   return `${ROUTE_PATHS.invoices}/${encodeURIComponent(invoiceId)}`;
+}
+
+export function importBatchPath(batchId: string): string {
+  return `${ROUTE_PATHS.imports}/${encodeURIComponent(batchId)}`;
 }
 
 export function workflowPath(templateId: string): string {
@@ -167,6 +173,14 @@ export const NAV_ROUTES: readonly NavRoute[] = [
     title: 'Document storage',
     icon: HardDrive,
     permission: 'storage.manage',
+  },
+  {
+    path: ROUTE_PATHS.imports,
+    label: 'Data import',
+    title: 'Data import',
+    icon: FileUp,
+    permission: 'imports.manage',
+    end: false,
   },
   {
     path: ROUTE_PATHS.audit,

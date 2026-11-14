@@ -33,13 +33,13 @@ function rangeIssue(
     const days = daysBetween(value.from, value.to);
     if (days < 0) {
       context.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: 'custom',
         path: ['to'],
         message: 'The end date must be on or after the start date.',
       });
     } else if (days > REPORT_LIMITS.maxRangeDays) {
       context.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: 'custom',
         path: ['to'],
         message: 'Choose a shorter date range.',
       });
@@ -136,7 +136,7 @@ export type DashboardBillingSection = z.infer<typeof DashboardBillingSectionSche
 
 export const DashboardSummarySchema = z
   .object({
-    generatedAt: z.string().datetime(),
+    generatedAt: z.iso.datetime(),
     today: IsoDateSchema,
     dueSoonDays: z.number().int().min(1),
     /** `null` when the signed-in user's roles do not include the section. */
