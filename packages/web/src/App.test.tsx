@@ -492,7 +492,9 @@ describe('activation', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Activate account' }));
     expect(await screen.findByRole('heading', { name: 'Account activated' })).toBeInTheDocument();
-    expect(document.title).toBe('Activate your account · TaxDesk');
+    await waitFor(() => {
+      expect(document.title).toBe('Activate your account · TaxDesk');
+    });
   });
 
   it('clears the one-time token from the URL after activation', async () => {
@@ -533,7 +535,9 @@ describe('URL routing', () => {
     expect(await screen.findByRole('heading', { name: 'Invite a user' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Users' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('link', { name: 'Dashboard' })).not.toHaveAttribute('aria-current');
-    expect(document.title).toBe('Users · TaxDesk');
+    await waitFor(() => {
+      expect(document.title).toBe('Users · TaxDesk');
+    });
     // First load does not move focus.
     expect(document.activeElement).toBe(document.body);
   });
@@ -549,7 +553,9 @@ describe('URL routing', () => {
 
     await screen.findByRole('heading', { name: 'Sign in to TaxDesk' });
     expect(window.location.pathname).toBe('/users');
-    expect(document.title).toBe('Sign in · TaxDesk');
+    await waitFor(() => {
+      expect(document.title).toBe('Sign in · TaxDesk');
+    });
     await fillLogin();
 
     expect(await screen.findByRole('heading', { name: 'Invite a user' })).toBeInTheDocument();
@@ -563,7 +569,9 @@ describe('URL routing', () => {
     const rendered = render(<App />);
 
     expect(await screen.findByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
-    expect(document.title).toBe('Page not found · TaxDesk');
+    await waitFor(() => {
+      expect(document.title).toBe('Page not found · TaxDesk');
+    });
     const results = await axe(rendered.container);
     expect(
       results.violations.filter(
@@ -586,7 +594,9 @@ describe('URL routing', () => {
     fireEvent.click(screen.getByRole('link', { name: 'Security' }));
     const heading = await screen.findByRole('heading', { level: 1, name: 'Security' });
     expect(window.location.pathname).toBe('/security');
-    expect(document.title).toBe('Security · TaxDesk');
+    await waitFor(() => {
+      expect(document.title).toBe('Security · TaxDesk');
+    });
     expect(heading).toHaveFocus();
     expect(screen.getByRole('link', { name: 'Security' })).toHaveAttribute('aria-current', 'page');
 
@@ -600,7 +610,9 @@ describe('URL routing', () => {
       await screen.findByRole('heading', { name: /Welcome, Test Person/ }),
     ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Dashboard' })).toHaveAttribute('aria-current', 'page');
-    expect(document.title).toBe('Dashboard · TaxDesk');
+    await waitFor(() => {
+      expect(document.title).toBe('Dashboard · TaxDesk');
+    });
   });
 
   it('keeps permission gating on a deep link the role cannot use', async () => {
