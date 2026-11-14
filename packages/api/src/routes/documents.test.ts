@@ -268,10 +268,11 @@ function noSecrets(w: World, value: string) {
 }
 
 describe('resumable upload (TD-406)', () => {
-  // Hashes and moves several 5 MiB chunks through the fake provider: slower than the default timeout.
+  // Hashes and moves several 5 MiB chunks through the fake provider. It takes ~10 s locally
+  // and 30–45 s on shared CI runners, so it needs a generous timeout.
   it(
     'uploads in 5 MiB chunks with a short final chunk and completes idempotently',
-    { timeout: 30_000 },
+    { timeout: 120_000 },
     async () => {
       const w = await world();
       const client = await createClient(w);
