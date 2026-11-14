@@ -13,8 +13,8 @@ import {
 const KEY = bytesToBase64Url(new Uint8Array(32).fill(3));
 const OTHER_KEY = bytesToBase64Url(new Uint8Array(32).fill(4));
 const credentials = {
-  accessToken: 'synthetic-access',
-  refreshToken: 'synthetic-refresh',
+  accessToken: 'fake-access',
+  refreshToken: 'fake-refresh',
   accessTokenExpiresAt: '2026-06-01T05:00:00.000Z',
   scopes: ['Files.ReadWrite.AppFolder'],
 };
