@@ -34,6 +34,8 @@ export interface InvoiceFilters {
   readonly issuedTo?: string;
   readonly dueFrom?: string;
   readonly dueTo?: string;
+  /** Dashboard drill-downs: finalized invoices with a balance, or past due. */
+  readonly balance?: 'outstanding' | 'overdue';
   readonly limit?: number;
   readonly cursor?: string;
 }

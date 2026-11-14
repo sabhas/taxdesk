@@ -401,6 +401,13 @@ const caseFilterFields = {
   reviewer: UuidSchema.optional(),
   taxYear: z.coerce.number().pipe(TaxYearSchema).optional(),
   client: UuidSchema.optional(),
+  /** Status kind of the case's current status (open, filed, completed, cancelled). */
+  statusKind: WorkflowStatusKindSchema.optional(),
+  /**
+   * `gaps`: cases with a required checklist item that is not yet satisfied;
+   * `awaiting_review`: cases with an item waiting for a reviewer.
+   */
+  checklist: z.enum(['gaps', 'awaiting_review']).optional(),
 };
 
 export const CaseListQuerySchema = z

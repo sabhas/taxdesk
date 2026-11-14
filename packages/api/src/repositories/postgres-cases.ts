@@ -507,6 +507,33 @@ export function caseFilterSql(
     case 'archived':
       conditions.push('c.deleted_at IS NOT NULL');
       break;
+    case 'active':
+      conditions.push('c.deleted_at IS NULL');
+      break;
+    case 'any':
+      break;
+  }
+  if (filter.statusKind != null) {
+    conditions.push(`c.current_status_kind = ${bind(filter.statusKind)}`);
+  }
+  if (filter.dueFrom != null) {
+    conditions.push(`c.due_date >= ${bind(filter.dueFrom)}::date`);
+  }
+  if (filter.dueTo != null) {
+    conditions.push(`c.due_date <= ${bind(filter.dueTo)}::date`);
+  }
+  if (filter.checklist === 'gaps') {
+    conditions.push(
+      `EXISTS (SELECT 1 FROM case_checklist_items i WHERE i.case_id = c.id AND i.required
+         AND NOT (CASE WHEN i.review_required THEN i.state = 'verified'
+                       ELSE i.state IN ('completed', 'verified') END))`,
+    );
+  }
+  if (filter.checklist === 'awaiting_review') {
+    conditions.push(
+      `EXISTS (SELECT 1 FROM case_checklist_items i WHERE i.case_id = c.id
+         AND i.review_required AND i.state = 'completed')`,
+    );
   }
   if (filter.restrictToAssignedUserId !== null) {
     const user = bind(filter.restrictToAssignedUserId);
@@ -532,7 +559,8 @@ export function caseFilterSql(
   if (filter.clientId !== null) {
     conditions.push(`c.client_id = ${bind(filter.clientId)}::uuid`);
   }
-  return { where: conditions.join(' AND '), parameters };
+  // The report-only `any` view with no other filter has no condition at all.
+  return { where: conditions.length === 0 ? 'TRUE' : conditions.join(' AND '), parameters };
 }
 
 export function createPostgresCaseRepository(executor: SqlExecutor): CaseRepository {

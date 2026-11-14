@@ -175,6 +175,17 @@ export class DocumentService {
     return this.options.cipher;
   }
 
+  /**
+   * The firm's upload limit (TD-605), capped by the deployment's own ceiling
+   * so configuration can still bound what an administrator may allow.
+   */
+  private async maxUploadBytes(): Promise<number> {
+    const firm = await this.repositories.firm.get();
+    return firm === null
+      ? this.options.maxUploadBytes
+      : Math.min(firm.documentMaxUploadBytes, this.options.maxUploadBytes);
+  }
+
   private async storageAvailable(): Promise<boolean> {
     const status = await this.options.storage.currentStatus();
     return storageAcceptsOperations(status.status);
@@ -392,11 +403,12 @@ export class DocumentService {
       DocumentService.assertSameUploadRequest(existing, request);
       return { upload: this.toUploadSession(existing), created: false };
     }
-    if (request.sizeBytes > this.options.maxUploadBytes) {
+    const maxUploadBytes = await this.maxUploadBytes();
+    if (request.sizeBytes > maxUploadBytes) {
       throw new AuthError(
         400,
         'DOCUMENT_TOO_LARGE',
-        `The file is larger than the ${String(Math.floor(this.options.maxUploadBytes / (1024 * 1024)))} MiB limit.`,
+        `The file is larger than the ${String(Math.floor(maxUploadBytes / (1024 * 1024)))} MiB limit.`,
         { errors: [{ field: 'sizeBytes', message: 'The file is too large.' }] },
       );
     }
@@ -977,7 +989,7 @@ export class DocumentService {
       documents,
       nextCursor: page.nextCursor,
       storageAvailable: await this.storageAvailable(),
-      maxUploadBytes: this.options.maxUploadBytes,
+      maxUploadBytes: await this.maxUploadBytes(),
       permissions: {
         upload: canWriteDocumentTarget(actor, listTarget) && this.targetAcceptsUploads(listTarget),
       },

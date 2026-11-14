@@ -26,6 +26,7 @@ import { listInvoices, type InvoiceFilters } from '../../billing-api.js';
 import {
   EmptyState,
   ErrorAlert,
+  InfoNotice,
   LoadingMessage,
   type ErrorNotice,
 } from '../../components/feedback.js';
@@ -46,7 +47,9 @@ const PAGE_SIZE = 25;
 function readFilters(parameters: URLSearchParams): InvoiceFilters {
   const status = parameters.get('status');
   const paymentStatus = parameters.get('paymentStatus');
+  const balance = parameters.get('balance');
   return {
+    ...(balance === 'outstanding' || balance === 'overdue' ? { balance } : {}),
     ...(status !== null && (INVOICE_STATUSES as readonly string[]).includes(status)
       ? { status: status as InvoiceStatus }
       : {}),
@@ -126,6 +129,24 @@ export function InvoicesPage() {
         title="Invoices"
         description="Invoices and what is still owed. Open a client or case to create one."
       />
+      {filters.balance !== undefined && (
+        <InfoNotice>
+          Showing:{' '}
+          {filters.balance === 'overdue'
+            ? 'overdue invoices with a balance'
+            : 'invoices with a balance'}
+          .{' '}
+          <button
+            type="button"
+            className="underline underline-offset-2"
+            onClick={() => {
+              setParameter('balance', '');
+            }}
+          >
+            Clear this filter
+          </button>
+        </InfoNotice>
+      )}
       <div className="mb-4 flex flex-wrap gap-4">
         <Field className="w-48">
           <FieldLabel htmlFor={`${headingId}-status`}>Status</FieldLabel>

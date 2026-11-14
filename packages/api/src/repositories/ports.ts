@@ -84,6 +84,11 @@ export interface FirmRepository {
     readonly id: string;
     readonly firmName: string;
     readonly timezone: string;
+    readonly currency: string;
+    readonly invoicePrefix: string;
+    readonly receiptPrefix: string;
+    readonly documentMaxUploadBytes: number;
+    readonly dueSoonDays: number;
     readonly expectedVersion: number;
     readonly updatedAt: string;
   }): Promise<FirmRecord | null>;
@@ -191,8 +196,26 @@ export interface MfaRepository {
   countUnusedRecoveryCodes(userId: string): Promise<number>;
 }
 
+/** Audit explorer filter (TD-604). Dates are firm-calendar days, inclusive. */
+export interface AuditSearchFilter {
+  readonly actorUserId: string | null;
+  readonly from: string | null;
+  readonly to: string | null;
+  /** Timezone the `from`/`to` days are read in. */
+  readonly timezone: string;
+  /** An exact action, or a prefix ending in `.*`. */
+  readonly action: string | null;
+  readonly entityType: string | null;
+  readonly entityId: string | null;
+  readonly requestId: string | null;
+  readonly limit: number;
+  readonly cursor: string | null;
+}
+
 export interface AuditRepository {
   append(record: AuditEventRecord): Promise<void>;
+  /** Newest first. */
+  search(filter: AuditSearchFilter): Promise<PaginatedAuditEvents>;
   list(input: {
     readonly limit: number;
     readonly cursor: string | null;
@@ -507,6 +530,44 @@ export interface InvoiceRepository {
   list(filter: InvoiceListFilter): Promise<InvoiceListPage>;
 }
 
+/** Money totals for the billing report and dashboard (TD-601, TD-603). */
+export interface InvoiceTotalsFilter {
+  readonly issuedFrom: string | null;
+  readonly issuedTo: string | null;
+  /** Firm-calendar today; an invoice is overdue when its due date is before it. */
+  readonly today: string;
+  readonly clientId: string | null;
+  /** Empty array means no invoice is visible. */
+  readonly visibleClientIds: readonly string[] | null;
+}
+
+export interface CollectionTotalsFilter {
+  readonly from: string;
+  readonly to: string;
+  /** Timezone a reversal's timestamp is read in to find its calendar day. */
+  readonly timezone: string;
+  readonly clientId: string | null;
+  readonly visibleClientIds: readonly string[] | null;
+}
+
+export interface CountAmount {
+  readonly count: number;
+  readonly amountMinor: number;
+}
+
+export interface BillingReportRepository {
+  /** Finalized invoices only; void and draft invoices never count. */
+  invoiceTotals(filter: InvoiceTotalsFilter): Promise<{
+    readonly invoiced: CountAmount;
+    readonly outstanding: CountAmount;
+    readonly overdue: CountAmount;
+  }>;
+  collectionTotals(filter: CollectionTotalsFilter): Promise<{
+    readonly collected: CountAmount;
+    readonly reversed: CountAmount;
+  }>;
+}
+
 export interface PaymentRepository {
   create(record: PaymentRecord): Promise<void>;
   findById(id: string): Promise<PaymentRecord | null>;
@@ -594,6 +655,7 @@ export interface Repositories {
   readonly billingDocuments: BillingDocumentRepository;
   readonly numberSequences: NumberSequenceRepository;
   readonly idempotency: IdempotencyRepository;
+  readonly billingReports: BillingReportRepository;
 }
 
 /**

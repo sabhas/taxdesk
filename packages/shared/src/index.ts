@@ -132,8 +132,7 @@ export type {
   ClientUpdateRequest,
   DuplicateMatchReason,
 } from './client.js';
-export { FirmSettingsSchema, FirmSettingsUpdateSchema, TimezoneSchema } from './firm.js';
-export type { FirmSettings, FirmSettingsUpdate } from './firm.js';
+export * from './firm.js';
 export { DeploymentEnvironmentSchema, HealthSchema } from './health.js';
 export type { DeploymentEnvironment, Health } from './health.js';
 export { UUID_V7_PATTERN, UuidSchema, UuidV7Schema, newUuidV7 } from './id.js';
@@ -192,3 +191,4 @@ export * from './case.js';
 export * from './storage.js';
 export * from './document.js';
 export * from './billing.js';
+export * from './reports.js';

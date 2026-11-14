@@ -6,10 +6,13 @@ import type {
   PaymentRecord,
   PaymentReversalRecord,
 } from '../domain/billing/types.js';
+import { calendarDateIn } from '@taxdesk/shared';
 import type { ClientRecord } from '../domain/clients/types.js';
 import type { TaxCaseRecord } from '../domain/cases/types.js';
 import type {
   BillingDocumentRepository,
+  BillingReportRepository,
+  CountAmount,
   IdempotencyRepository,
   InvoiceRepository,
   NumberSequenceRepository,
@@ -186,6 +189,18 @@ export function createInMemoryInvoiceRepository(
             return false;
           }
           if (
+            filter.outstandingOnly === true &&
+            (record.status !== 'finalized' || record.outstandingMinor <= 0)
+          ) {
+            return false;
+          }
+          if (
+            filter.dueBefore !== undefined &&
+            (record.dueDate === null || record.dueDate >= filter.dueBefore)
+          ) {
+            return false;
+          }
+          if (
             filter.visibleClientIds !== undefined &&
             !filter.visibleClientIds.includes(record.clientId)
           ) {
@@ -307,6 +322,73 @@ export function createInMemoryIdempotencyRepository(
       }
       entry.response = structuredClone(response);
       entry.completed = true;
+    },
+  };
+}
+
+function sumOf(rows: readonly { readonly amountMinor: number }[]): CountAmount {
+  return {
+    count: rows.length,
+    amountMinor: rows.reduce((total, row) => total + row.amountMinor, 0),
+  };
+}
+
+interface ReportScope {
+  readonly clientId: string | null;
+  readonly visibleClientIds: readonly string[] | null;
+}
+
+/** Reference implementation of the billing aggregates; the SQL mirrors it. */
+export function createInMemoryBillingReportRepository(
+  state: InMemoryBillingState,
+): BillingReportRepository {
+  const visible = (clientId: string, scope: ReportScope): boolean =>
+    (scope.clientId === null || scope.clientId === clientId) &&
+    (scope.visibleClientIds === null || scope.visibleClientIds.includes(clientId));
+  return {
+    invoiceTotals: async (filter) => {
+      const finalized = [...state.invoices.values()].filter(
+        (invoice) =>
+          invoice.status === 'finalized' &&
+          visible(invoice.clientId, filter) &&
+          invoice.issueDate !== null &&
+          (filter.issuedFrom === null || invoice.issueDate >= filter.issuedFrom) &&
+          (filter.issuedTo === null || invoice.issueDate <= filter.issuedTo),
+      );
+      const owing = finalized.filter((invoice) => invoice.outstandingMinor > 0);
+      return {
+        invoiced: sumOf(finalized.map((invoice) => ({ amountMinor: invoice.totalMinor }))),
+        outstanding: sumOf(owing.map((invoice) => ({ amountMinor: invoice.outstandingMinor }))),
+        overdue: sumOf(
+          owing
+            .filter((invoice) => invoice.dueDate !== null && invoice.dueDate < filter.today)
+            .map((invoice) => ({ amountMinor: invoice.outstandingMinor })),
+        ),
+      };
+    },
+    collectionTotals: async (filter) => {
+      const clientOf = (invoiceId: string): string | undefined =>
+        state.invoices.get(invoiceId)?.clientId;
+      const payments = [...state.payments.values()].filter((payment) => {
+        const clientId = clientOf(payment.invoiceId);
+        return (
+          clientId !== undefined &&
+          visible(clientId, filter) &&
+          payment.receivedOn >= filter.from &&
+          payment.receivedOn <= filter.to
+        );
+      });
+      const reversals = state.paymentReversals.filter((reversal) => {
+        const clientId = clientOf(reversal.invoiceId);
+        const day = calendarDateIn(filter.timezone, new Date(reversal.createdAt));
+        return (
+          clientId !== undefined &&
+          visible(clientId, filter) &&
+          day >= filter.from &&
+          day <= filter.to
+        );
+      });
+      return { collected: sumOf(payments), reversed: sumOf(reversals) };
     },
   };
 }

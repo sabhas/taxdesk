@@ -1,7 +1,6 @@
 import {
   ActivationLinkSchema,
   ActivationResponseSchema,
-  AuditEventListSchema,
   CurrentSessionSchema,
   FirmSettingsSchema,
   InviteUserResponseSchema,
@@ -12,7 +11,6 @@ import {
   UserSummarySchema,
   type ActivationLink,
   type ActivationResponse,
-  type AuditEventList,
   type CurrentSession,
   type FirmSettings,
   type FirmSettingsUpdate,
@@ -164,23 +162,4 @@ export async function updateFirmSettings(
     ifMatch: version,
     sessionScoped: true,
   });
-}
-
-export async function listAuditEvents(
-  input: { limit?: number; cursor?: string | null } = {},
-  signal?: AbortSignal,
-): Promise<AuditEventList> {
-  const parameters = new URLSearchParams();
-  parameters.set('limit', String(input.limit ?? 25));
-  if (input.cursor !== undefined && input.cursor !== null) {
-    parameters.set('cursor', input.cursor);
-  }
-  return await apiRequest(
-    `/api/v1/admin/audit-events?${parameters.toString()}`,
-    AuditEventListSchema,
-    {
-      sessionScoped: true,
-      ...(signal === undefined ? {} : { signal }),
-    },
-  );
 }

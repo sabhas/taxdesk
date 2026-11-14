@@ -22,6 +22,8 @@ import { StorageConnectionService } from './domain/storage/storage-connection-se
 import { DocumentService } from './domain/documents/document-service.js';
 import { BillingService } from './domain/billing/billing-service.js';
 import { BillingDocumentService } from './domain/billing/billing-documents.js';
+import { AuditExplorerService } from './domain/reports/audit-explorer-service.js';
+import { ReportService } from './domain/reports/report-service.js';
 import { createPdfRenderer, type PdfRenderer } from './domain/billing/pdf/renderer.js';
 import type { StorageGateway } from './storage/gateway.js';
 import type { DocumentStorageProvider } from './storage/provider.js';
@@ -54,6 +56,8 @@ export interface AppDependencies {
   readonly documentService: DocumentService;
   readonly billingService: BillingService;
   readonly billingDocumentService: BillingDocumentService;
+  readonly reportService: ReportService;
+  readonly auditExplorerService: AuditExplorerService;
   readonly clock: () => Date;
   readonly close: () => Promise<void>;
 }
@@ -174,6 +178,9 @@ export function composeDependencies(options: ComposeDependenciesOptions): AppDep
       options.authConfig.documentMaxUploadBytes ?? DOCUMENT_LIMITS.defaultMaxUploadBytes,
   });
 
+  const caseService = new CaseService({ repositories, unitOfWork, clock });
+  const billingService = new BillingService({ repositories, unitOfWork, clock });
+
   return {
     repositories,
     unitOfWork,
@@ -226,11 +233,19 @@ export function composeDependencies(options: ComposeDependenciesOptions): AppDep
     }),
     serviceTypeService: new ServiceTypeService({ repositories, unitOfWork, clock }),
     workflowTemplateService: new WorkflowTemplateService({ repositories, unitOfWork, clock }),
-    caseService: new CaseService({ repositories, unitOfWork, clock }),
+    caseService,
     storageProvider,
     storageConnectionService,
     documentService,
-    billingService: new BillingService({ repositories, unitOfWork, clock }),
+    billingService,
+    reportService: new ReportService({
+      repositories,
+      unitOfWork,
+      caseService,
+      billingService,
+      clock,
+    }),
+    auditExplorerService: new AuditExplorerService({ repositories }),
     billingDocumentService: new BillingDocumentService({
       repositories,
       unitOfWork,

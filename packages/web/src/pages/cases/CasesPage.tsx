@@ -57,7 +57,29 @@ const VIEW_LABELS: Readonly<Record<CaseView, string>> = {
   archived: 'Archived',
 };
 
-const FILTER_KEYS = ['service', 'status', 'assignee', 'reviewer', 'taxYear'] as const;
+const FILTER_KEYS = [
+  'service',
+  'status',
+  'assignee',
+  'reviewer',
+  'taxYear',
+  'statusKind',
+  'checklist',
+] as const;
+
+/** Drill-down conditions from the dashboard, described in words. */
+const DRILL_DOWN_LABELS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  statusKind: {
+    open: 'In progress (not yet filed)',
+    filed: 'Filed',
+    completed: 'Completed',
+    cancelled: 'Cancelled',
+  },
+  checklist: {
+    gaps: 'Required checklist items outstanding',
+    awaiting_review: 'Checklist items awaiting review',
+  },
+};
 
 function readView(parameters: URLSearchParams, fallback: CaseView): CaseView {
   const view = parameters.get('view');
@@ -184,6 +206,24 @@ export function CasesPage() {
           ) : undefined
         }
       />
+      {(['statusKind', 'checklist'] as const).map((key) => {
+        const value = filters[key];
+        const label = value === undefined ? undefined : DRILL_DOWN_LABELS[key]?.[value];
+        return label === undefined ? null : (
+          <InfoNotice key={key}>
+            Showing: {label}.{' '}
+            <button
+              type="button"
+              className="underline underline-offset-2"
+              onClick={() => {
+                setParameter(key, '');
+              }}
+            >
+              Clear this filter
+            </button>
+          </InfoNotice>
+        );
+      })}
       {!can('cases.read_all') && (
         <InfoNotice>You see cases where you are the primary consultant or reviewer.</InfoNotice>
       )}

@@ -35,7 +35,7 @@
     "verify": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm db:migrate:verify && pnpm ci:secrets && pnpm ci:workflows && pnpm ci:config-posture && pnpm ci:selftest && pnpm build",
     "auth:bootstrap": "pnpm --filter @taxdesk/api run auth:bootstrap",
     "auth:recover": "pnpm --filter @taxdesk/api run auth:recover",
-    "test:api-db": "pnpm --filter @taxdesk/api run test -- src/repositories/postgres.integration.test.ts src/repositories/postgres-documents.integration.test.ts src/repositories/postgres-billing.integration.test.ts"
+    "test:api-db": "pnpm --filter @taxdesk/api run test -- src/repositories/postgres.integration.test.ts src/repositories/postgres-documents.integration.test.ts src/repositories/postgres-billing.integration.test.ts src/repositories/postgres-reports.integration.test.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

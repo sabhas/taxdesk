@@ -176,6 +176,9 @@ export interface CaseFilters {
   readonly reviewer?: string;
   readonly taxYear?: string;
   readonly client?: string;
+  /** Dashboard drill-downs: the status kind and checklist condition. */
+  readonly statusKind?: string;
+  readonly checklist?: string;
 }
 
 function filterParameters(filters: CaseFilters): URLSearchParams {

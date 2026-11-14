@@ -117,4 +117,5 @@ export const AUDIT_ACTIONS = {
   receiptPdfGenerated: 'billing.receipt_pdf_generated',
   receiptPdfFailed: 'billing.receipt_pdf_failed',
   receiptPdfDownloaded: 'billing.receipt_pdf_downloaded',
+  reportExported: 'report.exported',
 } as const;

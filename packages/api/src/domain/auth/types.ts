@@ -79,6 +79,11 @@ export interface FirmRecord {
   readonly id: string;
   readonly firmName: string;
   readonly timezone: string;
+  readonly currency: string;
+  readonly invoicePrefix: string;
+  readonly receiptPrefix: string;
+  readonly documentMaxUploadBytes: number;
+  readonly dueSoonDays: number;
   readonly bootstrapCompletedAt: string | null;
   readonly createdAt: string;
   readonly updatedAt: string;

@@ -15,6 +15,8 @@ import type {
 } from '../domain/billing/types.js';
 import type {
   BillingDocumentRepository,
+  BillingReportRepository,
+  CountAmount,
   IdempotencyRepository,
   InvoiceRepository,
   NumberSequenceRepository,
@@ -328,6 +330,12 @@ export function createPostgresInvoiceRepository(executor: SqlExecutor): InvoiceR
       if (filter.dueTo !== undefined) {
         where.push(`i.due_date <= ${bind(filter.dueTo)}::date`);
       }
+      if (filter.outstandingOnly === true) {
+        where.push(`i.status = 'finalized' AND i.outstanding_minor > 0`);
+      }
+      if (filter.dueBefore !== undefined) {
+        where.push(`i.due_date < ${bind(filter.dueBefore)}::date`);
+      }
       if (filter.visibleClientIds !== undefined) {
         where.push(`i.client_id = ANY (${bind([...filter.visibleClientIds])}::uuid[])`);
       }
@@ -573,6 +581,101 @@ export function createPostgresIdempotencyRepository(executor: SqlExecutor): Idem
          WHERE actor_user_id = $1 AND scope = $2 AND key = $3`,
         [actorUserId, scope, key, resourceId, JSON.stringify(response)],
       );
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Report aggregates (TD-601, TD-603)
+// ---------------------------------------------------------------------------
+
+function countAmount(row: SqlRow | undefined, prefix: string): CountAmount {
+  return row === undefined
+    ? { count: 0, amountMinor: 0 }
+    : { count: integer(row, `${prefix}_count`), amountMinor: integer(row, `${prefix}_amount`) };
+}
+
+export function createPostgresBillingReportRepository(
+  executor: SqlExecutor,
+): BillingReportRepository {
+  return {
+    invoiceTotals: async (filter) => {
+      const values: unknown[] = [];
+      const bind = (value: unknown): string => {
+        values.push(value);
+        return `$${String(values.length)}`;
+      };
+      const where = [`i.status = 'finalized'`];
+      if (filter.issuedFrom !== null) {
+        where.push(`i.issue_date >= ${bind(filter.issuedFrom)}::date`);
+      }
+      if (filter.issuedTo !== null) {
+        where.push(`i.issue_date <= ${bind(filter.issuedTo)}::date`);
+      }
+      if (filter.clientId !== null) {
+        where.push(`i.client_id = ${bind(filter.clientId)}::uuid`);
+      }
+      if (filter.visibleClientIds !== null) {
+        where.push(`i.client_id = ANY (${bind([...filter.visibleClientIds])}::uuid[])`);
+      }
+      const today = bind(filter.today);
+      const rows = await executor.query(
+        `SELECT
+           count(*)::int AS invoiced_count,
+           COALESCE(sum(i.total_minor), 0)::bigint AS invoiced_amount,
+           (count(*) FILTER (WHERE i.outstanding_minor > 0))::int AS outstanding_count,
+           COALESCE(sum(i.outstanding_minor) FILTER (WHERE i.outstanding_minor > 0), 0)::bigint
+             AS outstanding_amount,
+           (count(*) FILTER (WHERE i.outstanding_minor > 0 AND i.due_date < ${today}::date))::int
+             AS overdue_count,
+           COALESCE(sum(i.outstanding_minor)
+             FILTER (WHERE i.outstanding_minor > 0 AND i.due_date < ${today}::date), 0)::bigint
+             AS overdue_amount
+         FROM invoices i
+         WHERE ${where.join(' AND ')}`,
+        values,
+      );
+      return {
+        invoiced: countAmount(rows[0], 'invoiced'),
+        outstanding: countAmount(rows[0], 'outstanding'),
+        overdue: countAmount(rows[0], 'overdue'),
+      };
+    },
+    collectionTotals: async (filter) => {
+      const values: unknown[] = [];
+      const bind = (value: unknown): string => {
+        values.push(value);
+        return `$${String(values.length)}`;
+      };
+      const from = bind(filter.from);
+      const to = bind(filter.to);
+      const timezone = bind(filter.timezone);
+      const scope: string[] = [];
+      if (filter.clientId !== null) {
+        scope.push(`i.client_id = ${bind(filter.clientId)}::uuid`);
+      }
+      if (filter.visibleClientIds !== null) {
+        scope.push(`i.client_id = ANY (${bind([...filter.visibleClientIds])}::uuid[])`);
+      }
+      const extra = scope.length === 0 ? '' : ` AND ${scope.join(' AND ')}`;
+      const paymentRange = `p.received_on BETWEEN ${from}::date AND ${to}::date${extra}`;
+      const reversalRange = `(r.created_at AT TIME ZONE ${timezone})::date BETWEEN ${from}::date AND ${to}::date${extra}`;
+      const rows = await executor.query(
+        `SELECT
+           (SELECT count(*)::int FROM payments p JOIN invoices i ON i.id = p.invoice_id
+             WHERE ${paymentRange}) AS collected_count,
+           (SELECT COALESCE(sum(p.amount_minor), 0)::bigint FROM payments p
+             JOIN invoices i ON i.id = p.invoice_id WHERE ${paymentRange}) AS collected_amount,
+           (SELECT count(*)::int FROM payment_reversals r JOIN invoices i ON i.id = r.invoice_id
+             WHERE ${reversalRange}) AS reversed_count,
+           (SELECT COALESCE(sum(r.amount_minor), 0)::bigint FROM payment_reversals r
+             JOIN invoices i ON i.id = r.invoice_id WHERE ${reversalRange}) AS reversed_amount`,
+        values,
+      );
+      return {
+        collected: countAmount(rows[0], 'collected'),
+        reversed: countAmount(rows[0], 'reversed'),
+      };
     },
   };
 }

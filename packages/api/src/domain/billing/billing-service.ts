@@ -597,7 +597,10 @@ export class BillingService {
             const finalized = await repositories.invoices.finalize({
               id: record.id,
               finalization: {
-                invoiceNumber: formatInvoiceNumber(number),
+                invoiceNumber: formatInvoiceNumber(
+                  number,
+                  (await repositories.firm.get())?.invoicePrefix,
+                ),
                 issueDate,
                 finalizedAt: at,
                 finalizedBy: actor.userId,
@@ -635,7 +638,10 @@ export class BillingService {
       requireReadableCase(actor, await repositories.cases.findById(query.caseId));
     }
     const after = query.cursor === undefined ? null : decodeCursor(query.cursor);
+    const today = await this.firmToday(repositories);
     const page = await repositories.invoices.list({
+      ...(query.balance === undefined ? {} : { outstandingOnly: true }),
+      ...(query.balance === 'overdue' ? { dueBefore: today } : {}),
       ...(query.clientId === undefined ? {} : { clientId: query.clientId }),
       ...(query.caseId === undefined ? {} : { caseId: query.caseId }),
       ...(query.status === undefined ? {} : { status: query.status }),
@@ -749,7 +755,10 @@ export class BillingService {
             const payment: PaymentRecord = {
               id: newUuidV7(now.getTime()),
               invoiceId: record.id,
-              receiptNumber: formatReceiptNumber(receipt),
+              receiptNumber: formatReceiptNumber(
+                receipt,
+                (await repositories.firm.get())?.receiptPrefix,
+              ),
               amountMinor: request.amountMinor,
               method: request.method,
               receivedOn: request.receivedOn,
