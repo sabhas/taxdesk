@@ -78,7 +78,12 @@ export const PlatformPostureEvidenceSchema = z
         storedOutsideDatabaseProvider: z.boolean(),
         encrypted: z.boolean(),
         cadenceHours: z.number().int().min(1).max(720),
-        lastSuccessAt: EvidenceTimestampSchema,
+        /**
+         * Hand-recorded time of the last successful export. Optional: when the
+         * gate is given the export manifest from the independent store, export
+         * freshness is read from that manifest instead and this field is ignored.
+         */
+        lastSuccessAt: EvidenceTimestampSchema.optional(),
         retentionDays: z.number().int().min(1).max(3650),
       })
       .strict(),
@@ -133,6 +138,20 @@ export interface PostureEvaluationOptions {
   readonly maxPitrEvidenceAgeDays?: number;
   /** Maximum age of the alerting test. Defaults to 90 days. */
   readonly maxAlertTestAgeDays?: number;
+  /**
+   * The latest export manifest read from the independent store. When present,
+   * export freshness comes from it (status, environment, finish time) rather
+   * than from the hand-recorded `independentExports.lastSuccessAt`.
+   */
+  readonly latestExport?: LatestExportRecord;
+}
+
+/** The fields of an export manifest the posture gate needs. */
+export interface LatestExportRecord {
+  readonly status: 'succeeded' | 'failed';
+  readonly failureCode: string | null;
+  readonly environment: string;
+  readonly finishedAt: string;
 }
 
 /** Result of evaluating a platform posture evidence record. */

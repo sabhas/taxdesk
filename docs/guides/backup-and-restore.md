@@ -63,8 +63,9 @@ days; keep `latest.manifest.json` excluded or rewritten daily.
 `platform-posture.yml` runs daily and fails (opening **Platform posture check
 failed**) when:
 
-- managed backup, PITR, alerting, or export evidence is missing or stale
-  (`pnpm ci:backup-check`); or
+- managed backup, PITR, alerting, or export evidence is missing or stale, or
+  the latest export manifest in R2 shows a failed or stale export
+  (`pnpm ci:backup-check --export-manifest`); or
 - the latest independent export is missing, failed, older than 30 hours, has
   no source version, or keeps less than 30 days (`pnpm ci:backup-verify`).
 

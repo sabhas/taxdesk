@@ -10,6 +10,7 @@ export type {
   CheckReport,
   CheckResult,
   DatabasePrivileges,
+  LatestExportRecord,
   PlatformPostureEvaluation,
   PlatformPostureEvidence,
   PostureEvaluationOptions,

@@ -1,5 +1,6 @@
 import type {
   CheckResult,
+  LatestExportRecord,
   PlatformPostureEvaluation,
   PlatformPostureEvidence,
   PostureEvaluationOptions,
@@ -25,6 +26,56 @@ function formatAge(value: number, unit: 'hour' | 'day'): string {
 }
 
 /**
+ * Export freshness. The manifest from the independent store is authoritative
+ * when supplied, so a successful nightly export keeps the gate green without
+ * re-recording evidence; otherwise the hand-recorded `lastSuccessAt` is used.
+ */
+function exportFreshness(
+  evidence: PlatformPostureEvidence,
+  latestExport: LatestExportRecord | undefined,
+  now: Date,
+  maxExportAgeHours: number,
+): CheckResult {
+  const id = 'INDEPENDENT_EXPORT_FRESH';
+  if (latestExport !== undefined) {
+    if (latestExport.environment !== evidence.environment) {
+      return check(id, false, `The export manifest is for ${latestExport.environment}.`);
+    }
+    if (latestExport.status !== 'succeeded') {
+      return check(
+        id,
+        false,
+        `The latest independent export failed (${latestExport.failureCode ?? 'UNKNOWN'}).`,
+      );
+    }
+    const age = ageHours(now, latestExport.finishedAt);
+    return check(
+      id,
+      age <= maxExportAgeHours && age >= -0.25,
+      age < -0.25
+        ? 'The latest independent export is timestamped in the future.'
+        : `Latest independent export (from its manifest) is ${formatAge(age, 'hour')} old; limit ${String(maxExportAgeHours)} hours.`,
+    );
+  }
+  const lastSuccessAt = evidence.independentExports.lastSuccessAt;
+  if (lastSuccessAt === undefined) {
+    return check(
+      id,
+      false,
+      'No export manifest was supplied and the evidence records no last successful export.',
+    );
+  }
+  const age = ageHours(now, lastSuccessAt);
+  return check(
+    id,
+    age <= maxExportAgeHours && age >= -0.25,
+    age < -0.25
+      ? 'The latest independent export is timestamped in the future.'
+      : `Latest independent export is ${formatAge(age, 'hour')} old; limit ${String(maxExportAgeHours)} hours.`,
+  );
+}
+
+/**
  * Evaluates operator-recorded staging posture evidence against the controls
  * required before a deploy is allowed and by the scheduled recovery check.
  *
@@ -45,7 +96,6 @@ export function evaluatePlatformPosture(
 
   const evidenceAge = ageDays(now, evidence.recordedAt);
   const pitrAge = ageDays(now, evidence.pointInTimeRecovery.verifiedAt);
-  const exportAge = ageHours(now, evidence.independentExports.lastSuccessAt);
   const alertAge = ageDays(now, evidence.alerting.testedAt);
 
   const checks: CheckResult[] = [
@@ -119,13 +169,7 @@ export function evaluatePlatformPosture(
         ? 'Independent exports are encrypted.'
         : 'Independent exports are not encrypted.',
     ),
-    check(
-      'INDEPENDENT_EXPORT_FRESH',
-      exportAge <= maxExportAgeHours && exportAge >= -0.25,
-      exportAge < -0.25
-        ? 'The latest independent export is timestamped in the future.'
-        : `Latest independent export is ${formatAge(exportAge, 'hour')} old; limit ${String(maxExportAgeHours)} hours.`,
-    ),
+    exportFreshness(evidence, options.latestExport, now, maxExportAgeHours),
     check(
       'INDEPENDENT_EXPORT_RETENTION',
       evidence.independentExports.retentionDays * 24 >= evidence.independentExports.cadenceHours,

@@ -147,8 +147,10 @@ The staging deployment performs these steps in order:
 7. `pnpm db:migrate:status --check`.
 8. `pnpm ci:db-posture` — TLS session, TLS-required connection string, and
    least-privilege role attributes read from PostgreSQL.
-9. `pnpm ci:backup-check` — validates `PLATFORM_POSTURE_EVIDENCE_JSON` for
-   point-in-time recovery, independent exports, and alerting.
+9. Download `staging/latest.manifest.json` from the R2 backup bucket, then
+   `pnpm ci:backup-check --export-manifest latest.manifest.json` — validates
+   `PLATFORM_POSTURE_EVIDENCE_JSON` for point-in-time recovery, independent
+   exports, and alerting, and reads export freshness from the manifest.
 10. `pnpm deploy:api:staging` with `RELEASE_VERSION` set to the deployed SHA.
 11. `pnpm deploy:web:staging`.
 12. `pnpm ci:staging-smoke` against `STAGING_WEB_URL` with the expected release
@@ -194,7 +196,6 @@ no host names, database names, credentials, tokens, or client data.
     "storedOutsideDatabaseProvider": true,
     "encrypted": true,
     "cadenceHours": 24,
-    "lastSuccessAt": "2026-11-04T10:00:00Z",
     "retentionDays": 30
   },
   "alerting": {
@@ -207,11 +208,19 @@ no host names, database names, credentials, tokens, or client data.
 ```
 
 Record it after provisioning or changing the staging database, after verifying a
-PITR restore window, after a successful independent export, and after a
-simulated failed export reaches the operator. The daily workflow re-validates
-freshness: evidence older than 30 days, PITR verification older than 30 days,
-an export older than twice the cadence, or an alerting test older than 90 days
-fails the check.
+PITR restore window, after setting up or changing the independent export, and
+after a simulated failed export reaches the operator. The daily workflow
+re-validates freshness: evidence older than 30 days, PITR verification older
+than 30 days, or an alerting test older than 90 days fails the check.
+
+Export freshness is not hand-recorded. Both workflows download the latest
+export manifest from R2 and pass it with `--export-manifest` (or
+`PLATFORM_EXPORT_MANIFEST_PATH`). `INDEPENDENT_EXPORT_FRESH` then fails if that
+export failed, is for another environment, or finished more than twice the
+cadence ago. A missing or invalid manifest fails the gate as
+`EXPORT_MANIFEST_INVALID`. Without a manifest, the gate falls back to an
+optional `independentExports.lastSuccessAt` in the evidence, which is useful
+only for local checks.
 
 When the daily check fails, the workflow opens (or comments on) an
 operator-visible GitHub issue titled `Platform posture check failed`, containing
@@ -242,7 +251,7 @@ check turns red and the PR cannot merge while branch protection is enabled.
 | `pnpm ci:config-posture` | Verify the committed staging Hyperdrive/Pages config |
 | `pnpm ci:selftest` | Prove the gates reject failing inputs |
 | `pnpm ci:db-posture` | Verify staging TLS and role privileges (`DATABASE_URL`) |
-| `pnpm ci:backup-check` | Validate posture evidence (`--evidence <path>` or `PLATFORM_POSTURE_EVIDENCE_JSON`) |
+| `pnpm ci:backup-check` | Validate posture evidence (`--evidence <path>` or `PLATFORM_POSTURE_EVIDENCE_JSON`; `--export-manifest <path>` for export freshness) |
 | `pnpm ci:staging-smoke` | Smoke-test a deployed Pages host (`STAGING_WEB_URL`) |
 | `pnpm ci:backup-verify` | Check the latest export manifest (`--manifest`, optional `--artifact`, `--max-age-hours`) |
 
@@ -252,7 +261,7 @@ documented in [`../guides/backup-and-restore.md`](../guides/backup-and-restore.m
 and [`../guides/migration-rehearsal.md`](../guides/migration-rehearsal.md).
 
 File-path options (`--out`, `--in`, `--manifest`, `--artifact`, `--expected`,
-`--evidence`, and `PLATFORM_POSTURE_EVIDENCE_PATH`) resolve relative to the
+`--evidence`, `--export-manifest`, `PLATFORM_EXPORT_MANIFEST_PATH`, and `PLATFORM_POSTURE_EVIDENCE_PATH`) resolve relative to the
 directory you run `pnpm` from, even though the command itself runs inside
 `packages/platform`.
 
