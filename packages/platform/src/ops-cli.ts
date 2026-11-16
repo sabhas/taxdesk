@@ -15,6 +15,7 @@ import {
   sha256Hex,
   type BackupManifest,
 } from './backup.js';
+import { resolveUserPath } from './paths.js';
 import {
   RecoverySnapshotSchema,
   collectRecoverySnapshot,
@@ -103,6 +104,17 @@ function required(options: Options, name: string): string {
   return value;
 }
 
+/** A required path option, resolved against the directory pnpm was run from. */
+function requiredPath(deps: OpsDependencies, options: Options, name: string): string {
+  return resolveUserPath(deps.env, required(options, name));
+}
+
+/** An optional path option, resolved against the directory pnpm was run from. */
+function optionalPath(deps: OpsDependencies, options: Options, name: string): string | undefined {
+  const value = options.values.get(name);
+  return value === undefined ? undefined : resolveUserPath(deps.env, value);
+}
+
 function positiveInt(options: Options, name: string, fallback: number): number {
   const raw = options.values.get(name);
   if (raw === undefined) return fallback;
@@ -143,7 +155,7 @@ function databaseUrl(deps: OpsDependencies): string {
 }
 
 async function backupExport(deps: OpsDependencies, options: Options): Promise<number> {
-  const outDir = required(options, 'out');
+  const outDir = requiredPath(deps, options, 'out');
   const environment = options.values.get('environment') ?? 'staging';
   if (!['development', 'staging', 'production'].includes(environment)) {
     throw new UsageError('--environment must be development, staging, or production.');
@@ -253,8 +265,8 @@ async function backupExport(deps: OpsDependencies, options: Options): Promise<nu
 }
 
 async function backupDecrypt(deps: OpsDependencies, options: Options): Promise<number> {
-  const input = required(options, 'in');
-  const output = required(options, 'out');
+  const input = requiredPath(deps, options, 'in');
+  const output = requiredPath(deps, options, 'out');
   const key = parseBackupKey(deps.env['BACKUP_ENCRYPTION_KEY']);
   const artifact = await deps.readFile(input);
   const plaintext = decryptBackup(artifact, key);
@@ -270,7 +282,7 @@ async function backupDecrypt(deps: OpsDependencies, options: Options): Promise<n
 }
 
 async function backupVerify(deps: OpsDependencies, options: Options): Promise<number> {
-  const path = required(options, 'manifest');
+  const path = requiredPath(deps, options, 'manifest');
   let manifest: BackupManifest;
   try {
     manifest = BackupManifestSchema.parse(JSON.parse((await deps.readFile(path)).toString('utf8')));
@@ -289,7 +301,7 @@ async function backupVerify(deps: OpsDependencies, options: Options): Promise<nu
     });
     return 1;
   }
-  const artifactPath = options.values.get('artifact');
+  const artifactPath = optionalPath(deps, options, 'artifact');
   const environment = options.values.get('environment');
   const result = evaluateBackupManifest(manifest, {
     now: deps.now(),
@@ -303,7 +315,7 @@ async function backupVerify(deps: OpsDependencies, options: Options): Promise<nu
 }
 
 async function recoverySnapshot(deps: OpsDependencies, options: Options): Promise<number> {
-  const out = required(options, 'out');
+  const out = requiredPath(deps, options, 'out');
   const snapshot = await deps.withDatabase(
     databaseUrl(deps),
     async (query) => await collectRecoverySnapshot(query, deps.now()),
@@ -319,7 +331,7 @@ async function recoverySnapshot(deps: OpsDependencies, options: Options): Promis
 }
 
 async function restoreVerify(deps: OpsDependencies, options: Options): Promise<number> {
-  const expectedPath = options.values.get('expected');
+  const expectedPath = optionalPath(deps, options, 'expected');
   let expected: RecoverySnapshot | null = null;
   if (expectedPath !== undefined) {
     expected = RecoverySnapshotSchema.parse(
@@ -359,7 +371,7 @@ async function restoreVerify(deps: OpsDependencies, options: Options): Promise<n
     incidentStartedAt: incidentStartedAt?.toISOString() ?? null,
     restored: { counts: restored.counts, money: restored.money, caseStatus: restored.caseStatus },
   };
-  const out = options.values.get('out');
+  const out = optionalPath(deps, options, 'out');
   if (out !== undefined) {
     await deps.writeFile(out, `${JSON.stringify(evidence, null, 2)}\n`);
   }
@@ -368,7 +380,7 @@ async function restoreVerify(deps: OpsDependencies, options: Options): Promise<n
 }
 
 async function sampleImport(deps: OpsDependencies, options: Options): Promise<number> {
-  const outDir = required(options, 'out');
+  const outDir = requiredPath(deps, options, 'out');
   const asOf = options.values.get('as-of') ?? '2026-06-30';
   if (!/^\d{4}-\d{2}-\d{2}$/u.test(asOf)) {
     throw new UsageError('--as-of must be YYYY-MM-DD.');

@@ -8,6 +8,7 @@ import {
   type DatabasePostureReport,
 } from './database-posture.js';
 import { evaluateStagingConfig } from './config-posture.js';
+import { resolveUserPath } from './paths.js';
 import { evaluatePlatformPosture } from './posture.js';
 import { scanRepository, type SecretScanResult } from './secret-scan.js';
 import { runGateSelfTest } from './selftest.js';
@@ -212,7 +213,7 @@ async function readEvidence(
 ): Promise<{ text: string } | { missing: true }> {
   const path = readValue(options, 'evidence') ?? deps.env['PLATFORM_POSTURE_EVIDENCE_PATH'];
   if (path !== undefined && path.length > 0) {
-    return { text: await deps.readTextFile(path) };
+    return { text: await deps.readTextFile(resolveUserPath(deps.env, path)) };
   }
   const inline = deps.env['PLATFORM_POSTURE_EVIDENCE_JSON'];
   if (inline !== undefined && inline.trim().length > 0) {

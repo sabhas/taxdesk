@@ -251,6 +251,11 @@ The Epic 7 operations commands (`pnpm ops:backup-export`, `ops:backup-decrypt`,
 documented in [`../guides/backup-and-restore.md`](../guides/backup-and-restore.md)
 and [`../guides/migration-rehearsal.md`](../guides/migration-rehearsal.md).
 
+File-path options (`--out`, `--in`, `--manifest`, `--artifact`, `--expected`,
+`--evidence`, and `PLATFORM_POSTURE_EVIDENCE_PATH`) resolve relative to the
+directory you run `pnpm` from, even though the command itself runs inside
+`packages/platform`.
+
 The workflow policy also requires `backup-export.yml`: it must run on a
 schedule in a protected environment, run `pnpm ops:backup-export`, never read
 production secrets, and alert on failure. Only it and `platform-posture.yml`

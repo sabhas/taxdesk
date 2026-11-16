@@ -156,6 +156,47 @@ describe('ops backup-export', () => {
   });
 });
 
+describe('ops path resolution', () => {
+  it('resolves relative paths against the directory pnpm was run from (INIT_CWD)', async () => {
+    // pnpm --filter runs the CLI inside packages/platform; the workflow then
+    // looks for ./exports at the repository root, where the command was typed.
+    const { deps, files } = fakeDeps({
+      env: {
+        DATABASE_URL: FAKE_DATABASE_URL,
+        BACKUP_ENCRYPTION_KEY: KEY,
+        INIT_CWD: '/work/repo',
+      },
+    });
+    expect(await runOpsCli(['backup-export', '--out', 'exports'], deps)).toBe(0);
+    expect(files.has('/work/repo/exports/latest.manifest.json')).toBe(true);
+    expect(files.has('/work/repo/exports/taxdesk-staging-20261114T030000Z.dump.enc')).toBe(true);
+
+    const code = await runOpsCli(
+      [
+        'backup-verify',
+        '--manifest',
+        'exports/latest.manifest.json',
+        '--artifact',
+        'exports/taxdesk-staging-20261114T030000Z.dump.enc',
+      ],
+      deps,
+    );
+    expect(code).toBe(0);
+  });
+
+  it('leaves absolute paths unchanged', async () => {
+    const { deps, files } = fakeDeps({
+      env: {
+        DATABASE_URL: FAKE_DATABASE_URL,
+        BACKUP_ENCRYPTION_KEY: KEY,
+        INIT_CWD: '/work/repo',
+      },
+    });
+    expect(await runOpsCli(['backup-export', '--out', '/exports'], deps)).toBe(0);
+    expect(files.has('/exports/latest.manifest.json')).toBe(true);
+  });
+});
+
 describe('ops backup-verify', () => {
   async function exported() {
     const context = fakeDeps();
