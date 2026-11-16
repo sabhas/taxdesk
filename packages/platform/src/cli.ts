@@ -1,7 +1,13 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { CheckReportSchema, PlatformPostureEvidenceSchema, type CheckResult } from './contracts.js';
+import { BackupManifestSchema } from './backup.js';
+import {
+  CheckReportSchema,
+  PlatformPostureEvidenceSchema,
+  type CheckResult,
+  type LatestExportRecord,
+} from './contracts.js';
 import {
   collectDatabasePosture,
   type DatabasePostureOptions,
@@ -31,6 +37,8 @@ Usage:
   platform staging-smoke    Verify the deployed staging Pages host.
   platform database-posture Verify staging TLS and least-privilege database role.
   platform backup-check     Validate staging recovery and alerting evidence.
+                            --export-manifest <path> reads export freshness
+                            from the latest export manifest.
 
 Environment:
   STAGING_WEB_URL                    Base URL of the staging Pages deployment.
@@ -38,6 +46,7 @@ Environment:
   DATABASE_URL                       Staging database connection string.
   PLATFORM_POSTURE_EVIDENCE_JSON     Posture evidence JSON (preferred in CI).
   PLATFORM_POSTURE_EVIDENCE_PATH     Path to a posture evidence JSON file.
+  PLATFORM_EXPORT_MANIFEST_PATH      Path to the latest export manifest.
 `;
 
 /** Injected dependencies keep the CLI testable without a network or database. */
@@ -222,6 +231,31 @@ async function readEvidence(
   return { missing: true };
 }
 
+/**
+ * Reads the optional export manifest. `undefined` when none was requested;
+ * `null` when one was requested but is missing or invalid (the gate fails
+ * closed rather than falling back to hand-recorded evidence).
+ */
+async function readLatestExport(
+  deps: PlatformCliDependencies,
+  options: ParsedOptions,
+): Promise<LatestExportRecord | null | undefined> {
+  const path = readValue(options, 'export-manifest') ?? deps.env['PLATFORM_EXPORT_MANIFEST_PATH'];
+  if (path === undefined || path.length === 0) return undefined;
+  try {
+    const text = await deps.readTextFile(resolveUserPath(deps.env, path));
+    const manifest = BackupManifestSchema.parse(JSON.parse(text));
+    return {
+      status: manifest.status,
+      failureCode: manifest.failureCode,
+      environment: manifest.environment,
+      finishedAt: manifest.finishedAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
 async function commandBackupCheck(
   deps: PlatformCliDependencies,
   options: ParsedOptions,
@@ -279,6 +313,21 @@ async function commandBackupCheck(
     return 1;
   }
 
+  const latestExport = await readLatestExport(deps, options);
+  if (latestExport === null) {
+    emit(
+      deps,
+      report('platform-posture', false, [
+        {
+          id: 'EXPORT_MANIFEST_INVALID',
+          passed: false,
+          detail: 'The export manifest is missing or does not match the manifest contract.',
+        },
+      ]),
+    );
+    return 1;
+  }
+
   const maxExportAgeHours = readNumber(options, 'max-export-age-hours');
   const maxEvidenceAgeDays = readNumber(options, 'max-evidence-age-days');
   const maxPitrEvidenceAgeDays = readNumber(options, 'max-pitr-age-days');
@@ -289,6 +338,7 @@ async function commandBackupCheck(
     ...(maxEvidenceAgeDays === undefined ? {} : { maxEvidenceAgeDays }),
     ...(maxPitrEvidenceAgeDays === undefined ? {} : { maxPitrEvidenceAgeDays }),
     ...(maxAlertTestAgeDays === undefined ? {} : { maxAlertTestAgeDays }),
+    ...(latestExport === undefined ? {} : { latestExport }),
   });
   emit(deps, { check: 'platform-posture', ...evaluation });
   return evaluation.ok ? 0 : 1;

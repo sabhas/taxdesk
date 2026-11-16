@@ -143,6 +143,53 @@ describe('evaluatePlatformPosture', () => {
     );
   });
 
+  describe('export freshness from the latest export manifest', () => {
+    const fresh = {
+      status: 'succeeded' as const,
+      failureCode: null,
+      environment: 'staging',
+      finishedAt: '2026-11-04T03:00:00Z',
+    };
+
+    it('uses the manifest instead of a stale hand-recorded lastSuccessAt', () => {
+      const value = validWith((entry) => {
+        entry.independentExports.lastSuccessAt = '2026-10-01T00:00:00Z';
+      });
+      const result = evaluatePlatformPosture(value, { now: NOW, latestExport: fresh });
+      expect(result.ok).toBe(true);
+    });
+
+    it('passes evidence that records no lastSuccessAt when a manifest is supplied', () => {
+      const value = validWith((entry) => {
+        delete entry.independentExports.lastSuccessAt;
+      });
+      expect(PlatformPostureEvidenceSchema.safeParse(value).success).toBe(true);
+      expect(evaluatePlatformPosture(value, { now: NOW, latestExport: fresh }).ok).toBe(true);
+    });
+
+    it('fails a stale, failed, future-dated, or wrong-environment manifest', () => {
+      const cases = [
+        { ...fresh, finishedAt: '2026-11-01T00:00:00Z' },
+        { ...fresh, status: 'failed' as const, failureCode: 'DUMP_FAILED' },
+        { ...fresh, finishedAt: '2026-11-05T12:00:00Z' },
+        { ...fresh, environment: 'production' },
+      ];
+      for (const latestExport of cases) {
+        const result = evaluatePlatformPosture(evidence(), { now: NOW, latestExport });
+        expect(result.failed).toEqual(['INDEPENDENT_EXPORT_FRESH']);
+      }
+    });
+
+    it('fails closed with neither a manifest nor a recorded lastSuccessAt', () => {
+      const value = validWith((entry) => {
+        delete entry.independentExports.lastSuccessAt;
+      });
+      expect(evaluatePlatformPosture(value, { now: NOW }).failed).toEqual([
+        'INDEPENDENT_EXPORT_FRESH',
+      ]);
+    });
+  });
+
   it('fails when export retention is shorter than one export interval', () => {
     const value = validWith((entry) => {
       entry.independentExports.cadenceHours = 720;

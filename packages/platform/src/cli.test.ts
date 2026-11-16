@@ -264,6 +264,57 @@ describe('runCli', () => {
     expect(readTextFile).toHaveBeenCalledWith('/home/operator/evidence.json');
   });
 
+  it('reads export freshness from --export-manifest and fails closed on a bad manifest', async () => {
+    const stale = evidence();
+    stale.independentExports.lastSuccessAt = '2026-10-01T00:00:00Z';
+    const manifest = {
+      schemaVersion: 1,
+      kind: 'taxdesk.independent-export',
+      environment: 'staging',
+      status: 'succeeded',
+      failureCode: null,
+      startedAt: '2026-11-04T02:59:00.000Z',
+      finishedAt: '2026-11-04T03:00:00.000Z',
+      durationMs: 60_000,
+      source: {
+        serverVersionNum: 170004,
+        migrationHead: '0010_data_import.sql',
+        migrationCount: 10,
+        releaseVersion: 'abc1234',
+      },
+      artifact: {
+        fileName: 'taxdesk-staging-20261104T025900Z.dump.enc',
+        sizeBytes: 1024,
+        sha256: 'a'.repeat(64),
+        format: 'pg_dump-custom',
+        encryption: 'AES-256-GCM',
+        keyVersion: 1,
+      },
+      retention: { days: 35, expiresAt: '2026-12-09T02:59:00.000Z', storage: 'cloudflare-r2' },
+    };
+    const files: Record<string, string> = {
+      '/ops/evidence.json': JSON.stringify(stale),
+      '/ops/latest.manifest.json': JSON.stringify(manifest),
+      '/ops/broken.manifest.json': '{"schemaVersion":1}',
+    };
+    const readTextFile = vi.fn(async (path: string) => {
+      const text = files[path];
+      if (text === undefined) throw new Error('missing');
+      return text;
+    });
+    const { deps, stdout } = capture({ env: { INIT_CWD: '/ops' }, readTextFile });
+
+    expect(await runCli(['backup-check', '--evidence', 'evidence.json'], deps)).toBe(1);
+    expect(lastJson(stdout)).toMatchObject({ failed: ['INDEPENDENT_EXPORT_FRESH'] });
+
+    const withManifest = ['backup-check', '--evidence', 'evidence.json', '--export-manifest'];
+    expect(await runCli([...withManifest, 'latest.manifest.json'], deps)).toBe(0);
+    expect(await runCli([...withManifest, 'broken.manifest.json'], deps)).toBe(1);
+    expect(lastJson(stdout)).toMatchObject({ failed: ['EXPORT_MANIFEST_INVALID'] });
+    expect(await runCli([...withManifest, 'missing.json'], deps)).toBe(1);
+    expect(lastJson(stdout)).toMatchObject({ failed: ['EXPORT_MANIFEST_INVALID'] });
+  });
+
   it('passes fresh, complete recovery evidence', async () => {
     const { deps } = capture();
     expect(await runCli(['backup-check', '--evidence', 'evidence.json'], deps)).toBe(0);

@@ -87,10 +87,17 @@ jobs:
           DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
         run: pnpm ci:db-posture
 
+      - name: Download the latest independent export manifest
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.BACKUP_R2_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          BACKUP_BUCKET: ${{ vars.BACKUP_BUCKET }}
+        run: pnpm exec wrangler r2 object get "$BACKUP_BUCKET/staging/latest.manifest.json" --file latest.manifest.json --remote
+
       - name: Verify recovery, export, and alerting posture
         env:
           PLATFORM_POSTURE_EVIDENCE_JSON: ${{ secrets.PLATFORM_POSTURE_EVIDENCE_JSON }}
-        run: pnpm ci:backup-check
+        run: pnpm ci:backup-check --export-manifest latest.manifest.json
 
       - name: Deploy the API Worker
         env:
