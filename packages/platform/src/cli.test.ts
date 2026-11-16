@@ -257,6 +257,13 @@ describe('runCli', () => {
     expect(output.issues.some((issue) => issue.path === 'environment')).toBe(true);
   });
 
+  it('resolves a relative evidence path against the directory pnpm was run from', async () => {
+    const readTextFile = vi.fn(async () => JSON.stringify(evidence()));
+    const { deps } = capture({ env: { INIT_CWD: '/home/operator' }, readTextFile });
+    expect(await runCli(['backup-check', '--evidence', 'evidence.json'], deps)).toBe(0);
+    expect(readTextFile).toHaveBeenCalledWith('/home/operator/evidence.json');
+  });
+
   it('passes fresh, complete recovery evidence', async () => {
     const { deps } = capture();
     expect(await runCli(['backup-check', '--evidence', 'evidence.json'], deps)).toBe(0);
