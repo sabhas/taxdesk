@@ -56,7 +56,7 @@ ENVIRONMENT = "staging"
 RELEASE_VERSION = "0.1.0-td004"
 APP_PUBLIC_URL = "https://staging.taxdesk-web-staging.pages.dev"
 TURNSTILE_SITE_KEY= "0x4AAAAAAGDIXG7R9lJd2iGg"
-ONEDRIVE_CLIENT_ID= "e8c2ebd9-f99a-489a-88a2-9fc4f3e6b945"
+ONEDRIVE_CLIENT_ID= "38ff9783-7ff4-41b4-88e1-445422db9643"
 
 [[env.staging.hyperdrive]]
 binding = "HYPERDRIVE"
