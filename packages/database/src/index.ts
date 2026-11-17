@@ -34,8 +34,11 @@ export interface SqlExecutor {
 
 export interface SqlExecutorOptions {
   /**
-   * Defaults to `true`. Only local, disposable databases may pass `false`;
-   * production and staging always use TLS, matching `createDatabaseClient`.
+   * Defaults to `true` for direct connections (CLIs, migrations, posture
+   * checks). Pass `false` only for a local, disposable database or for the
+   * Worker's Cloudflare Hyperdrive binding: Hyperdrive does not answer a client
+   * TLS handshake and enforces TLS on its own connection to the managed
+   * database (see `HYPERDRIVE_EXECUTOR_OPTIONS` in `@taxdesk/api`).
    */
   readonly requireTls?: boolean;
   readonly maxConnections?: number;
