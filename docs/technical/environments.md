@@ -61,11 +61,20 @@ in `[vars]`. They are the only configuration the health endpoint reads.
    Repeat with `taxdesk-staging` and `taxdesk-production`. Copy the returned
    Hyperdrive ID into the matching binding in `packages/api/wrangler.toml`.
 
-4. The application enforces the TLS requirement in code. `createDatabaseClient`
-   calls `postgres(connectionString, { prepare: false, ssl: 'require' })`, so a
-   non-TLS connection is rejected even if the connection string omits a mode.
-   Hyperdrive pools Worker connections and exposes only the connection string
-   through the binding; the credential never enters source control or logs.
+4. TLS to the managed database is enforced on the Hyperdrive origin
+   connection: create and update the configuration with `sslmode=require`, and
+   `pnpm ci:db-posture` verifies the live session uses TLS. The Worker's own
+   connection to the Hyperdrive binding stays inside Cloudflare's network and
+   must **not** request TLS: Hyperdrive does not answer a client TLS handshake,
+   so `ssl: 'require'` there hangs every connection until the 30-second connect
+   timeout and every database-backed request returns `500`.
+   `HYPERDRIVE_EXECUTOR_OPTIONS` in `packages/api/src/dependencies.ts` sets
+   this, and a unit test guards it. Direct connections (migrations, CLIs,
+   posture checks) still default to `ssl: 'require'` in `createSqlExecutor`
+   and `createDatabaseClient`, so a non-TLS direct connection is rejected even
+   if the connection string omits a mode. Hyperdrive pools Worker connections
+   and exposes only the connection string through the binding; the credential
+   never enters source control or logs.
 
 ### Local development
 

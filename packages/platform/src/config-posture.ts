@@ -32,7 +32,9 @@ function section(content: string, header: string): string {
  * Confirms the committed staging configuration cannot silently downgrade
  * Hyperdrive: the staging binding has a real Hyperdrive ID, no local
  * development connection string, the Pages preview binds to the staging Worker,
- * and the database client still enforces TLS.
+ * and the database client still enforces TLS on direct connections. (The
+ * Worker's Hyperdrive connection deliberately does not; Hyperdrive enforces TLS
+ * to the database, which `pnpm ci:db-posture` verifies.)
  *
  * This is a static complement to `pnpm ci:db-posture`, which checks the live
  * session and role after the migration step.

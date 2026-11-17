@@ -1,4 +1,4 @@
-import { createSqlExecutor, type SqlExecutor } from '@taxdesk/database';
+import { createSqlExecutor, type SqlExecutor, type SqlExecutorOptions } from '@taxdesk/database';
 import { createSecretCipher, type SecretCipher } from './crypto/cipher.js';
 import { createPasswordHasher, type PasswordHasher } from './crypto/password.js';
 import { createTokenHasher, type TokenHasher } from './crypto/token.js';
@@ -290,6 +290,22 @@ export function buildDependencies(options: BuildDependenciesOptions): AppDepende
   });
 }
 
+/**
+ * Client options for the Worker's Hyperdrive connection, in every environment.
+ *
+ * The client must not negotiate TLS itself. The Worker reaches Hyperdrive over
+ * Cloudflare's internal network, and Hyperdrive does not answer a client TLS
+ * handshake: with `ssl: 'require'` every connection hangs until the 30-second
+ * connect timeout, so every database-backed request fails with 500 (observed on
+ * staging, 2026-11-17). TLS to the managed database is enforced on the
+ * Hyperdrive origin connection (`sslmode=require` in its configuration) and
+ * verified against the live session by `pnpm ci:db-posture`. Under
+ * `wrangler dev` the binding is a local proxy to a developer Postgres.
+ */
+export const HYPERDRIVE_EXECUTOR_OPTIONS = {
+  requireTls: false,
+} as const satisfies SqlExecutorOptions;
+
 /** Default production dependency factory for a Worker request. */
 export async function createDefaultDependencies(
   env: ApiBindings,
@@ -299,12 +315,7 @@ export async function createDefaultDependencies(
   if (connectionString === undefined || connectionString.length === 0) {
     throw new DependencyConfigurationError('The database binding is not configured.');
   }
-  // Hyperdrive terminates TLS to the managed database in staging/production.
-  // Under `wrangler dev` the binding is a local proxy to a developer Postgres
-  // that usually has no TLS, so only the development environment may skip it.
-  const executor = createSqlExecutor(connectionString, {
-    requireTls: env.ENVIRONMENT !== 'development',
-  });
+  const executor = createSqlExecutor(connectionString, HYPERDRIVE_EXECUTOR_OPTIONS);
   try {
     return buildDependencies({
       executor,
