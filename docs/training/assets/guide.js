@@ -4,8 +4,9 @@
 (function () {
   'use strict';
 
-  /** Site map: order here drives the sidebar and the previous/next links. */
-  var SITE = [
+  /** Site map: order here drives the sidebar and the previous/next links.
+      The web build rewrites the array between the site-map markers for /help/. */
+  var SITE = /* site-map:start */ [
     {
       track: 'Start',
       pages: [
@@ -58,11 +59,34 @@
         { url: 'reference/glossary.html', title: 'Glossary' },
       ],
     },
-  ];
+  ] /* site-map:end */;
 
   var body = document.body;
   var root = body.getAttribute('data-root') || '';
   var current = body.getAttribute('data-page') || 'index.html';
+  /* The web build publishes a staff-only subset at /help/ and marks each page
+     <body data-edition="help">. See packages/web/build/help-site.ts (TD-806). */
+  var isHelp = body.getAttribute('data-edition') === 'help';
+
+  /* List only pages this edition publishes. The search index is generated per
+     edition from the pages it contains, so it is the list of what exists. */
+  var published = window.TAXDESK_GUIDE_INDEX;
+  if (published && published.length) {
+    var known = {};
+    published.forEach(function (page) {
+      known[page.url] = true;
+    });
+    SITE = SITE.map(function (group) {
+      return {
+        track: group.track,
+        pages: group.pages.filter(function (page) {
+          return known[page.url];
+        }),
+      };
+    }).filter(function (group) {
+      return group.pages.length > 0;
+    });
+  }
 
   function el(tag, attrs, children) {
     var node = document.createElement(tag);
@@ -122,14 +146,17 @@
 
     var brand = el('a', { class: 'brand', href: root + 'index.html' }, [
       el('span', { class: 'brand-mark', 'aria-hidden': 'true', text: 'TD' }),
-      el('span', { class: 'brand-text', html: 'TaxDesk <small>Training guide</small>' }),
+      el('span', {
+        class: 'brand-text',
+        html: isHelp ? 'TaxDesk <small>Help</small>' : 'TaxDesk <small>Training guide</small>',
+      }),
     ]);
 
     var searchInput = el('input', {
       type: 'search',
       id: 'guide-search',
-      placeholder: 'Search the guide  ( / )',
-      'aria-label': 'Search the guide',
+      placeholder: isHelp ? 'Search help  ( / )' : 'Search the guide  ( / )',
+      'aria-label': isHelp ? 'Search help' : 'Search the guide',
       autocomplete: 'off',
       role: 'combobox',
       'aria-expanded': 'false',
@@ -169,6 +196,14 @@
     topbar.appendChild(searchWrap);
     topbar.appendChild(themeBtn);
     topbar.appendChild(printBtn);
+    if (isHelp) {
+      topbar.appendChild(
+        el('a', { class: 'icon-btn back-link', href: '/', 'aria-label': 'Back to TaxDesk' }, [
+          el('span', { class: 'back-long', text: 'Back to ' }),
+          document.createTextNode('TaxDesk'),
+        ]),
+      );
+    }
 
     setupSearch(searchInput, results);
   }

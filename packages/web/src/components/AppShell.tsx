@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { NavLink, useLocation } from 'react-router';
-import { LogOut, Menu } from 'lucide-react';
+import { CircleHelp, LogOut, Menu } from 'lucide-react';
 import { ROLE_DEFINITIONS } from '@taxdesk/shared';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
+import { helpPathFor } from '../help.js';
 import { NAV_ROUTES, canSeeRoute } from '../routes.js';
 import { useSession } from '../session/session-context.js';
 import { Wordmark } from './layout/BrandMark.js';
@@ -18,6 +19,7 @@ function initials(name: string): string {
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const { state, can, signOut } = useSession();
+  const { pathname } = useLocation();
   const session = state.status === 'authenticated' ? state.session : null;
   const items = NAV_ROUTES.filter((item) => canSeeRoute(item, can));
 
@@ -69,6 +71,16 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               </p>
             </div>
           </div>
+          <a
+            href={helpPathFor(pathname)}
+            target="_blank"
+            rel="noopener"
+            onClick={onNavigate}
+            className="flex h-9 w-full items-center gap-3 rounded-lg px-3 text-sm text-sidebar-muted transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidebar-ring"
+          >
+            <CircleHelp aria-hidden="true" className="size-4" />
+            Help<span className="sr-only"> for this page (opens in a new tab)</span>
+          </a>
           <button
             type="button"
             onClick={() => void signOut()}

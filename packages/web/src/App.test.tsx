@@ -267,6 +267,44 @@ describe('authorization and session lifecycle in the UI', () => {
     expect(screen.queryByRole('link', { name: 'Audit history' })).not.toBeInTheDocument();
   });
 
+  it('offers help for the current screen in a new tab (TD-806)', async () => {
+    mockFetchSequence([() => json(sessionFor())]);
+    render(<App />);
+    await screen.findByRole('heading', { name: /Welcome, Test Person/ });
+    const help = screen.getByRole('link', { name: 'Help for this page (opens in a new tab)' });
+    expect(help).toHaveAttribute('href', '/help/staff/dashboard-reports.html#dashboard');
+    expect(help).toHaveAttribute('target', '_blank');
+    expect(help).toHaveAttribute('rel', 'noopener');
+  });
+
+  it('returns to the requested help page once signed in (TD-806)', async () => {
+    const replace = vi.fn();
+    const original = window.location;
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: {
+        href: `${original.origin}/?returnTo=%2Fhelp%2Fstaff%2Fcases.html`,
+        origin: original.origin,
+        protocol: original.protocol,
+        host: original.host,
+        hostname: original.hostname,
+        port: original.port,
+        pathname: '/',
+        search: '?returnTo=%2Fhelp%2Fstaff%2Fcases.html',
+        hash: '',
+        replace,
+      },
+    });
+    try {
+      mockFetchSequence([() => json(sessionFor())]);
+      render(<App />);
+      expect(await screen.findByText('Opening help…')).toBeInTheDocument();
+      expect(replace).toHaveBeenCalledWith('/help/staff/cases.html');
+    } finally {
+      Object.defineProperty(window, 'location', { configurable: true, value: original });
+    }
+  });
+
   it('returns to the expired login state when the session is revoked mid-use', async () => {
     mockFetchSequence([
       () => json(sessionFor()),

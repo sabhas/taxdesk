@@ -241,6 +241,13 @@
             files in <code>docs/training/</code>, then run
             <code>node docs/training/tools/build-search-index.mjs</code> to refresh search.
           </p>
+          <p>
+            Staff do not need this site. The web build publishes the staff pages, the glossary,
+            and the staff part of troubleshooting inside the app at <code>/help/</code>, for
+            signed-in users only (TD-806). Staff open it from the <span class="ui">Help</span>
+            link. Text between <code>&lt;!-- help:exclude --&gt;</code> markers is left out, and
+            the build fails if a staff page links to an operator or tester page.
+          </p>
           <p class="meta">Guide written for the Epic 0–7 release candidate, November 2026.</p>
         </div>
       </main>

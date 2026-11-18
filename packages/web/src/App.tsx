@@ -1,10 +1,11 @@
-import { useCallback, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useNavigate } from 'react-router';
 import type { CurrentSession } from '@taxdesk/shared';
 import { CSPProvider } from '@base-ui/react/csp-provider';
 import { Button } from '@/components/ui/button';
 import { DocumentTitle } from '@/lib/document-title';
 import { AppShell } from './components/AppShell.js';
+import { helpReturnPath } from './help.js';
 import { ErrorAlert, LoadingMessage, PermissionDenied } from './components/feedback.js';
 import { AuthHeading, AuthLayout } from './components/layout/AuthLayout.js';
 import { ActivationPage } from './pages/ActivationPage.js';
@@ -62,12 +63,32 @@ function activationTokenFromLocation(): string | null {
   return token !== null && token.length > 0 ? token : null;
 }
 
+/**
+ * TD-806: the help gate sends a signed-out visitor here with `?returnTo=/help/…`.
+ * Help is served outside the app router, so once the session is ready this
+ * leaves the app with a full page load.
+ */
+function ReturnToHelp({ path }: { path: string }) {
+  useEffect(() => {
+    window.location.replace(path);
+  }, [path]);
+
+  return (
+    <AuthLayout>
+      <DocumentTitle title="Opening help" />
+      <AuthHeading title="TaxDesk" />
+      <LoadingMessage>Opening help…</LoadingMessage>
+    </AuthLayout>
+  );
+}
+
 function AppContent() {
   const { state, can, adopt, refresh } = useSession();
   const [challenge, setChallenge] = useState<MfaChallengeState | null>(null);
   const [activationToken, setActivationToken] = useState<string | null>(
     activationTokenFromLocation,
   );
+  const [helpReturn] = useState(() => helpReturnPath(window.location.search));
   const navigate = useNavigate();
 
   const onAuthenticated = useCallback(
@@ -179,6 +200,10 @@ function AppContent() {
         </Button>
       </AuthLayout>
     );
+  }
+
+  if (helpReturn !== null) {
+    return <ReturnToHelp path={helpReturn} />;
   }
 
   return (

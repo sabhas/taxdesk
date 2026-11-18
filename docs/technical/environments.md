@@ -238,9 +238,24 @@ staging health response always identifies the verified commit.
 
 The Pages Function at `packages/web/functions/[[path]].ts` proxies same-origin
 `/health` and `/api/*` requests to the Hono Worker bound as `API`.
-`packages/web/public/_routes.json` limits Function invocation to those paths, so
-static application routes are still served directly by Pages. The browser never
-connects to PostgreSQL or a storage provider directly.
+`packages/web/public/_routes.json` limits Function invocation to those paths and
+`/help`, so static application routes are still served directly by Pages. The
+browser never connects to PostgreSQL or a storage provider directly.
+
+`/help/` is the staff help bundle (TD-806). The web build generates it into
+`dist/help/` from `docs/training/` (`packages/web/build/help-site.ts`). Only the
+staff guides, the glossary, and the staff part of troubleshooting are included.
+For every `/help` request, the Function sends the request's cookie to
+`GET /api/v1/auth/session`:
+
+| Session check result | Help response |
+| --- | --- |
+| `200` | The page, with `Cache-Control: private, no-cache`, `Vary: Cookie`, and the same security headers as `public/_headers` |
+| `401` or `403` | `303` to `/?returnTo=<help path>`. The app returns the user to that page after sign-in |
+| Any other status, an unreachable API, or no binding | `503`. The page is never served without a confirmed session |
+
+Pages does not apply `_headers` to Function responses, so the Function sets the
+security headers itself. A unit test fails if its copy differs from `_headers`.
 
 `packages/web/wrangler.toml` declares the service binding per deployment target:
 

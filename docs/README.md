@@ -63,7 +63,10 @@ docs/
 8. For training, demos, and UAT, open the [training guide](training/index.html). When a
    feature changes on screen, update the matching page under `training/staff/`, the UAT
    scenarios in `training/assets/uat-data.js`, and then run
-   `node docs/training/tools/build-search-index.mjs`.
+   `node docs/training/tools/build-search-index.mjs`. The pages under `training/staff/`,
+   `training/help-home.html`, the glossary, and troubleshooting also ship in the app at
+   `/help/` (TD-806). Keep their links inside that set, and wrap operator-only passages in
+   `<!-- help:exclude -->` … `<!-- /help:exclude -->`. The web build fails otherwise.
 
 ## Epic index
 

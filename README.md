@@ -9,6 +9,10 @@ New to TaxDesk? Open the training guide at
 server needed). It covers local, staging, and production setup, day-to-day use for
 each role, and a UAT scenario catalogue for every story.
 
+Firm staff get a staff-only part of that guide inside the app. `pnpm build` (the
+web build) publishes it at `/help/`, and the web deployment serves it only to
+signed-in users. `pnpm dev:web` serves it at `/help/` without the sign-in check.
+
 ## Requirements
 
 - Node.js 22+
