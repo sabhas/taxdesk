@@ -22,4 +22,5 @@ A TaxDesk story is done only when all applicable items are true:
 - The feature is keyboard operable and passes automated accessibility checks without serious violations.
 - Observability includes a request ID, structured operational error, and audit event where the action is material.
 - Documentation, feature status, and migration/runbook information are updated.
+- The training guide in `docs/training/`, which also ships as the in-app help at `/help/`, matches the new behavior. That covers the affected staff, operator, and reference pages, and the UAT scenarios. Nothing a user, administrator, or operator sees or does is left described the old way.
 - CI is green and the Product Owner accepts the story in Sprint Review.

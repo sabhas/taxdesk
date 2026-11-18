@@ -28,7 +28,7 @@ Follow `docs/product/implementation-workflow.md`.
 4. API route with authentication, authorization, validation, and consistent errors.
 5. Accessible web UI with loading, validation, empty, permission-denied, conflict, and failure states as relevant.
 6. Unit, integration, authorization, and browser tests appropriate to the story.
-7. Documentation and status update.
+7. Documentation and status update, including the matching `docs/training/` pages, UAT scenarios, and help topics for any changed screen, label, route, permission, workflow, message, or procedure. The rule is in `AGENTS.md`.
 
 **TaxDesk non-negotiables**
 

@@ -99,3 +99,14 @@ implement fixes unless explicitly requested afterwards.
   accessibility, concurrency/error states, observability, and staging validation.
 - Run `/verify-story` or `/verify-epic` before checking off acceptance criteria;
   claim completion only with evidence from the current codebase.
+- Keep the training guide (`docs/training/`) and the in-app staff help built from
+  it (`/help/`) in step with the code. When a change affects anything a user,
+  administrator, operator, or tester sees or does, update the matching pages in
+  the same change. That includes screens, labels, routes, roles and permissions,
+  workflows, limits, error messages, configuration, commands, and runbook
+  procedures. Update the matching UAT scenarios in `assets/uat-data.js` too, and
+  if a screen's route changes, its topic in `packages/web/src/help.ts`. After
+  adding or renaming a page or heading, run
+  `node docs/training/tools/build-search-index.mjs`. Where the app and the guide
+  disagree, the app is right and the guide is a defect. Stale help is not
+  done.
