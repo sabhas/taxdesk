@@ -33,6 +33,8 @@ Implement in this order. Story points are relative sizing for one experienced en
 
 TD-007 (web UI foundation and design system, 5 points) was added to Epic 0 after Sprint 1 planning. It is unscheduled and awaits Sprint Review; see the Epic 0 PRD.
 
+TD-806 (in-app staff help, 3 points) was added to Epic 8 on 2026-11-18. It ships the TD-805 staff guides at `/help/` inside the web app and is unscheduled; see the Epic 8 PRD.
+
 ## Engineering build order
 
 Within every story, build in this order unless the PRD says otherwise:

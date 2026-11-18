@@ -59,6 +59,26 @@ Run a controlled pilot, validate performance and failure behavior, migrate produ
 - [ ] Verify an administrator can create/deactivate a user, reconnect OneDrive, and perform a restoration exercise from documentation.
 - [ ] Monitor launch for one business week and triage issues daily.
 
+## Added after Sprint 14 planning
+
+### TD-806 — In-app staff help — 3 points
+
+**Added 2026-11-18; unscheduled.** Delivers the staff guides from TD-805 inside the
+web app. The source stays the build-free guide in
+[`docs/training/`](../../training/index.html). Only the staff pages and the staff
+reference pages are published. Operator runbooks, the UAT catalogue, and internal
+release notes stay out of every deployment.
+
+**User story:** As a firm staff member, I want help for the screen I am on, inside
+TaxDesk, so that I can finish a task without asking an administrator or an engineer.
+
+- [ ] The web build publishes `/help/` from `docs/training/`. It contains only the staff guides, the glossary, the staff part of troubleshooting, and a staff home page. Its own search index and navigation list only published pages.
+- [ ] The build fails if a published page links to a page that is not published, or if a page has an unbalanced exclusion marker.
+- [ ] `/help/` is served only to a signed-in session, checked against the API on every request. A signed-out visitor is sent to sign in and returned to the requested help page afterwards. Help responses are private to the browser and carry the application's security headers.
+- [ ] Every signed-in screen offers a Help link that opens the guide for that screen.
+- [ ] The help pages pass keyboard and screen-reader checks and work at phone width.
+- [ ] Validate on staging that a signed-out request is redirected, that operator and UAT pages return no content, and that the Help link opens the correct guide.
+
 ## Exit criteria
 
 - No unresolved severity-1 or severity-2 issue remains.

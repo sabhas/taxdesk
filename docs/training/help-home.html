@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TaxDesk Help</title>
+    <meta name="description" content="Help for firm staff using TaxDesk, organised by task and role." />
+    <link rel="stylesheet" href="assets/guide.css" />
+  </head>
+  <!-- Staff help home. The web build (TD-806) publishes this page as /help/index.html,
+       together with staff/ and the staff reference pages. Keep every link inside
+       those pages: the build fails on a link to a page it does not publish. -->
+  <body data-root="" data-page="help-home.html">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="topbar" id="topbar"></header>
+    <div class="layout">
+      <nav class="sidebar" id="sidebar" aria-label="Guide sections"></nav>
+      <main id="main">
+        <div class="content">
+          <p class="breadcrumb">TaxDesk help</p>
+          <h1>TaxDesk help</h1>
+          <p class="lede">
+            How to do your work in TaxDesk: signing in, clients, tax cases, documents, invoices,
+            reports, and administration. Pick a starting point below, or press <kbd>/</kbd> to
+            search.
+          </p>
+
+          <h2 id="start">Start here</h2>
+          <div class="cards">
+            <a class="card" href="staff/getting-started.html">
+              <span class="kicker">Everyone</span>
+              <h3>Getting started and MFA</h3>
+              <p>Activate your account, set up your authenticator app, and keep recovery codes safe.</p>
+            </a>
+            <a class="card" href="staff/roles.html">
+              <span class="kicker">Everyone</span>
+              <h3>Roles and permissions</h3>
+              <p>What each of the five roles can see and do, and why a button might be missing.</p>
+            </a>
+            <a class="card" href="staff/quick-reference.html">
+              <span class="kicker">By role</span>
+              <h3>Quick-reference cards</h3>
+              <p>One printable card per role with the everyday tasks and where to find them.</p>
+            </a>
+          </div>
+
+          <h2 id="tasks">Find your task</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>I want to…</th>
+                  <th>Read</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Add, find, edit, or archive a client</td>
+                  <td><a href="staff/clients.html">Clients</a></td>
+                </tr>
+                <tr>
+                  <td>Set up the services the firm offers and their workflows</td>
+                  <td><a href="staff/services-workflows.html">Services and workflows</a></td>
+                </tr>
+                <tr>
+                  <td>Open a tax case, work the checklist, move it through review</td>
+                  <td><a href="staff/cases.html">Tax cases</a></td>
+                </tr>
+                <tr>
+                  <td>Upload, verify, download, or restore a document</td>
+                  <td><a href="staff/documents.html">Documents</a></td>
+                </tr>
+                <tr>
+                  <td>Draft and finalize an invoice, record or reverse a payment</td>
+                  <td><a href="staff/billing.html">Invoices and payments</a></td>
+                </tr>
+                <tr>
+                  <td>Read the dashboard, run a report, export CSV</td>
+                  <td><a href="staff/dashboard-reports.html">Dashboard and reports</a></td>
+                </tr>
+                <tr>
+                  <td>Import clients, cases, or opening balances from a spreadsheet</td>
+                  <td><a href="staff/data-import.html">Data import</a></td>
+                </tr>
+                <tr>
+                  <td>Invite users, change firm settings, connect storage, read audit history</td>
+                  <td><a href="staff/administration.html">Administration</a></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 id="stuck">When something goes wrong</h2>
+          <ul>
+            <li>
+              Look up the message you see in
+              <a href="reference/troubleshooting.html">Troubleshooting</a>.
+            </li>
+            <li>Not sure what a word means? See the <a href="reference/glossary.html">Glossary</a>.</li>
+            <li>
+              Still stuck? Tell your administrator what you did, what you expected, and the
+              <strong>request ID</strong> shown in the error message.
+            </li>
+          </ul>
+
+          <h2 id="conventions">How to read this help</h2>
+          <ul>
+            <li>
+              <span class="ui">Button text</span> is shown exactly as it appears in the app.
+              Navigation items are written like <span class="path">Clients → New client</span>.
+            </li>
+            <li>
+              Role badges show who can do something:
+              <span class="badge admin">Administrator</span>
+              <span class="badge manager">Manager</span>
+              <span class="badge consultant">Consultant</span>
+              <span class="badge billing">Billing</span>
+              <span class="badge readonly">Read-only</span>. An
+              <span class="badge operator">Operator</span> is the person who runs TaxDesk's
+              servers for the firm, not an app role.
+            </li>
+            <li>
+              The <span class="ui">Help</span> link in TaxDesk opens the page for the screen you
+              are on. The ◐ button switches light and dark mode, and ⎙ prints the current page.
+            </li>
+          </ul>
+        </div>
+      </main>
+    </div>
+    <script src="assets/search-index.js"></script>
+    <script src="assets/guide.js"></script>
+  </body>
+</html>
