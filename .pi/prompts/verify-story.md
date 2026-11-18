@@ -18,6 +18,7 @@ Audit the current codebase against **TaxDesk $1** in **Epic ${2:-<NN>}**.
 1. A table mapping every acceptance criterion for story **$1** to `met`, `partial`, or `missing`, with evidence file paths and test names.
 2. A table of applicable Definition of Done checks with status and evidence.
 3. A security/integrity check covering authorization, permissions, sensitive logging, concurrency, idempotency, and audit history where applicable.
+   Also check that `docs/training/` (and so the in-app `/help/`) describes the story's current behavior, and list every stale page or UAT scenario as a gap.
 4. Ordered gaps: critical, high, normal, and polish.
 5. A recommended PRD checkbox and `status.md` update.
 

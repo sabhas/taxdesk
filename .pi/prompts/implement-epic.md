@@ -36,6 +36,7 @@ Follow `docs/product/implementation-workflow.md`.
 - All epic acceptance criteria implemented and checked off only after verification.
 - Forward-only migrations, shared contracts, APIs, accessible UI, and relevant automated tests.
 - Updated technical docs, status, and ADRs when required.
+- Updated `docs/training/` pages, UAT scenarios, and in-app help topics for every user-visible or operational change.
 - A release note summarizing user-visible capability, data changes, and operational actions.
 
 Before marking the epic done, run `/verify-epic $1 $2`.

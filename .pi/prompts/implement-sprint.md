@@ -25,7 +25,7 @@ Follow `docs/product/implementation-workflow.md`.
 - Do not start an uncommitted story even if it appears small.
 - Run `/verify-story` on each story before moving to the next material story.
 - If a blocker threatens the Sprint Goal, report its evidence and propose only options consistent with the approved architecture.
-- At sprint end, update PRD checkboxes, status, tests, migrations, runbooks, and the next-sprint risk list.
+- At sprint end, update PRD checkboxes, status, tests, migrations, runbooks, training/help pages and UAT scenarios, and the next-sprint risk list.
 
 **Sprint Review output**
 
