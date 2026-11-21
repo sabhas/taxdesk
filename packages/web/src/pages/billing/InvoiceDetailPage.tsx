@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useId, useState } from 'react';
+import { Fragment, useCallback, useEffect, useId, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { Download, LoaderCircle, RotateCcw } from 'lucide-react';
-import type { Invoice, Payment } from '@taxdesk/shared';
+import { groupLinesByClient, type Invoice, type InvoiceItem, type Payment } from '@taxdesk/shared';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -50,6 +50,7 @@ import {
   PAYMENT_STATUS_LABELS,
   PDF_STATE_LABELS,
   formatDate,
+  invoiceLineErrors,
   money,
 } from './billing-format.js';
 
@@ -70,6 +71,7 @@ export function InvoiceDetailPage() {
   const [dialog, setDialog] = useState<Dialog>(null);
   const [reversing, setReversing] = useState<Payment | null>(null);
   const [working, setWorking] = useState<string | null>(null);
+  const [lineErrors, setLineErrors] = useState<ReadonlyMap<string, string> | null>(null);
 
   const load = useCallback(
     async (signal?: AbortSignal) => {
@@ -110,6 +112,7 @@ export function InvoiceDetailPage() {
         refreshStale();
       } else {
         setNotice(toErrorNotice(error));
+        setLineErrors(invoiceLineErrors(error));
       }
     },
     [refreshStale],
@@ -150,6 +153,7 @@ export function InvoiceDetailPage() {
   const title = invoice.invoiceNumber ?? 'Draft invoice';
   const pdfFailed = invoice.pdfState === 'failed' || invoice.pdfState === 'pending';
   const canVoid = canManage && !isVoid && invoice.paidMinor === 0;
+  const combined = invoice.billingMode === 'combined';
 
   return (
     <section aria-labelledby={headingId}>
@@ -167,6 +171,7 @@ export function InvoiceDetailPage() {
                 {PAYMENT_STATUS_LABELS[invoice.paymentStatus]}
               </Badge>
             )}
+            {combined && <Badge variant="outline">Combined</Badge>}
           </span>
         }
         description={
@@ -174,6 +179,7 @@ export function InvoiceDetailPage() {
             <Link to={clientPath(invoice.client.id)} className="underline-offset-4 hover:underline">
               {invoice.client.displayName} ({invoice.client.clientCode})
             </Link>
+            {combined && ' · combined invoice for the group'}
             {invoice.case !== null && (
               <>
                 {' · '}
@@ -243,7 +249,9 @@ export function InvoiceDetailPage() {
         <InvoiceDraftEditor
           key={invoice.id}
           invoice={invoice}
+          lineErrors={lineErrors}
           onSaved={(saved) => {
+            setLineErrors(null);
             setInvoice(saved);
             setStale(false);
             setSuccess('Draft saved.');
@@ -294,14 +302,39 @@ export function InvoiceDetailPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {invoice.items.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>{item.description}</TableCell>
-                      <TableCell className="text-right">{item.quantity}</TableCell>
-                      <TableCell className="text-right">{money(item.unitAmountMinor)}</TableCell>
-                      <TableCell className="text-right">{money(item.lineTotalMinor)}</TableCell>
-                    </TableRow>
-                  ))}
+                  {combined
+                    ? groupLinesByClient(
+                        invoice.items.map((item) => ({
+                          ...item,
+                          clientId: item.client?.id ?? null,
+                        })),
+                      ).map((group) => {
+                        const client = group.items[0]?.client;
+                        return (
+                          <Fragment key={group.clientId}>
+                            <TableRow>
+                              <TableHead scope="rowgroup" colSpan={4} className="bg-muted/50">
+                                {client?.displayName}{' '}
+                                <span className="font-mono text-xs font-normal text-muted-foreground">
+                                  {client?.clientCode}
+                                </span>
+                              </TableHead>
+                            </TableRow>
+                            {group.items.map((item) => (
+                              <LineRow key={item.id} item={item} />
+                            ))}
+                            <TableRow>
+                              <TableCell colSpan={3} className="text-right text-muted-foreground">
+                                Subtotal for {client?.displayName}
+                              </TableCell>
+                              <TableCell className="text-right font-medium">
+                                {money(group.subtotalMinor)}
+                              </TableCell>
+                            </TableRow>
+                          </Fragment>
+                        );
+                      })
+                    : invoice.items.map((item) => <LineRow key={item.id} item={item} />)}
                 </TableBody>
               </Table>
             </CardContent>
@@ -491,6 +524,30 @@ export function InvoiceDetailPage() {
         }}
       />
     </section>
+  );
+}
+
+function LineRow({ item }: { item: InvoiceItem }) {
+  return (
+    <TableRow>
+      <TableCell>
+        {item.description}
+        {item.case !== null && (
+          <>
+            {' '}
+            <Link
+              to={casePath(item.case.id)}
+              className="font-mono text-xs text-primary underline-offset-4 hover:underline"
+            >
+              {item.case.caseCode}
+            </Link>
+          </>
+        )}
+      </TableCell>
+      <TableCell className="text-right">{item.quantity}</TableCell>
+      <TableCell className="text-right">{money(item.unitAmountMinor)}</TableCell>
+      <TableCell className="text-right">{money(item.lineTotalMinor)}</TableCell>
+    </TableRow>
   );
 }
 

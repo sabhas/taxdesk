@@ -192,6 +192,99 @@ describe('server-side permission enforcement', () => {
     }
   });
 
+  it('enforces the role matrix on combined group invoice routes (TD-511)', async () => {
+    const harness = createTestHarness();
+    await seedFirm(harness);
+    const app = appFor(harness);
+    const cookies = {} as Record<RoleKey, string>;
+    for (const role of ROLE_MATRIX) {
+      const { user } = await seedUser(harness, {
+        username: `combined-${role.replace('_', '-')}`,
+        password: PASSWORD,
+        role,
+        mfaEnrolled: true,
+      });
+      cookies[role] = (await sessionCookieFor(harness, user)).cookie;
+    }
+    const createClient = async (legalName: string, cnic: string, parentClientId?: string) => {
+      const response = await call(app, '/api/v1/clients', {
+        method: 'POST',
+        cookie: cookies.administrator,
+        body: {
+          type: 'individual',
+          legalName,
+          cnic,
+          contacts: [],
+          assignedManagerUserId: null,
+          ...(parentClientId === undefined ? {} : { parentClientId }),
+        },
+      });
+      expect(response.status).toBe(201);
+      return String((await body(response))['id']);
+    };
+    const headId = await createClient('Matrix Combined Head', '35202-7100001-1');
+    const memberId = await createClient('Matrix Combined Member', '35202-7100002-1', headId);
+
+    const expected: Record<
+      RoleKey,
+      { create: number; read: number; billableCases: number; save: number }
+    > = {
+      administrator: { create: 201, read: 200, billableCases: 200, save: 200 },
+      // A manager reads billing but holds no billing.manage.
+      manager: { create: 403, read: 200, billableCases: 403, save: 403 },
+      consultant: { create: 403, read: 403, billableCases: 403, save: 403 },
+      billing: { create: 201, read: 200, billableCases: 200, save: 200 },
+      read_only: { create: 403, read: 200, billableCases: 403, save: 403 },
+    };
+    for (const role of ROLE_MATRIX) {
+      const cookie = cookies[role];
+      const create = await call(app, '/api/v1/invoices', {
+        method: 'POST',
+        cookie,
+        body: { clientId: headId, billingMode: 'combined' },
+      });
+      expect(create.status, `${role} create combined`).toBe(expected[role].create);
+
+      // Every role then works against a draft the administrator created.
+      const draft = await body(
+        await call(app, '/api/v1/invoices', {
+          method: 'POST',
+          cookie: cookies.administrator,
+          body: { clientId: headId, billingMode: 'combined' },
+        }),
+      );
+      const invoiceId = String(draft['id']);
+      const read = await call(app, `/api/v1/invoices/${invoiceId}`, { cookie });
+      expect(read.status, `${role} read combined`).toBe(expected[role].read);
+      const billableCases = await call(
+        app,
+        `/api/v1/invoices/${invoiceId}/billable-cases?clientId=${memberId}`,
+        { cookie },
+      );
+      expect(billableCases.status, `${role} billable cases`).toBe(expected[role].billableCases);
+      const save = await call(app, `/api/v1/invoices/${invoiceId}`, {
+        method: 'PATCH',
+        cookie,
+        headers: { 'If-Match': '"1"' },
+        body: {
+          items: [
+            {
+              description: 'Member filing',
+              quantity: 1,
+              unitAmountMinor: 1_000,
+              clientId: memberId,
+            },
+          ],
+          discountMinor: 0,
+          issueDate: null,
+          dueDate: null,
+          notes: '',
+        },
+      });
+      expect(save.status, `${role} save combined lines`).toBe(expected[role].save);
+    }
+  });
+
   it('applies the self-or-permission ownership rule to user records', async () => {
     const harness = createTestHarness();
     await seedFirm(harness);

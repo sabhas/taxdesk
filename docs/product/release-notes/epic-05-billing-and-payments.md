@@ -69,3 +69,23 @@ Draft until staging demonstration and Sprint Review acceptance.
   clear message on download.
 - Not included: online payments, accounting sync, credit notes, recurring
   billing, and overpayment handling.
+
+## Added after staging feedback: combined group invoices (TD-511)
+
+- A group head's client page offers **Create combined invoice**: one invoice
+  to the head with lines for the head and its members. Each line names who it
+  is for and, optionally, one of that client's cases; choosing a case fills the
+  service name, tax year, and fee.
+- The editor warns, without blocking, when a case is already on another
+  invoice that is not void, and previews a subtotal per client.
+- Finalization rechecks that every line's client is still in the group and
+  keeps each line's client code and name, so later group or name changes never
+  alter the invoice. The PDF groups lines by client with subtotals and shows
+  names only.
+- Payments, receipts, reversals, and void work on the whole invoice. Group
+  billing totals count it against the head. Only users who can see every
+  client on it can open it.
+- Migration `0012_combined_group_invoices.sql` adds the billing mode, line
+  client and case, and snapshot columns, and extends the invoice triggers.
+  Apply it in staging after `0011`. No new secrets or configuration. New
+  endpoint: `GET /api/v1/invoices/{id}/billable-cases`.

@@ -57,6 +57,7 @@ import type {
   InvoiceDraftChanges,
   InvoiceFinalization,
   InvoiceItemRecord,
+  InvoiceLineSnapshot,
   InvoiceListFilter,
   InvoiceListPage,
   InvoiceRecord,
@@ -519,6 +520,19 @@ export class DuplicateBillingNumberError extends Error {
   }
 }
 
+/**
+ * Raised by an invoice repository when the database rejects a combined group
+ * invoice (TD-511 backstop): a line for a client outside the group, a line
+ * case of another client, or a finalization whose group changed or whose
+ * lines lack their client snapshot. The service checks the same rules first.
+ */
+export class CombinedInvoiceRuleError extends Error {
+  constructor() {
+    super('The combined invoice breaks the group line rules.');
+    this.name = 'CombinedInvoiceRuleError';
+  }
+}
+
 export interface InvoiceRepository {
   /** Inserts a draft and its line items. */
   create(record: InvoiceRecord, items: readonly InvoiceItemRecord[]): Promise<void>;
@@ -538,6 +552,12 @@ export interface InvoiceRepository {
     readonly expectedVersion: number;
     readonly at: string;
   }): Promise<InvoiceRecord | null>;
+  /**
+   * Copies each combined-invoice line's client code and name onto the line
+   * (TD-511). Called inside finalization while the invoice is still a draft
+   * and row-locked; the lines are frozen once it is finalized.
+   */
+  snapshotLines(invoiceId: string, snapshots: readonly InvoiceLineSnapshot[]): Promise<void>;
   /** Draft → finalized with its number; `null` when stale or not a draft. */
   finalize(input: {
     readonly id: string;

@@ -1,9 +1,11 @@
-import { useId, useMemo, useState, type SyntheticEvent } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type SyntheticEvent } from 'react';
 import { ArrowDown, ArrowUp, LoaderCircle, Plus, Trash2 } from 'lucide-react';
 import {
   INVOICE_LIMITS,
   calculateInvoiceTotals,
+  groupLinesByClient,
   parseMajorAmount,
+  type BillableCase,
   type Invoice,
   type InvoiceItemInput,
 } from '@taxdesk/shared';
@@ -13,16 +15,25 @@ import { Field, FieldError, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { ApiError } from '../../api-client.js';
-import { updateInvoiceDraft } from '../../billing-api.js';
+import { listBillableCases, updateInvoiceDraft } from '../../billing-api.js';
+import { getClient } from '../../client-api.js';
 import { ErrorAlert, type ErrorNotice } from '../../components/feedback.js';
 import { toErrorNotice } from '../error-notice.js';
-import { money, toMajorInput } from './billing-format.js';
+import { invoiceLineErrors, money, toMajorInput } from './billing-format.js';
+import {
+  CombinedLineFields,
+  lineClientOptions,
+  type LineClientOption,
+} from './CombinedLineFields.js';
 
 interface DraftLine {
   readonly key: number;
   readonly description: string;
   readonly quantity: string;
   readonly unit: string;
+  /** Combined invoices (TD-511): who the line is for and its optional case; `''` for none. */
+  readonly clientId: string;
+  readonly caseId: string;
 }
 
 function linesOf(invoice: Invoice): DraftLine[] {
@@ -31,17 +42,25 @@ function linesOf(invoice: Invoice): DraftLine[] {
     description: item.description,
     quantity: String(item.quantity),
     unit: toMajorInput(item.unitAmountMinor),
+    clientId: item.client?.id ?? '',
+    caseId: item.case?.id ?? '',
   }));
 }
 
 /** Parses the form into the request shape, or reports which field is wrong. */
-function parseLines(lines: readonly DraftLine[]): {
+function parseLines(
+  lines: readonly DraftLine[],
+  combined: boolean,
+): {
   items: InvoiceItemInput[];
   errors: ReadonlyMap<string, string>;
 } {
   const errors = new Map<string, string>();
   const items: InvoiceItemInput[] = [];
   lines.forEach((line, index) => {
+    if (combined && line.clientId === '') {
+      errors.set(`c${String(index)}`, 'Choose who this line is for.');
+    }
     const quantity = /^\d{1,6}$/u.test(line.quantity.trim()) ? Number(line.quantity) : Number.NaN;
     const unit = parseMajorAmount(line.unit);
     if (line.description.trim().length === 0) {
@@ -54,27 +73,91 @@ function parseLines(lines: readonly DraftLine[]): {
       errors.set(`u${String(index)}`, 'Enter an amount such as 1,500.00.');
     }
     if (unit !== null && Number.isInteger(quantity)) {
-      items.push({ description: line.description.trim(), quantity, unitAmountMinor: unit });
+      items.push({
+        description: line.description.trim(),
+        quantity,
+        unitAmountMinor: unit,
+        ...(combined && line.clientId !== '' ? { clientId: line.clientId } : {}),
+        ...(combined && line.caseId !== '' ? { caseId: line.caseId } : {}),
+      });
     }
   });
   return { items, errors };
 }
 
 /**
+ * The group's clients and each line client's billable cases for a combined
+ * draft (TD-511). Cases are loaded once per client as lines name them.
+ */
+function useCombinedOptions(invoice: Invoice, lines: readonly DraftLine[]) {
+  const combined = invoice.billingMode === 'combined';
+  const [clientOptions, setClientOptions] = useState<readonly LineClientOption[]>(() =>
+    combined ? lineClientOptions(invoice.client, []) : [],
+  );
+  const [cases, setCases] = useState<ReadonlyMap<string, readonly BillableCase[]>>(new Map());
+  const [loadNotice, setLoadNotice] = useState<ErrorNotice | null>(null);
+  const requested = useRef(new Set<string>());
+
+  useEffect(() => {
+    if (!combined) return;
+    const controller = new AbortController();
+    void getClient(invoice.client.id, controller.signal)
+      .then((head) => {
+        setClientOptions(lineClientOptions(head, head.groupMembers));
+      })
+      .catch((error: unknown) => {
+        if (!controller.signal.aborted) {
+          setLoadNotice(toErrorNotice(error, 'Could not load the group members'));
+        }
+      });
+    return () => {
+      controller.abort();
+    };
+  }, [combined, invoice.client.id]);
+
+  const clientIds = useMemo(
+    () => [...new Set(lines.map((line) => line.clientId).filter((id) => id !== ''))],
+    [lines],
+  );
+  useEffect(() => {
+    if (!combined) return;
+    for (const clientId of clientIds) {
+      if (requested.current.has(clientId)) continue;
+      requested.current.add(clientId);
+      void listBillableCases(invoice.id, clientId)
+        .then((list) => {
+          setCases((current) => new Map(current).set(clientId, list.cases));
+        })
+        .catch((error: unknown) => {
+          setCases((current) => new Map(current).set(clientId, []));
+          setLoadNotice(toErrorNotice(error, 'Could not load the cases for a line'));
+        });
+    }
+  }, [combined, clientIds, invoice.id]);
+
+  return { combined, clientOptions, cases, loadNotice };
+}
+
+/**
  * Edits a draft: line items (add, remove, move up or down), discount, dates,
- * and notes. The totals shown are a preview from the shared calculator; the
- * server recomputes them and the browser never sends a total.
+ * and notes. On a combined group invoice (TD-511) each line also names the
+ * client it is for and an optional case. The totals shown are a preview from
+ * the shared calculator; the server recomputes them and the browser never
+ * sends a total.
  */
 export function InvoiceDraftEditor({
   invoice,
   onSaved,
   onStale,
   onFinalize,
+  lineErrors = null,
 }: {
   invoice: Invoice;
   onSaved: (invoice: Invoice) => void;
   onStale: () => void;
   onFinalize: () => void;
+  /** Line errors from a refused finalize (for example a client that left the group). */
+  lineErrors?: ReadonlyMap<string, string> | null;
 }) {
   const id = useId();
   const [lines, setLines] = useState<DraftLine[]>(() => linesOf(invoice));
@@ -87,8 +170,16 @@ export function InvoiceDraftEditor({
   const [notice, setNotice] = useState<ErrorNotice | null>(null);
   const [showErrors, setShowErrors] = useState(false);
   const [dirty, setDirty] = useState(false);
+  // Line errors the server returned; cleared by the next edit.
+  const [serverErrors, setServerErrors] = useState<ReadonlyMap<string, string>>(new Map());
+  useEffect(() => {
+    if (lineErrors !== null) setServerErrors(lineErrors);
+  }, [lineErrors]);
+  const lineError = (key: string): string | undefined =>
+    (showErrors ? parsed.errors.get(key) : undefined) ?? serverErrors.get(key);
 
-  const parsed = useMemo(() => parseLines(lines), [lines]);
+  const { combined, clientOptions, cases, loadNotice } = useCombinedOptions(invoice, lines);
+  const parsed = useMemo(() => parseLines(lines, combined), [lines, combined]);
   const discountMinor = parseMajorAmount(discount);
   const preview = useMemo(
     () =>
@@ -113,9 +204,14 @@ export function InvoiceDraftEditor({
     setDirty(true);
   }
 
+  function edited(): void {
+    setDirty(true);
+    setServerErrors(new Map());
+  }
+
   function updateLine(key: number, patch: Partial<DraftLine>): void {
     setLines((current) => current.map((line) => (line.key === key ? { ...line, ...patch } : line)));
-    setDirty(true);
+    edited();
   }
 
   function move(index: number, by: -1 | 1): void {
@@ -129,7 +225,7 @@ export function InvoiceDraftEditor({
       next[target] = moved;
       return next;
     });
-    setDirty(true);
+    edited();
   }
 
   async function save(): Promise<Invoice | null> {
@@ -165,6 +261,7 @@ export function InvoiceDraftEditor({
         onStale();
       } else {
         setNotice(toErrorNotice(error, 'Could not save the draft'));
+        setServerErrors(invoiceLineErrors(error) ?? new Map());
       }
       return null;
     } finally {
@@ -178,10 +275,31 @@ export function InvoiceDraftEditor({
   }
 
   const totals = preview?.ok === true ? preview.totals : null;
+  const memberSubtotals =
+    combined && totals !== null
+      ? groupLinesByClient(
+          parsed.items.map((item, index) => ({
+            clientId: item.clientId ?? null,
+            lineTotalMinor: totals.lineTotalsMinor[index] ?? 0,
+          })),
+        )
+      : [];
+  const clientLabel = (clientId: string): string =>
+    clientOptions.find((option) => option.id === clientId)?.label.replace(/ · group head$/u, '') ??
+    invoice.items.find((item) => item.client?.id === clientId)?.client?.displayName ??
+    'Client';
 
   return (
     <form onSubmit={onSubmit} noValidate className="space-y-5" aria-label="Edit draft invoice">
       {notice !== null && <ErrorAlert notice={notice} />}
+      {loadNotice !== null && <ErrorAlert notice={loadNotice} />}
+      {combined && (
+        <p className="text-sm text-muted-foreground">
+          A combined invoice to {invoice.client.displayName}. Choose who each line is for: the group
+          head or one of its members. The invoice PDF groups the lines by client with a subtotal for
+          each.
+        </p>
+      )}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-3">
           <CardTitle>
@@ -195,10 +313,17 @@ export function InvoiceDraftEditor({
             onClick={() => {
               setLines((current) => [
                 ...current,
-                { key: nextKey, description: '', quantity: '1', unit: '0.00' },
+                {
+                  key: nextKey,
+                  description: '',
+                  quantity: '1',
+                  unit: '0.00',
+                  clientId: combined ? invoice.client.id : '',
+                  caseId: '',
+                },
               ]);
               setNextKey(nextKey + 1);
-              setDirty(true);
+              edited();
             }}
           >
             <Plus aria-hidden="true" />
@@ -213,11 +338,11 @@ export function InvoiceDraftEditor({
           )}
           {lines.map((line, index) => {
             const position = String(index + 1);
-            const descriptionError = showErrors
-              ? parsed.errors.get(`d${String(index)}`)
-              : undefined;
-            const quantityError = showErrors ? parsed.errors.get(`q${String(index)}`) : undefined;
-            const unitError = showErrors ? parsed.errors.get(`u${String(index)}`) : undefined;
+            const descriptionError = lineError(`d${String(index)}`);
+            const quantityError = lineError(`q${String(index)}`);
+            const unitError = lineError(`u${String(index)}`);
+            const clientError = lineError(`c${String(index)}`);
+            const caseError = lineError(`k${String(index)}`);
             return (
               <fieldset
                 key={line.key}
@@ -226,6 +351,32 @@ export function InvoiceDraftEditor({
                 <legend className="px-1 text-xs font-medium text-muted-foreground">
                   Line {position}
                 </legend>
+                {combined && (
+                  <CombinedLineFields
+                    idPrefix={`${id}-${String(line.key)}`}
+                    clientId={line.clientId}
+                    caseId={line.caseId}
+                    clientOptions={clientOptions}
+                    cases={line.clientId === '' ? null : (cases.get(line.clientId) ?? null)}
+                    clientError={clientError}
+                    caseError={caseError}
+                    onClientChange={(clientId) => {
+                      updateLine(line.key, { clientId, caseId: '' });
+                    }}
+                    onCaseChange={(billableCase) => {
+                      updateLine(
+                        line.key,
+                        billableCase === null
+                          ? { caseId: '' }
+                          : {
+                              caseId: billableCase.id,
+                              description: billableCase.description,
+                              unit: toMajorInput(billableCase.unitAmountMinor),
+                            },
+                      );
+                    }}
+                  />
+                )}
                 <Field data-invalid={descriptionError !== undefined}>
                   <FieldLabel htmlFor={`${id}-d-${String(line.key)}`}>Description</FieldLabel>
                   <Input
@@ -297,7 +448,7 @@ export function InvoiceDraftEditor({
                     aria-label={`Remove line ${position}`}
                     onClick={() => {
                       setLines((current) => current.filter((entry) => entry.key !== line.key));
-                      setDirty(true);
+                      edited();
                     }}
                   >
                     <Trash2 aria-hidden="true" />
@@ -372,6 +523,19 @@ export function InvoiceDraftEditor({
 
       <Card>
         <CardContent>
+          {memberSubtotals.length > 0 && (
+            <dl
+              aria-label="Subtotal by client"
+              className="mb-3 grid max-w-sm gap-1 border-b pb-3 text-sm sm:ml-auto"
+            >
+              {memberSubtotals.map((group) => (
+                <div key={group.clientId} className="flex justify-between gap-6">
+                  <dt className="text-muted-foreground">{clientLabel(group.clientId)}</dt>
+                  <dd>{money(group.subtotalMinor)}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
           <dl aria-label="Invoice total preview" className="grid max-w-sm gap-1 text-sm sm:ml-auto">
             <div className="flex justify-between gap-6">
               <dt className="text-muted-foreground">Subtotal</dt>

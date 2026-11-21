@@ -1,5 +1,6 @@
 import type {
   BillingPdfState,
+  InvoiceBillingMode,
   InvoiceStatus,
   PaymentMethod,
   PaymentStatus,
@@ -16,6 +17,8 @@ export interface InvoiceRecord {
   readonly caseCode: string | null;
   readonly caseServiceName: string | null;
   readonly currency: string;
+  /** `combined`: addressed to a group head, with a client on every line (TD-511). */
+  readonly billingMode: InvoiceBillingMode;
   readonly status: InvoiceStatus;
   readonly invoiceNumber: string | null;
   /** Calendar dates, `YYYY-MM-DD`. */
@@ -49,7 +52,28 @@ export interface InvoiceItemRecord {
   readonly quantity: number;
   readonly unitAmountMinor: number;
   readonly lineTotalMinor: number;
+  /**
+   * Combined invoices only (TD-511): the client the line is for and its
+   * optional case. `null` on individual invoices.
+   */
+  readonly clientId: string | null;
+  readonly caseId: string | null;
+  /** Written at finalization of a combined invoice; frozen with the line. */
+  readonly clientCodeSnapshot: string | null;
+  readonly clientNameSnapshot: string | null;
+  /** Read-only join fields (current client and case), never written. */
+  readonly clientCode: string | null;
+  readonly clientDisplayName: string | null;
+  readonly caseCode: string | null;
+  readonly caseServiceName: string | null;
   readonly createdAt: string;
+}
+
+/** The client snapshot copied onto a combined-invoice line at finalization. */
+export interface InvoiceLineSnapshot {
+  readonly itemId: string;
+  readonly clientCode: string;
+  readonly clientName: string;
 }
 
 /** A draft's editable content; the repository bumps `version` and `updatedAt`. */
@@ -92,6 +116,7 @@ export interface InvoiceListFilter {
   readonly clientId?: string;
   /** Group filter (TD-207): the visible clients of a group, resolved by the service. */
   readonly clientIds?: readonly string[];
+  /** The invoice's case, or (combined invoices, TD-511) a case on any of its lines. */
   readonly caseId?: string;
   readonly status?: InvoiceStatus;
   readonly paymentStatus?: PaymentStatus;

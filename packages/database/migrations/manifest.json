@@ -44,6 +44,10 @@
     {
       "name": "0011_client_groups.sql",
       "checksum": "fdaacbacd1265a36747326c7232c9ff6d2074b115bdd9b1fd241d2e762853bce"
+    },
+    {
+      "name": "0012_combined_group_invoices.sql",
+      "checksum": "a40b6cc9ae41a7fd2e2edbc9b1a0cbc9b564c6e10c41b211ee73bb517d87d098"
     }
   ]
 }

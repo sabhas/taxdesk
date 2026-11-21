@@ -13,7 +13,7 @@ import { createSecretCipher } from '../crypto/cipher.js';
 import { buildDependencies, type AppDependencies } from '../dependencies.js';
 import { BootstrapService } from '../domain/auth/bootstrap-service.js';
 import type { Actor } from '../domain/auth/types.js';
-import type { Repositories } from './ports.js';
+import { CombinedInvoiceRuleError, type Repositories } from './ports.js';
 
 /**
  * Epic 5 repositories and migration 0008 against PostgreSQL. The suite runs in
@@ -596,6 +596,276 @@ describeWithDatabase('billing repositories and triggers against PostgreSQL', () 
       const restricted = await heads(owner.userId);
       expect(restricted).toContain(visibleHead.id);
       expect(restricted).not.toContain(hiddenHead.id);
+    });
+  });
+
+  describe('combined group invoices (TD-511)', () => {
+    let sequence = 0;
+
+    async function client(parentClientId: string | null) {
+      sequence += 1;
+      tick();
+      return await dependencies.clientService.createClient({
+        actor: owner,
+        requestId: rid(),
+        request: {
+          type: 'business',
+          legalName: `Combined Business ${String(sequence)}`,
+          ntn: String(7_300_000 + sequence),
+          contacts: [],
+          assignedManagerUserId: null,
+          parentClientId,
+        },
+      });
+    }
+
+    async function caseFor(clientId: string) {
+      tick();
+      return await dependencies.caseService.createCase({
+        actor: owner,
+        requestId: rid(),
+        request: {
+          clientId,
+          serviceTypeId: serviceId,
+          taxYear: 2023,
+          workflowVersionId,
+          dueDate: '2026-09-30',
+          primaryConsultantUserId: owner.userId,
+          reviewerUserId: null,
+          notes: '',
+        },
+      });
+    }
+
+    /** A head with one member (with a case) and a saved combined draft billing both. */
+    async function combinedDraft() {
+      const head = await client(null);
+      const member = await client(head.id);
+      const memberCase = await caseFor(member.id);
+      tick();
+      const created = await billing().createDraft({
+        actor: owner,
+        request: { clientId: head.id, billingMode: 'combined' },
+        requestId: rid(),
+      });
+      tick();
+      const saved = await billing().updateDraft({
+        actor: owner,
+        id: created.id,
+        expectedVersion: created.version,
+        requestId: rid(),
+        request: {
+          items: [
+            {
+              description: 'Head advisory',
+              quantity: 1,
+              unitAmountMinor: 200_000,
+              clientId: head.id,
+            },
+            {
+              description: 'Member return',
+              quantity: 1,
+              unitAmountMinor: 1_000_000,
+              clientId: member.id,
+              caseId: memberCase.id,
+            },
+          ],
+          discountMinor: 0,
+          issueDate: null,
+          dueDate: null,
+          notes: '',
+        },
+      });
+      return { head, member, memberCase, draft: saved };
+    }
+
+    async function leaveGroup(member: { id: string }, transaction: SqlExecutor = executor) {
+      await transaction.query(
+        'UPDATE clients SET parent_client_id = NULL, version = version + 1 WHERE id = $1',
+        [member.id],
+      );
+    }
+
+    const finalizeDraft = (draftInvoice: { id: string; version: number }) =>
+      billing().finalizeInvoice({
+        actor: owner,
+        id: draftInvoice.id,
+        expectedVersion: draftInvoice.version,
+        idempotencyKey: idem(),
+        requestId: rid(),
+      });
+
+    it('finalizes with a client snapshot that a later group change never alters', async () => {
+      const { head, member, memberCase, draft: prepared } = await combinedDraft();
+      tick();
+      const result = await finalizeDraft(prepared);
+      expect(result.value.status).toBe('finalized');
+      expect(result.value.billingMode).toBe('combined');
+      await leaveGroup(member);
+      await sql("UPDATE clients SET display_name = 'Renamed Later' WHERE id = $1", [member.id]);
+      const reloaded = await billing().getInvoice(owner, prepared.id);
+      expect(reloaded.items.map((item) => item.client?.displayName)).toEqual([
+        head.displayName,
+        member.displayName,
+      ]);
+      expect(reloaded.items[1]?.case?.id).toBe(memberCase.id);
+      const rows = await sql(
+        'SELECT client_code_snapshot, client_name_snapshot FROM invoice_items WHERE invoice_id = $1 ORDER BY position',
+        [prepared.id],
+      );
+      expect(rows.map((row) => row['client_code_snapshot'])).toEqual([
+        head.clientCode,
+        member.clientCode,
+      ]);
+
+      // Group totals count it against the head; the list case filter finds it by its line.
+      const totals = await billing().groupBillingTotals(owner, { group: head.id });
+      expect(totals).toMatchObject({ invoiceCount: 1, invoicedMinor: 1_200_000 });
+      const byCase = await billing().listInvoices(owner, { caseId: memberCase.id, limit: 25 });
+      expect(byCase.invoices.map((invoice) => invoice.id)).toEqual([prepared.id]);
+    });
+
+    it('refuses finalization when a group change commits while it waits for the client lock', async () => {
+      const { member, draft: prepared } = await combinedDraft();
+      let release!: () => void;
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      let locked!: () => void;
+      const holding = new Promise<void>((resolve) => {
+        locked = resolve;
+      });
+      const groupChange = executor.transaction(async (transaction) => {
+        await leaveGroup(member, transaction);
+        locked();
+        await gate;
+      });
+      await holding;
+      tick();
+      const finalizing = finalizeDraft(prepared);
+      // Give finalization time to reach the member's row lock, then commit the change.
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      release();
+      await groupChange;
+      await expect(finalizing).rejects.toMatchObject({ code: 'INVOICE_GROUP_CHANGED' });
+      const current = await billing().getInvoice(owner, prepared.id);
+      expect(current.status).toBe('draft');
+      expect(current.invoiceNumber).toBeNull();
+    });
+
+    it('lets a group change that waits behind finalization commit after it, leaving the invoice intact', async () => {
+      const { member, draft: prepared } = await combinedDraft();
+      tick();
+      const [finalized, change] = await Promise.allSettled([
+        finalizeDraft(prepared),
+        (async () => {
+          await new Promise((resolve) => setTimeout(resolve, 5));
+          await leaveGroup(member);
+        })(),
+      ]);
+      expect(change.status).toBe('fulfilled');
+      const current = await billing().getInvoice(owner, prepared.id);
+      if (finalized.status === 'fulfilled') {
+        // Finalization won: the snapshot names the member as it was.
+        expect(current.status).toBe('finalized');
+        expect(current.items[1]?.client?.id).toBe(member.id);
+      } else {
+        // The group change won: finalization saw it and refused.
+        expect(finalized.reason).toMatchObject({ code: 'INVOICE_GROUP_CHANGED' });
+        expect(current.status).toBe('draft');
+      }
+    });
+
+    it('enforces the combined line rules in the database', async () => {
+      const { head, member, memberCase, draft: prepared } = await combinedDraft();
+      const outsider = await client(null);
+      const outsiderCase = await caseFor(outsider.id);
+      const insertLine = (
+        clientId: string | null,
+        caseId: string | null,
+        invoiceId = prepared.id,
+      ) =>
+        sql(
+          `INSERT INTO invoice_items (id, invoice_id, position, description, quantity, unit_amount_minor,
+             line_total_minor, client_id, case_id, created_at)
+           VALUES ($1, $2, 99, 'Direct', 1, 1, 1, $3, $4, now())`,
+          [newUuidV7(), invoiceId, clientId, caseId],
+        );
+      await expect(insertLine(null, null)).rejects.toThrow(/names its client/u);
+      await expect(insertLine(outsider.id, null)).rejects.toThrow(/member of the group/u);
+      await expect(insertLine(member.id, outsiderCase.id)).rejects.toThrow(/line's client/u);
+      await expect(insertLine(head.id, memberCase.id)).rejects.toThrow(/line's client/u);
+
+      // Individual invoices keep their rules and never name a line client.
+      const individual = await draft(100_000);
+      await expect(insertLine(head.id, null, individual.id)).rejects.toThrow(
+        /only a combined invoice/u,
+      );
+      await expect(
+        sql("UPDATE invoices SET billing_mode = 'combined' WHERE id = $1", [individual.id]),
+      ).rejects.toThrow(/immutable/u);
+      await expect(
+        sql('UPDATE invoices SET case_id = $2 WHERE id = $1', [prepared.id, memberCase.id]),
+      ).rejects.toThrow();
+    });
+
+    it('raises the typed rule error from the repository when the database rejects a combined invoice', async () => {
+      const { draft: prepared } = await combinedDraft();
+      const outsider = await client(null);
+      // No snapshots were taken, so the finalization trigger refuses (one statement, nothing kept).
+      await expect(
+        repositories.invoices.finalize({
+          id: prepared.id,
+          finalization: {
+            invoiceNumber: 'INV-90002',
+            issueDate: '2026-03-01',
+            finalizedAt: tick(),
+            finalizedBy: owner.userId,
+          },
+          expectedVersion: prepared.version,
+          at: tick(),
+        }),
+      ).rejects.toBeInstanceOf(CombinedInvoiceRuleError);
+      // A line for a client outside the group. Outside a unit of work the
+      // version bump before the line insert is kept, which this test ignores.
+      const items = await repositories.invoices.listItems(prepared.id);
+      await expect(
+        repositories.invoices.replaceDraft({
+          id: prepared.id,
+          changes: {
+            subtotalMinor: 1_000,
+            discountMinor: 0,
+            totalMinor: 1_000,
+            outstandingMinor: 1_000,
+            issueDate: null,
+            dueDate: null,
+            notes: '',
+          },
+          items: [{ ...items[0]!, id: newUuidV7(), clientId: outsider.id, caseId: null }],
+          expectedVersion: prepared.version,
+          at: tick(),
+        }),
+      ).rejects.toBeInstanceOf(CombinedInvoiceRuleError);
+    });
+
+    it('rechecks the group in the database when a combined invoice is finalized', async () => {
+      const { member, draft: prepared } = await combinedDraft();
+      const finalizeDirectly = () =>
+        sql(
+          `UPDATE invoices SET status = 'finalized', invoice_number = 'INV-90001', issue_date = '2026-03-01',
+             finalized_at = now(), finalized_by = $2, version = version + 1
+           WHERE id = $1`,
+          [prepared.id, owner.userId],
+        );
+      // No snapshot yet.
+      await expect(finalizeDirectly()).rejects.toThrow(/client snapshot/u);
+      await sql(
+        `UPDATE invoice_items SET client_code_snapshot = 'CL-99999', client_name_snapshot = 'Snapshot'
+         WHERE invoice_id = $1`,
+        [prepared.id],
+      );
+      await leaveGroup(member);
+      await expect(finalizeDirectly()).rejects.toThrow(/current member/u);
     });
   });
 

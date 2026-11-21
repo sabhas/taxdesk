@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { LoaderCircle, Plus } from 'lucide-react';
+import { LoaderCircle, Plus, Users } from 'lucide-react';
 import type { InvoiceSummary } from '@taxdesk/shared';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -19,15 +19,20 @@ import {
 
 /**
  * Invoices for one client or case, with a "Create invoice" action. A case
- * invoice starts with the service fee; a client invoice starts empty. Shown
- * only to roles that can read billing, and never reads or changes case status.
+ * invoice starts with the service fee; a client invoice starts empty. A group
+ * head also gets "Create combined invoice" (TD-511): one invoice to the head
+ * with lines for the head and its members. Shown only to roles that can read
+ * billing, and never reads or changes case status.
  */
 export function InvoicesCard({
   scope,
   archived = false,
+  groupHead = false,
 }: {
   scope: { readonly kind: 'client' | 'case'; readonly id: string };
   archived?: boolean;
+  /** The client is a group head with visible members. */
+  groupHead?: boolean;
 }) {
   const { can } = useSession();
   const navigate = useNavigate();
@@ -35,7 +40,7 @@ export function InvoicesCard({
   const canCreate = can('billing.manage') && !archived;
   const [invoices, setInvoices] = useState<readonly InvoiceSummary[] | null>(null);
   const [notice, setNotice] = useState<ErrorNotice | null>(null);
-  const [creating, setCreating] = useState(false);
+  const [creating, setCreating] = useState<'individual' | 'combined' | null>(null);
 
   useEffect(() => {
     if (!canRead) return;
@@ -62,17 +67,21 @@ export function InvoicesCard({
     return null;
   }
 
-  async function create(): Promise<void> {
-    setCreating(true);
+  async function create(mode: 'individual' | 'combined'): Promise<void> {
+    setCreating(mode);
     setNotice(null);
     try {
       const draft = await createInvoiceDraft(
-        scope.kind === 'case' ? { caseId: scope.id } : { clientId: scope.id },
+        scope.kind === 'case'
+          ? { caseId: scope.id }
+          : mode === 'combined'
+            ? { clientId: scope.id, billingMode: 'combined' }
+            : { clientId: scope.id },
       );
       void navigate(invoicePath(draft.id));
     } catch (error) {
       setNotice(toErrorNotice(error, 'Could not create the invoice'));
-      setCreating(false);
+      setCreating(null);
     }
   }
 
@@ -83,14 +92,37 @@ export function InvoicesCard({
           <h2 className="text-base font-semibold">Invoices</h2>
         </CardTitle>
         {canCreate && (
-          <Button type="button" size="sm" disabled={creating} onClick={() => void create()}>
-            {creating ? (
-              <LoaderCircle aria-hidden="true" className="animate-spin" />
-            ) : (
-              <Plus aria-hidden="true" />
+          <div className="flex flex-wrap justify-end gap-2">
+            {groupHead && scope.kind === 'client' && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={creating !== null}
+                onClick={() => void create('combined')}
+              >
+                {creating === 'combined' ? (
+                  <LoaderCircle aria-hidden="true" className="animate-spin" />
+                ) : (
+                  <Users aria-hidden="true" />
+                )}
+                Create combined invoice
+              </Button>
             )}
-            Create invoice
-          </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={creating !== null}
+              onClick={() => void create('individual')}
+            >
+              {creating === 'individual' ? (
+                <LoaderCircle aria-hidden="true" className="animate-spin" />
+              ) : (
+                <Plus aria-hidden="true" />
+              )}
+              Create invoice
+            </Button>
+          </div>
         )}
       </CardHeader>
       <CardContent>
@@ -112,6 +144,7 @@ export function InvoicesCard({
                 >
                   {invoice.invoiceNumber ?? 'Draft invoice'}
                 </Link>
+                {invoice.billingMode === 'combined' && <Badge variant="outline">Combined</Badge>}
                 <span className="flex items-center gap-2 text-sm text-muted-foreground">
                   {money(invoice.totalMinor)}
                   <Badge variant={INVOICE_STATUS_BADGE[invoice.status]}>
