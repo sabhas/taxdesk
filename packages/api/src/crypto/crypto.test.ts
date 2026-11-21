@@ -141,9 +141,14 @@ describe('secret cipher', () => {
     const cipher = createSecretCipher(key);
     const value = await cipher.encrypt('JBSWY3DPEHPK3PXP');
     const [version = '', iv = '', ciphertext = ''] = value.split('.');
-    await expect(
-      cipher.decrypt(`${version}.${iv}.${ciphertext.slice(0, -2)}AA`),
-    ).rejects.toBeInstanceOf(SecretCipherError);
+    // Always change one full-width character, so the value really differs.
+    // (Overwriting the tail with a fixed string was a no-op whenever the
+    // ciphertext already ended that way, which made this test flaky.)
+    const tampered = `${ciphertext.startsWith('A') ? 'B' : 'A'}${ciphertext.slice(1)}`;
+    expect(tampered).not.toBe(ciphertext);
+    await expect(cipher.decrypt(`${version}.${iv}.${tampered}`)).rejects.toBeInstanceOf(
+      SecretCipherError,
+    );
     const nextVersion = createSecretCipher(key, 2);
     await expect(nextVersion.decrypt(value)).rejects.toBeInstanceOf(SecretCipherError);
     await expect(cipher.decrypt('garbage')).rejects.toBeInstanceOf(SecretCipherError);
