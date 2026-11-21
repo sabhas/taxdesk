@@ -90,6 +90,8 @@ export interface InvoiceListCursor {
 
 export interface InvoiceListFilter {
   readonly clientId?: string;
+  /** Group filter (TD-207): the visible clients of a group, resolved by the service. */
+  readonly clientIds?: readonly string[];
   readonly caseId?: string;
   readonly status?: InvoiceStatus;
   readonly paymentStatus?: PaymentStatus;

@@ -2,6 +2,8 @@ import { Hono, type Context } from 'hono';
 import { type z } from 'zod';
 import {
   BillingPdfResultSchema,
+  GroupBillingTotalsQuerySchema,
+  GroupBillingTotalsSchema,
   InvoiceDraftCreateRequestSchema,
   InvoiceDraftUpdateRequestSchema,
   InvoiceListQuerySchema,
@@ -106,6 +108,16 @@ billingRoutes.get('/invoices', read(), async (c) => {
   const list = await c.get('dependencies').billingService.listInvoices(c.get('actor'), query);
   noStore(c);
   return c.json(InvoiceListSchema.parse(list));
+});
+
+// Registered before `/invoices/:invoiceId` so the literal path is not read as an ID.
+billingRoutes.get('/invoices/group-totals', read(), async (c) => {
+  const query = parseQuery(c, GroupBillingTotalsQuerySchema);
+  const totals = await c
+    .get('dependencies')
+    .billingService.groupBillingTotals(c.get('actor'), query);
+  noStore(c);
+  return c.json(GroupBillingTotalsSchema.parse(totals));
 });
 
 billingRoutes.get('/invoices/:invoiceId', read(), async (c) => {

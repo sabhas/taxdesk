@@ -128,6 +128,29 @@ can filter and review the whole group's clients, cases, and billing together.
 partner), a group filter in Epic 6 reports and the dashboard, and a parent
 client column in the CSV import templates.
 
+**Implementation notes (2026-11-21, implemented locally; awaiting `/verify-story`):**
+
+- Contracts: `parentClientId` on the create and update requests (omitted on an
+  update keeps the link), `parentClient` and `groupMembers` on `Client`,
+  `parentClient` and `memberCount` on list items, the `group` and `grouping`
+  (`heads`, `eligible_parents`) client-list filters, `group` on case and
+  invoice lists, and `GroupBillingTotalsSchema`.
+- Migration `0011_client_groups.sql`: `clients.parent_client_id`, the
+  `clients_not_own_parent` check, and the locking `clients_flat_group` trigger.
+- Service: `ClientService` checks the rule, then locks the client and parent in
+  ID order and re-checks inside the unit of work; `409 CLIENT_GROUP_INVALID`.
+  `visibleGroupClientIds` resolves a group filter to visible clients for
+  `CaseService` and `BillingService`. `GET /api/v1/invoices/group-totals`.
+- Web: Parent client field, Group filter and column, "Part of", Group members
+  card with group links, and group totals on Invoices.
+- Tests: `packages/api/src/routes/client-groups.test.ts`, the client-groups
+  block in `packages/api/src/repositories/postgres.integration.test.ts`
+  (trigger and a real concurrent race), and the TD-207 blocks in the client,
+  case, and billing web tests (with axe checks).
+- Remaining for done: `/verify-story`, migration `0011` in staging, a staging
+  demonstration of the TD-207 UAT scenarios, and Sprint Review acceptance
+  (which also moves ADR 0010 from `proposed`).
+
 ## Exit criteria
 
 - A client can be created, searched, updated, archived, and restored by authorized users.

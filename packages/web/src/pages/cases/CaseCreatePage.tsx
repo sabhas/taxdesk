@@ -116,6 +116,8 @@ export function CaseCreatePage() {
                 ntnMasked: client.ntnMasked,
                 primaryContact: client.contacts.find((contact) => contact.isPrimary) ?? null,
                 assignedManager: client.assignedManager,
+                parentClient: client.parentClient,
+                memberCount: client.groupMembers.length,
                 state: client.state,
                 updatedAt: client.updatedAt,
               },

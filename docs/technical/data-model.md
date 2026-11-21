@@ -15,6 +15,7 @@ related:
 
 ```text
 User ──< Role Assignment
+Client (group head) ──< Client (member; one level, TD-207)
 Client ──< Tax Case ──< Case Checklist Item
                          ├──< Document
                          ├──< Case Status History
@@ -96,6 +97,35 @@ See [ADR 0004](../adr/0004-client-identifier-protection-and-visibility.md).
   `client.restored`, `client.duplicate_override`) record changed field names,
   masked identifiers, and override reasons only, never field values, notes,
   or contact details.
+
+### Client groups (TD-207)
+
+Migration `0011_client_groups.sql` adds `clients.parent_client_id`, a nullable
+self-reference to the group head, with a partial index for member lookups. See
+[ADR 0010](../adr/0010-client-groups-and-combined-invoices.md). There is no
+group table and no group name: a group is named after its head.
+
+- Groups are one level deep. The check `clients_not_own_parent` rejects a
+  client as its own parent. The trigger `clients_flat_group` rejects a parent
+  that has a parent, and a parent given to a client that has members. It locks
+  the parent row, so two concurrent writes that would together build a chain
+  are serialized and the second fails (`23514`).
+- The API enforces the same rule first, inside the client's versioned update:
+  it locks the client and the new parent in ID order, re-reads them, and
+  checks the rule. A violation returns `409 CLIENT_GROUP_INVALID` with a field
+  error on `parentClientId`. An omitted `parentClientId` keeps the stored link.
+- Archiving does not cascade and keeps the link. An archived client cannot be
+  chosen as a new parent; an existing link to an archived head is kept.
+- Grouping never grants access. Member lists, member counts, and group filters
+  include only clients the user can see. A group filter on cases or invoices
+  resolves to the visible client IDs of the group before the query runs.
+- Group billing totals (`GET /api/v1/invoices/group-totals`) sum
+  `total_minor`, `paid_minor`, and `outstanding_minor` of finalized invoices
+  of those clients; drafts and void invoices are not counted.
+- `client.group_changed` records `clientCode`, `previousParentCode`, and
+  `parentCode` only. A parent-only edit writes no `client.updated` event.
+- Existing clients have no parent; no backfill is needed. Combined group
+  invoices (TD-511) will need their own migration.
 
 ## Tax-case workflow tables
 
@@ -308,6 +338,7 @@ the `import_batch_code_seq` sequence, and the administrator-only
 ## Integrity rules
 
 - Tax identifiers use encrypted ciphertext for display and an HMAC blind index for exact duplicate detection.
+- Client groups are one level deep: a group head has no parent, and a member has no members.
 - A case retains a snapshot of its selected workflow and checklist template version.
 - Status history is append-only.
 - Draft invoices may change; final invoices, payments, and reversals cannot be edited or deleted.

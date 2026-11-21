@@ -1,6 +1,7 @@
 import { hasPermission } from '../auth/authorization.js';
 import { AuthError, forbidden } from '../auth/errors.js';
 import type { Actor } from '../auth/types.js';
+import type { ClientRepository } from '../../repositories/ports.js';
 import type { ClientRecord } from './types.js';
 
 /**
@@ -38,4 +39,23 @@ export function requireAccessibleClient(actor: Actor, client: ClientRecord | nul
 /** Overriding a non-exact duplicate warning is limited to managers and administrators. */
 export function canOverrideDuplicateWarning(actor: Actor): boolean {
   return hasPermission(actor, 'clients.manage');
+}
+
+/**
+ * The client IDs a group filter selects for the actor (TD-207): the group
+ * head and its members, keeping only clients the actor can see. Grouping
+ * never widens access, so a hidden member is left out rather than counted.
+ * The head itself must be visible, with the usual 404/403 for one that is not.
+ */
+export async function visibleGroupClientIds(
+  clients: Pick<ClientRepository, 'findById' | 'listMembers'>,
+  actor: Actor,
+  groupClientId: string,
+): Promise<string[]> {
+  const head = requireAccessibleClient(actor, await clients.findById(groupClientId));
+  const members = await clients.listMembers([head.id]);
+  return [
+    head.id,
+    ...members.filter((member) => canAccessClient(actor, member)).map((member) => member.id),
+  ];
 }

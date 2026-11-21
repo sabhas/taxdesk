@@ -278,6 +278,8 @@ const sharedCreateFields = {
   assignedManagerUserId: UuidV7Schema.nullable(),
   /** Required to proceed past non-exact duplicate warnings (manager/admin only). */
   duplicateOverrideReason: DuplicateOverrideReasonSchema.optional(),
+  /** The client's group head (TD-207). Omit or send `null` for no group. */
+  parentClientId: UuidV7Schema.nullable().optional(),
 };
 
 /**
@@ -310,13 +312,18 @@ const sharedUpdateFields = {
   contacts: ContactsSchema,
   notes: NotesSchema,
   assignedManagerUserId: UuidV7Schema.nullable(),
+  /**
+   * The client's group head (TD-207): a client ID to set or change it, `null`
+   * to clear it, or omitted to keep the stored link unchanged.
+   */
+  parentClientId: UuidV7Schema.nullable().optional(),
 };
 
 /**
  * Full replacement of the editable fields, guarded by `If-Match`. The type
  * cannot change. Identifiers are write-only: omit one to keep the stored
  * value, send a new value to replace it, or (individual NTN only) send `null`
- * to remove it.
+ * to remove it. The parent client link is kept when omitted.
  */
 export const ClientUpdateRequestSchema = z.discriminatedUnion('type', [
   z
@@ -368,6 +375,21 @@ export const ClientAssigneeSchema = z
 
 export type ClientAssignee = z.infer<typeof ClientAssigneeSchema>;
 
+/**
+ * A client named as a group head or member (TD-207). Only clients the
+ * signed-in user can see are ever named; hidden ones are left out entirely.
+ */
+export const ClientGroupRefSchema = z
+  .object({
+    id: UuidV7Schema,
+    clientCode: ClientCodeSchema,
+    displayName: z.string().min(1).max(CLIENT_LIMITS.nameMax),
+    state: ClientStateSchema,
+  })
+  .strict();
+
+export type ClientGroupRef = z.infer<typeof ClientGroupRefSchema>;
+
 export const ClientSchema = z
   .object({
     id: UuidV7Schema,
@@ -380,6 +402,10 @@ export const ClientSchema = z
     contacts: z.array(ClientContactSchema),
     notes: z.string().max(CLIENT_LIMITS.notesMax),
     assignedManager: ClientAssigneeSchema.nullable(),
+    /** The group head this client belongs to ("Part of"), when visible. */
+    parentClient: ClientGroupRefSchema.nullable(),
+    /** The group's members when this client is a group head; visible members only. */
+    groupMembers: z.array(ClientGroupRefSchema),
     state: ClientStateSchema,
     archivedAt: z.iso.datetime().nullable(),
     createdAt: z.iso.datetime(),
@@ -401,6 +427,10 @@ export const ClientListItemSchema = z
     ntnMasked: MaskedIdentifierSchema.nullable(),
     primaryContact: ClientContactSchema.nullable(),
     assignedManager: ClientAssigneeSchema.nullable(),
+    /** The group head this client belongs to, when visible. */
+    parentClient: ClientGroupRefSchema.nullable(),
+    /** Number of visible group members when this client is a group head. */
+    memberCount: z.number().int().min(0),
     state: ClientStateSchema,
     updatedAt: z.iso.datetime(),
   })
@@ -419,6 +449,13 @@ export type ClientList = z.infer<typeof ClientListSchema>;
 
 export const CLIENT_LIST_STATE_FILTERS = ['active', 'archived', 'all'] as const;
 
+/**
+ * `heads`: clients with at least one visible group member (group filter
+ * options). `eligible_parents`: clients that are not themselves members, so
+ * they can be chosen as a parent (the form's "Parent client" options).
+ */
+export const CLIENT_GROUPING_FILTERS = ['heads', 'eligible_parents'] as const;
+
 /** Query-string contract for `GET /api/v1/clients`. Archived records are hidden by default. */
 export const ClientListQuerySchema = z
   .object({
@@ -432,6 +469,9 @@ export const ClientListQuerySchema = z
     /** A user ID, or `unassigned` for clients without a manager. */
     manager: z.union([UuidSchema, z.literal('unassigned')]).optional(),
     state: z.enum(CLIENT_LIST_STATE_FILTERS).default('active'),
+    /** A group head's client ID: the head and all its visible members. */
+    group: UuidSchema.optional(),
+    grouping: z.enum(CLIENT_GROUPING_FILTERS).optional(),
     limit: z.coerce.number().int().min(1).max(100).default(25),
     cursor: z.string().min(1).max(512).optional(),
   })
@@ -496,6 +536,7 @@ export const CLIENT_ACTIVITY_ACTIONS = [
   'client.archived',
   'client.restored',
   'client.duplicate_override',
+  'client.group_changed',
 ] as const;
 export const ClientActivityActionSchema = z.enum(CLIENT_ACTIVITY_ACTIONS);
 export type ClientActivityAction = z.infer<typeof ClientActivityActionSchema>;

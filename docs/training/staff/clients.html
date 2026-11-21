@@ -45,11 +45,14 @@
             </li>
             <li>
               Filters: <strong>Type</strong> (Individual, Business), <strong>Manager</strong>
-              (Any manager, Unassigned, or a person), <strong>Status</strong> (Active, Archived,
-              Active and archived). Select <span class="ui">Search</span>.
+              (Any manager, Unassigned, or a person), <strong>Group</strong> (Any group, or a
+              group head: shows the head and its members), <strong>Status</strong> (Active,
+              Archived, Active and archived). Select <span class="ui">Search</span>.
             </li>
             <li>
-              Columns: Client, Type, Identifier (masked), Primary contact, Manager, Status. Use
+              Columns: Client, Type, Identifier (masked), Primary contact, Manager, Group, Status.
+              The <strong>Group</strong> column names the group head a client is part of, or shows
+              <em>Group head · 2 members</em> on a head (select it to list the group). Use
               <span class="ui">Load more clients</span> to page through.
             </li>
             <li>
@@ -71,6 +74,10 @@
               Enter the <strong>Legal name</strong> (required), an optional
               <strong>Display name</strong>, and the <strong>Assigned manager</strong> (the person
               responsible; for consultants this decides what they can see).
+            </li>
+            <li>
+              Optionally choose a <strong>Parent client</strong> to put the client in a group (see
+              <a href="#groups">Client groups</a>).
             </li>
             <li>
               Add up to 10 <strong>contacts</strong> (Name, Relationship, Email, Phone) with
@@ -143,11 +150,61 @@
             </li>
           </ul>
 
+          <h2 id="groups">Client groups</h2>
+          <p>
+            A group is a <strong>group head</strong> (a client, for example a business) and the
+            clients linked to it, such as the owner's family or business partners. Link a client
+            to its head with <strong>Parent client</strong> on the client's
+            <span class="ui">New client</span> or <span class="ui">Edit</span> form, then
+            <span class="ui">Save changes</span>. Choose <em>None</em> to remove the link.
+          </p>
+          <ul>
+            <li>
+              Only managers and administrators can set or change a parent client. The list offers
+              active clients that are not themselves part of a group.
+            </li>
+            <li>
+              Groups are <strong>one level deep</strong>. A client cannot be its own parent, a
+              client that is part of a group cannot be a parent, and a group head cannot be given
+              a parent. On a group head's edit form the field is switched off and explains why.
+              If a colleague made a conflicting change at the same moment, you see
+              <em>"This parent client is not allowed. Groups are one level deep…"</em>; reload and
+              choose again.
+            </li>
+            <li>
+              Archiving a group head or a member keeps the link. An archived client cannot be
+              chosen as a new parent until it is restored.
+            </li>
+            <li>
+              The client page shows <strong>Part of</strong> on a member, and a
+              <strong>Group members</strong> card on a head, with links to
+              <span class="ui">Group clients</span>, <span class="ui">Group cases</span>, and
+              <span class="ui">Group billing</span>.
+            </li>
+            <li>
+              The <strong>Group</strong> filter is also on <a href="cases.html">Cases</a> and
+              <a href="billing.html">Invoices</a>. On Invoices it shows the group's invoiced, paid,
+              and outstanding totals.
+            </li>
+            <li>
+              A group never widens what you can see. Consultants see only the members they
+              manage; other members are not listed or counted.
+            </li>
+            <li>
+              The client's activity shows <em>Changed the parent client</em>; the audit log keeps
+              the old and new parent client codes.
+            </li>
+          </ul>
+
           <h2 id="detail">The client page</h2>
           <p>
             It shows the Summary, Contacts, and Notes, and also:
           </p>
           <ul>
+            <li>
+              <strong>Part of</strong> (members) or <strong>Group members</strong> (group heads),
+              see <a href="#groups">Client groups</a>
+            </li>
             <li><strong>Cases</strong>, with <span class="ui">Open case</span> to start a new one for this client</li>
             <li><strong>Invoices</strong>, with <span class="ui">Create invoice</span> (Billing and Administrator)</li>
             <li><strong>Documents</strong>, for client-level files (see <a href="documents.html">Documents</a>)</li>

@@ -7,7 +7,11 @@ import {
   type ClientRecord,
   type DuplicateCandidate,
 } from '../domain/clients/types.js';
-import { DuplicateClientIdentifierError, type ClientRepository } from './ports.js';
+import {
+  ClientGroupRuleError,
+  DuplicateClientIdentifierError,
+  type ClientRepository,
+} from './ports.js';
 
 export interface InMemoryClientState {
   clients: Map<string, ClientRecord>;
@@ -48,6 +52,24 @@ export function createInMemoryClientRepository(state: InMemoryClientState): Clie
       if (cnicClash || ntnClash) {
         throw new DuplicateClientIdentifierError();
       }
+    }
+  };
+
+  /** Mirrors the self-parent check and the flat-group trigger of migration 0011. */
+  const assertFlatGroup = (candidate: ClientRecord): void => {
+    if (candidate.parentClientId === null) {
+      return;
+    }
+    const parent = state.clients.get(candidate.parentClientId);
+    const hasMembers = [...state.clients.values()].some(
+      (client) => client.parentClientId === candidate.id,
+    );
+    if (
+      candidate.parentClientId === candidate.id ||
+      parent?.parentClientId !== null ||
+      hasMembers
+    ) {
+      throw new ClientGroupRuleError();
     }
   };
 
@@ -97,6 +119,7 @@ export function createInMemoryClientRepository(state: InMemoryClientState): Clie
         throw new Error('The client already exists.');
       }
       assertUniqueIdentifiers(client);
+      assertFlatGroup(client);
       state.clients.set(client.id, { ...client });
       state.clientContacts.set(
         client.id,
@@ -111,6 +134,24 @@ export function createInMemoryClientRepository(state: InMemoryClientState): Clie
       const record = [...state.clients.values()].find((client) => client.clientCode === clientCode);
       return record === undefined ? null : { ...record };
     },
+    findByIds: async (ids) =>
+      ids.flatMap((id) => {
+        const record = state.clients.get(id);
+        return record === undefined ? [] : [{ ...record }];
+      }),
+    listMembers: async (parentIds) =>
+      [...state.clients.values()]
+        .filter(
+          (client) => client.parentClientId !== null && parentIds.includes(client.parentClientId),
+        )
+        .sort(sortClients)
+        .map((record) => ({ ...record })),
+    lockForGrouping: async (ids) =>
+      // Single-threaded test process: nothing to serialize.
+      [...new Set(ids)].sort().flatMap((id) => {
+        const record = state.clients.get(id);
+        return record === undefined ? [] : [{ ...record }];
+      }),
     listContacts: async (clientIds) =>
       clientIds
         .flatMap((id) => contactsFor(id))
@@ -134,6 +175,9 @@ export function createInMemoryClientRepository(state: InMemoryClientState): Clie
         version: current.version + 1,
       };
       assertUniqueIdentifiers(next);
+      if (next.parentClientId !== current.parentClientId) {
+        assertFlatGroup(next);
+      }
       state.clients.set(next.id, next);
       return { ...next };
     },
@@ -183,6 +227,27 @@ export function createInMemoryClientRepository(state: InMemoryClientState): Clie
           if (
             filter.restrictToManagerUserId !== null &&
             record.assignedManagerUserId !== filter.restrictToManagerUserId
+          ) {
+            return false;
+          }
+          if (
+            filter.groupClientId !== null &&
+            record.id !== filter.groupClientId &&
+            record.parentClientId !== filter.groupClientId
+          ) {
+            return false;
+          }
+          if (filter.grouping === 'eligible_parents' && record.parentClientId !== null) {
+            return false;
+          }
+          if (
+            filter.grouping === 'heads' &&
+            ![...state.clients.values()].some(
+              (member) =>
+                member.parentClientId === record.id &&
+                (filter.restrictToManagerUserId === null ||
+                  member.assignedManagerUserId === filter.restrictToManagerUserId),
+            )
           ) {
             return false;
           }

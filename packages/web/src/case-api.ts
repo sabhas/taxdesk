@@ -176,6 +176,8 @@ export interface CaseFilters {
   readonly reviewer?: string;
   readonly taxYear?: string;
   readonly client?: string;
+  /** A group head's client ID: cases of the whole group (TD-207). */
+  readonly group?: string;
   /** Dashboard drill-downs: the status kind and checklist condition. */
   readonly statusKind?: string;
   readonly checklist?: string;

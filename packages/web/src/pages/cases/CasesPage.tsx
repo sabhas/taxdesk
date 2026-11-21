@@ -43,6 +43,7 @@ import { PageHeader } from '../../components/layout/PageHeader.js';
 import { ROUTE_PATHS, casePath } from '../../routes.js';
 import { useSession } from '../../session/session-context.js';
 import { toErrorNotice } from '../error-notice.js';
+import { GroupFilterField } from '../clients/GroupFilterField.js';
 import { STATUS_KIND_BADGE, formatDate, urgencyLabel } from './case-format.js';
 
 const PAGE_SIZE = 25;
@@ -63,6 +64,7 @@ const FILTER_KEYS = [
   'assignee',
   'reviewer',
   'taxYear',
+  'group',
   'statusKind',
   'checklist',
 ] as const;
@@ -365,6 +367,13 @@ export function CasesPage() {
             }}
           />
         </Field>
+        <GroupFilterField
+          id={`${headingId}-group`}
+          value={filters.group ?? ''}
+          onChange={(value) => {
+            setParameter('group', value);
+          }}
+        />
       </form>
 
       {notice !== null && <ErrorAlert notice={notice} />}

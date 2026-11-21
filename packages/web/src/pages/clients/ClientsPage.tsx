@@ -30,6 +30,7 @@ import { ROUTE_PATHS, clientPath } from '../../routes.js';
 import { useSession } from '../../session/session-context.js';
 import { toErrorNotice } from '../error-notice.js';
 import { CLIENT_TYPE_LABELS, contactSummary } from './client-format.js';
+import { GroupFilterField } from './GroupFilterField.js';
 
 const PAGE_SIZE = 25;
 
@@ -37,13 +38,44 @@ function readFilters(parameters: URLSearchParams): ClientListParameters {
   const type = parameters.get('type');
   const state = parameters.get('state');
   const manager = parameters.get('manager');
+  const group = parameters.get('group');
   const q = parameters.get('q');
   return {
     ...(q === null || q.length === 0 ? {} : { q }),
     ...(type === 'individual' || type === 'business' ? { type } : {}),
     ...(manager === null || manager.length === 0 ? {} : { manager }),
+    ...(group === null || group.length === 0 ? {} : { group }),
     state: state === 'archived' || state === 'all' ? state : 'active',
   };
+}
+
+/**
+ * The "Group" column: the group head a member is part of, or the number of
+ * visible members of a head. Hidden clients are never named or counted.
+ */
+function GroupCell({ client }: { client: ClientListItem }) {
+  if (client.parentClient !== null) {
+    return (
+      <Link
+        to={clientPath(client.parentClient.id)}
+        className="text-primary underline-offset-4 hover:underline"
+      >
+        <span className="sr-only">Part of </span>
+        {client.parentClient.displayName}
+      </Link>
+    );
+  }
+  if (client.memberCount > 0) {
+    return (
+      <Link
+        to={`${ROUTE_PATHS.clients}?group=${encodeURIComponent(client.id)}&state=all`}
+        className="text-primary underline-offset-4 hover:underline"
+      >
+        Group head · {client.memberCount} {client.memberCount === 1 ? 'member' : 'members'}
+      </Link>
+    );
+  }
+  return <span className="text-muted-foreground">—</span>;
 }
 
 /**
@@ -147,6 +179,7 @@ export function ClientsPage() {
     filters.q !== undefined ||
     filters.type !== undefined ||
     filters.manager !== undefined ||
+    filters.group !== undefined ||
     filters.state !== 'active';
   const canManage = can('clients.manage');
 
@@ -173,7 +206,7 @@ export function ClientsPage() {
         role="search"
         aria-label="Clients"
         onSubmit={submitSearch}
-        className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))_auto] lg:items-end"
+        className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_repeat(4,minmax(0,1fr))_auto] lg:items-end"
       >
         <Field>
           <FieldLabel htmlFor="client-search">Search</FieldLabel>
@@ -225,6 +258,13 @@ export function ClientsPage() {
             ))}
           </NativeSelect>
         </Field>
+        <GroupFilterField
+          id="client-group-filter"
+          value={filters.group ?? ''}
+          onChange={(value) => {
+            updateFilter('group', value);
+          }}
+        />
         <Field>
           <FieldLabel htmlFor="client-state-filter">Status</FieldLabel>
           <NativeSelect
@@ -280,6 +320,7 @@ export function ClientsPage() {
                   <TableHead>Identifier</TableHead>
                   <TableHead>Primary contact</TableHead>
                   <TableHead>Manager</TableHead>
+                  <TableHead>Group</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
@@ -305,6 +346,9 @@ export function ClientsPage() {
                       {client.primaryContact === null ? '—' : contactSummary(client.primaryContact)}
                     </TableCell>
                     <TableCell>{client.assignedManager?.displayName ?? 'Unassigned'}</TableCell>
+                    <TableCell>
+                      <GroupCell client={client} />
+                    </TableCell>
                     <TableCell>
                       <Badge variant={client.state === 'active' ? 'success' : 'secondary'}>
                         {client.state === 'active' ? 'Active' : 'Archived'}

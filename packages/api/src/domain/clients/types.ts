@@ -14,6 +14,8 @@ export interface ClientRecord {
   readonly identifierKeyVersion: number | null;
   readonly notes: string;
   readonly assignedManagerUserId: string | null;
+  /** Group head (TD-207). Groups are one level deep: a head never has a parent. */
+  readonly parentClientId: string | null;
   readonly createdBy: string | null;
   /** Archive timestamp; `null` while the client is active. */
   readonly deletedAt: string | null;
@@ -49,6 +51,7 @@ export interface ClientChanges {
   readonly identifierKeyVersion: number | null;
   readonly notes: string;
   readonly assignedManagerUserId: string | null;
+  readonly parentClientId: string | null;
 }
 
 /** Pre-normalized search terms. Each non-null term is OR-ed with the others. */
@@ -75,6 +78,13 @@ export interface ClientListFilter {
   readonly state: 'active' | 'archived' | 'all';
   /** When set, only clients assigned to this user are returned (assignment rule). */
   readonly restrictToManagerUserId: string | null;
+  /** A group head's ID: the head and its members (TD-207). */
+  readonly groupClientId: string | null;
+  /**
+   * `heads`: clients with a member visible under `restrictToManagerUserId`;
+   * `eligible_parents`: clients without a parent.
+   */
+  readonly grouping: 'heads' | 'eligible_parents' | null;
   readonly limit: number;
   readonly after: ClientListCursor | null;
 }

@@ -264,6 +264,8 @@ const optionalUuid = UuidV7Schema.optional();
 export const InvoiceListQuerySchema = z
   .object({
     clientId: optionalUuid,
+    /** A group head's client ID: invoices of the head and its members (TD-207). */
+    group: optionalUuid,
     caseId: optionalUuid,
     status: InvoiceStatusSchema.optional(),
     paymentStatus: PaymentStatusSchema.optional(),
@@ -296,6 +298,33 @@ export const InvoiceListSchema = z
   .strict();
 
 export type InvoiceList = z.infer<typeof InvoiceListSchema>;
+
+export const GroupBillingTotalsQuerySchema = z
+  .object({
+    /** The group head's client ID. */
+    group: UuidV7Schema,
+  })
+  .strict();
+
+export type GroupBillingTotalsQuery = z.infer<typeof GroupBillingTotalsQuerySchema>;
+
+/**
+ * Billing totals for a client group (TD-207): finalized invoices of the group
+ * head and its visible members. Drafts and void invoices are not counted.
+ * `invoicedMinor = paidMinor + outstandingMinor`.
+ */
+export const GroupBillingTotalsSchema = z
+  .object({
+    groupClientId: UuidV7Schema,
+    currency: z.string().regex(/^[A-Z]{3}$/u),
+    invoiceCount: z.number().int().min(0),
+    invoicedMinor: MinorAmountSchema,
+    paidMinor: MinorAmountSchema,
+    outstandingMinor: MinorAmountSchema,
+  })
+  .strict();
+
+export type GroupBillingTotals = z.infer<typeof GroupBillingTotalsSchema>;
 
 // ---------------------------------------------------------------------------
 // Payments, reversals, void

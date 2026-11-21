@@ -68,6 +68,7 @@ export const AUDIT_ACTIONS = {
   clientArchived: 'client.archived',
   clientRestored: 'client.restored',
   clientDuplicateOverride: 'client.duplicate_override',
+  clientGroupChanged: 'client.group_changed',
   serviceTypeCreated: 'service_type.created',
   serviceTypeUpdated: 'service_type.updated',
   serviceTypeArchived: 'service_type.archived',

@@ -22,6 +22,9 @@ export interface ClientListParameters {
   readonly type?: ClientType;
   readonly manager?: string;
   readonly state?: 'active' | 'archived' | 'all';
+  /** A group head's client ID: the head and its members (TD-207). */
+  readonly group?: string;
+  readonly grouping?: 'heads' | 'eligible_parents';
   readonly limit?: number;
   readonly cursor?: string | null;
 }
@@ -43,6 +46,8 @@ export async function listClients(
   if (input.type !== undefined) parameters.set('type', input.type);
   if (input.manager !== undefined) parameters.set('manager', input.manager);
   if (input.state !== undefined) parameters.set('state', input.state);
+  if (input.group !== undefined) parameters.set('group', input.group);
+  if (input.grouping !== undefined) parameters.set('grouping', input.grouping);
   parameters.set('limit', String(input.limit ?? 25));
   if (input.cursor !== undefined && input.cursor !== null) parameters.set('cursor', input.cursor);
   return await apiRequest(`/api/v1/clients?${parameters.toString()}`, ClientListSchema, {

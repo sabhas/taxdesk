@@ -559,6 +559,9 @@ export function caseFilterSql(
   if (filter.clientId !== null) {
     conditions.push(`c.client_id = ${bind(filter.clientId)}::uuid`);
   }
+  if (filter.groupClientIds != null) {
+    conditions.push(`c.client_id = ANY (${bind([...filter.groupClientIds])}::uuid[])`);
+  }
   // The report-only `any` view with no other filter has no condition at all.
   return { where: conditions.length === 0 ? 'TRUE' : conditions.join(' AND '), parameters };
 }

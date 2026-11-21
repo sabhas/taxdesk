@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  GroupBillingTotalsQuerySchema,
+  GroupBillingTotalsSchema,
+  InvoiceListQuerySchema,
+} from './billing.js';
+import { CaseListQuerySchema, CaseQueueCountsQuerySchema } from './case.js';
+import {
   ClientCreateRequestSchema,
+  ClientGroupRefSchema,
   ClientListQuerySchema,
   ClientUpdateRequestSchema,
   formatClientCode,
@@ -230,5 +237,73 @@ describe('client permissions', () => {
       .map((definition) => definition.key)
       .sort();
     expect(managers).toEqual(['administrator', 'manager']);
+  });
+});
+
+describe('client groups (TD-207)', () => {
+  const PARENT_ID = '0198a000-0000-7000-8000-0000000000b1';
+  const base = {
+    type: 'individual',
+    legalName: 'Group Member',
+    cnic: '35202-1234567-1',
+    contacts: [],
+    assignedManagerUserId: null,
+  };
+
+  it('accepts an optional, nullable parent client on create and update', () => {
+    expect(ClientCreateRequestSchema.safeParse(base).success).toBe(true);
+    expect(
+      ClientCreateRequestSchema.safeParse({ ...base, parentClientId: PARENT_ID }).success,
+    ).toBe(true);
+    expect(ClientCreateRequestSchema.safeParse({ ...base, parentClientId: null }).success).toBe(
+      true,
+    );
+    const update = { ...base, notes: '' };
+    const omitted = ClientUpdateRequestSchema.parse(update);
+    expect(omitted).not.toHaveProperty('parentClientId');
+    expect(ClientUpdateRequestSchema.parse({ ...update, parentClientId: null })).toMatchObject({
+      parentClientId: null,
+    });
+  });
+
+  it('rejects a parent that is not a UUIDv7', () => {
+    const result = ClientCreateRequestSchema.safeParse({ ...base, parentClientId: 'CL-00001' });
+    expect(result.success).toBe(false);
+    expect(issues(result)).toContain('parentClientId');
+  });
+
+  it('parses the group and grouping list filters', () => {
+    expect(ClientListQuerySchema.parse({ group: PARENT_ID })).toMatchObject({ group: PARENT_ID });
+    expect(ClientListQuerySchema.parse({ grouping: 'heads' }).grouping).toBe('heads');
+    expect(ClientListQuerySchema.parse({ grouping: 'eligible_parents' }).grouping).toBe(
+      'eligible_parents',
+    );
+    expect(ClientListQuerySchema.safeParse({ grouping: 'members' }).success).toBe(false);
+    expect(ClientListQuerySchema.safeParse({ group: 'not-a-uuid' }).success).toBe(false);
+  });
+
+  it('describes groups with visible references only', () => {
+    const ref = { id: PARENT_ID, clientCode: 'CL-00001', displayName: 'Head', state: 'active' };
+    expect(ClientGroupRefSchema.safeParse(ref).success).toBe(true);
+    expect(ClientGroupRefSchema.safeParse({ ...ref, cnicMasked: '•••••-••••567-1' }).success).toBe(
+      false,
+    );
+  });
+
+  it('filters cases and invoices by group and totals a group in minor units', () => {
+    expect(CaseListQuerySchema.parse({ group: PARENT_ID }).group).toBe(PARENT_ID);
+    expect(CaseQueueCountsQuerySchema.parse({ group: PARENT_ID }).group).toBe(PARENT_ID);
+    expect(InvoiceListQuerySchema.parse({ group: PARENT_ID }).group).toBe(PARENT_ID);
+    expect(GroupBillingTotalsQuerySchema.safeParse({}).success).toBe(false);
+    const totals = {
+      groupClientId: PARENT_ID,
+      currency: 'PKR',
+      invoiceCount: 2,
+      invoicedMinor: 1_500_000,
+      paidMinor: 200_000,
+      outstandingMinor: 1_300_000,
+    };
+    expect(GroupBillingTotalsSchema.safeParse(totals).success).toBe(true);
+    expect(GroupBillingTotalsSchema.safeParse({ ...totals, paidMinor: 10.5 }).success).toBe(false);
   });
 });

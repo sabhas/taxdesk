@@ -332,6 +332,8 @@ function mockApi(role: RoleKey, handlers: Handler[] = []): Recorded[] {
               ntnMasked: null,
               primaryContact: null,
               assignedManager: null,
+              parentClient: null,
+              memberCount: 0,
               state: 'active',
               updatedAt: NOW,
             },
@@ -403,6 +405,28 @@ describe('case queues (TD-308)', () => {
       const counts = recorded.filter((r) => r.url.startsWith('/api/v1/cases/queue-counts')).at(-1);
       expect(counts?.url).toContain(`service=${SERVICE_ID}`);
     });
+  });
+
+  it('filters the queue and its counts by client group (TD-207)', async () => {
+    const recorded = mockApi('manager', [
+      (r) =>
+        r.url.startsWith('/api/v1/cases?')
+          ? json({ cases: [listItem()], nextCursor: null, total: 1 })
+          : undefined,
+    ]);
+    at('/cases');
+    const rendered = render(<App />);
+    await screen.findByRole('link', { name: 'TC-00001' });
+    const group = screen.getByLabelText('Group');
+    await within(group).findByRole('option', { name: 'Synthetic Client (CL-00001)' });
+    fireEvent.change(group, { target: { value: CLIENT_ID } });
+    await waitFor(() => {
+      const list = recorded.filter((r) => r.url.startsWith('/api/v1/cases?')).at(-1);
+      expect(list?.url).toContain(`group=${CLIENT_ID}`);
+      const counts = recorded.filter((r) => r.url.startsWith('/api/v1/cases/queue-counts')).at(-1);
+      expect(counts?.url).toContain(`group=${CLIENT_ID}`);
+    });
+    await expectNoSeriousViolations(rendered.container);
   });
 
   it('defaults consultants to My work and hides configuration navigation', async () => {

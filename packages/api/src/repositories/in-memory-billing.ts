@@ -161,6 +161,9 @@ export function createInMemoryInvoiceRepository(
           if (filter.clientId !== undefined && record.clientId !== filter.clientId) {
             return false;
           }
+          if (filter.clientIds !== undefined && !filter.clientIds.includes(record.clientId)) {
+            return false;
+          }
           if (filter.caseId !== undefined && record.caseId !== filter.caseId) {
             return false;
           }
@@ -225,6 +228,17 @@ export function createInMemoryInvoiceRepository(
       return {
         invoices: remaining.slice(0, filter.limit),
         hasMore: remaining.length > filter.limit,
+      };
+    },
+    finalizedTotals: async (clientIds) => {
+      const finalized = [...state.invoices.values()].filter(
+        (record) => record.status === 'finalized' && clientIds.includes(record.clientId),
+      );
+      return {
+        invoiceCount: finalized.length,
+        invoicedMinor: finalized.reduce((sum, record) => sum + record.totalMinor, 0),
+        paidMinor: finalized.reduce((sum, record) => sum + record.paidMinor, 0),
+        outstandingMinor: finalized.reduce((sum, record) => sum + record.outstandingMinor, 0),
       };
     },
   };

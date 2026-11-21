@@ -40,7 +40,7 @@ import { appendAuditEvent } from '../auth/audit-service.js';
 import { hasPermission } from '../auth/authorization.js';
 import { AuthError, forbidden } from '../auth/errors.js';
 import type { Actor } from '../auth/types.js';
-import { requireAccessibleClient } from '../clients/client-access.js';
+import { requireAccessibleClient, visibleGroupClientIds } from '../clients/client-access.js';
 import { personLookup, type Person } from '../people.js';
 import {
   canArchiveCase,
@@ -353,6 +353,10 @@ export class CaseService {
       reviewerUserId: query.reviewer ?? null,
       taxYear: query.taxYear ?? null,
       clientId: query.client ?? null,
+      groupClientIds:
+        query.group === undefined
+          ? null
+          : await visibleGroupClientIds(this.repositories.clients, actor, query.group),
       statusKind: query.statusKind ?? null,
       checklist: query.checklist ?? null,
     };

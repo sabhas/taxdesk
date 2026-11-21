@@ -309,6 +309,9 @@ export function createPostgresInvoiceRepository(executor: SqlExecutor): InvoiceR
       if (filter.clientId !== undefined) {
         where.push(`i.client_id = ${bind(filter.clientId)}::uuid`);
       }
+      if (filter.clientIds !== undefined) {
+        where.push(`i.client_id = ANY (${bind([...filter.clientIds])}::uuid[])`);
+      }
       if (filter.caseId !== undefined) {
         where.push(`i.case_id = ${bind(filter.caseId)}::uuid`);
       }
@@ -356,6 +359,26 @@ export function createPostgresInvoiceRepository(executor: SqlExecutor): InvoiceR
         invoices: rows.slice(0, filter.limit).map(mapInvoice),
         hasMore: rows.length > filter.limit,
       };
+    },
+    finalizedTotals: async (clientIds) => {
+      const rows = await executor.query(
+        `SELECT count(*)::int AS invoice_count,
+                COALESCE(sum(total_minor), 0)::bigint AS invoiced_minor,
+                COALESCE(sum(paid_minor), 0)::bigint AS paid_minor,
+                COALESCE(sum(outstanding_minor), 0)::bigint AS outstanding_minor
+         FROM invoices
+         WHERE status = 'finalized' AND client_id = ANY ($1::uuid[])`,
+        [[...clientIds]],
+      );
+      const row = rows[0];
+      return row === undefined
+        ? { invoiceCount: 0, invoicedMinor: 0, paidMinor: 0, outstandingMinor: 0 }
+        : {
+            invoiceCount: integer(row, 'invoice_count'),
+            invoicedMinor: integer(row, 'invoiced_minor'),
+            paidMinor: integer(row, 'paid_minor'),
+            outstandingMinor: integer(row, 'outstanding_minor'),
+          };
     },
   };
 }
