@@ -150,6 +150,20 @@ ls training-data
             <li>Set the assigned manager of 5 clients to <code>t.consultant</code>, and of 2 others to <code>t.reviewer</code>.</li>
             <li>Assign 5 open cases to <code>t.consultant</code>, with <code>t.reviewer</code> as reviewer.</li>
             <li>Leave a few cases unassigned (for the Unassigned queue), and set one due date in the past (Overdue) and one within 7 days (Due soon).</li>
+            <li>
+              Build two client groups (the CSV import cannot link clients, so do this by hand). Pick
+              a business client as group head <strong>A</strong> and, for three other clients,
+              <span class="ui">Edit</span> → <strong>Parent client</strong> = A →
+              <span class="ui">Save changes</span>. Make A and two of those members ones that
+              <code>t.consultant</code> manages, and leave the third member managed by someone else
+              (so the consultant must not see or count it). Repeat with a second head
+              <strong>E</strong> and one member.
+            </li>
+            <li>
+              For group billing, as <code>t.billing</code> finalize an invoice for A and one for a
+              member of A, record a part payment on one, and leave one draft. See the
+              <a href="scenarios.html">TD-207 scenarios</a>.
+            </li>
           </ol>
 
           <h2 id="files">6. Synthetic documents</h2>

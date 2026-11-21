@@ -124,6 +124,8 @@ group table and no group name: a group is named after its head.
   of those clients; drafts and void invoices are not counted.
 - `client.group_changed` records `clientCode`, `previousParentCode`, and
   `parentCode` only. A parent-only edit writes no `client.updated` event.
+  Client activity shows the event only to users who can see every parent
+  client it names.
 - Existing clients have no parent; no backfill is needed. Combined group
   invoices (TD-511) will need their own migration.
 
