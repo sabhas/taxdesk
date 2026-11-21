@@ -292,6 +292,7 @@ export function InvoicesPage() {
                     <span className="block text-xs text-muted-foreground">
                       {invoice.client.clientCode}
                       {invoice.case !== null && ` · ${invoice.case.caseCode}`}
+                      {invoice.billingMode === 'combined' && ' · combined for the group'}
                     </span>
                   </TableCell>
                   <TableCell>{formatDate(invoice.dueDate)}</TableCell>

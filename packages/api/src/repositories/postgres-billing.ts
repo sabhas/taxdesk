@@ -1,5 +1,6 @@
 import type {
   BillingPdfState,
+  InvoiceBillingMode,
   InvoiceStatus,
   PaymentMethod,
   PaymentStatus,
@@ -13,14 +14,15 @@ import type {
   PaymentRecord,
   PaymentReversalRecord,
 } from '../domain/billing/types.js';
-import type {
-  BillingDocumentRepository,
-  BillingReportRepository,
-  CountAmount,
-  IdempotencyRepository,
-  InvoiceRepository,
-  NumberSequenceRepository,
-  PaymentRepository,
+import {
+  CombinedInvoiceRuleError,
+  type BillingDocumentRepository,
+  type BillingReportRepository,
+  type CountAmount,
+  type IdempotencyRepository,
+  type InvoiceRepository,
+  type NumberSequenceRepository,
+  type PaymentRepository,
 } from './ports.js';
 
 function text(row: SqlRow, key: string): string {
@@ -79,6 +81,30 @@ function nullableIso(value: unknown): string | null {
 // Invoices
 // ---------------------------------------------------------------------------
 
+/** The combined-invoice checks and triggers of migration 0012. */
+const COMBINED_CONSTRAINTS = new Set([
+  'invoice_items_combined_line',
+  'invoices_combined_group',
+  'invoices_combined_has_no_case',
+  'invoice_items_case_needs_client',
+]);
+
+/** Maps a combined-invoice rule violation to the domain's error (TD-511 backstop). */
+async function guardCombined<T>(work: () => Promise<T>): Promise<T> {
+  try {
+    return await work();
+  } catch (error) {
+    if (typeof error === 'object' && error !== null) {
+      const record = error as { code?: unknown; constraint_name?: unknown; constraint?: unknown };
+      const constraint = String(record.constraint_name ?? record.constraint);
+      if (record.code === '23514' && COMBINED_CONSTRAINTS.has(constraint)) {
+        throw new CombinedInvoiceRuleError();
+      }
+    }
+    throw error;
+  }
+}
+
 const INVOICE_SELECT = `
   SELECT i.*,
          to_char(i.issue_date, 'YYYY-MM-DD') AS issue_date_text,
@@ -99,6 +125,7 @@ function mapInvoice(row: SqlRow): InvoiceRecord {
     caseCode: nullableText(row, 'case_code'),
     caseServiceName: nullableText(row, 'case_service_name'),
     currency: text(row, 'currency'),
+    billingMode: text(row, 'billing_mode') as InvoiceBillingMode,
     status: text(row, 'status') as InvoiceStatus,
     invoiceNumber: nullableText(row, 'invoice_number'),
     issueDate: nullableText(row, 'issue_date_text'),
@@ -133,6 +160,14 @@ function mapItem(row: SqlRow): InvoiceItemRecord {
     quantity: integer(row, 'quantity'),
     unitAmountMinor: integer(row, 'unit_amount_minor'),
     lineTotalMinor: integer(row, 'line_total_minor'),
+    clientId: nullableText(row, 'client_id'),
+    caseId: nullableText(row, 'case_id'),
+    clientCodeSnapshot: nullableText(row, 'client_code_snapshot'),
+    clientNameSnapshot: nullableText(row, 'client_name_snapshot'),
+    clientCode: nullableText(row, 'client_code'),
+    clientDisplayName: nullableText(row, 'client_display_name'),
+    caseCode: nullableText(row, 'case_code'),
+    caseServiceName: nullableText(row, 'case_service_name'),
     createdAt: iso(row['created_at']),
   };
 }
@@ -145,8 +180,8 @@ async function insertItems(
     await executor.query(
       `INSERT INTO invoice_items (
          id, invoice_id, position, description, quantity, unit_amount_minor,
-         line_total_minor, created_at
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+         line_total_minor, client_id, case_id, created_at
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
       [
         item.id,
         item.invoiceId,
@@ -155,6 +190,8 @@ async function insertItems(
         item.quantity,
         item.unitAmountMinor,
         item.lineTotalMinor,
+        item.clientId,
+        item.caseId,
         item.createdAt,
       ],
     );
@@ -182,93 +219,119 @@ export function createPostgresInvoiceRepository(executor: SqlExecutor): InvoiceR
   };
   return {
     create: async (record, items) => {
-      await executor.query(
-        `INSERT INTO invoices (
+      await guardCombined(async () => {
+        await executor.query(
+          `INSERT INTO invoices (
            id, client_id, case_id, currency, status, invoice_number, issue_date, due_date,
            subtotal_minor, discount_minor, total_minor, paid_minor, outstanding_minor,
-           payment_status, notes, pdf_state, created_by, created_at, updated_at, version
+           payment_status, notes, pdf_state, created_by, created_at, updated_at, version,
+           billing_mode
          ) VALUES ($1, $2, $3, $4, $5, $6, $7::date, $8::date, $9, $10, $11, $12, $13, $14,
-                   $15, $16, $17, $18, $19, $20)`,
-        [
-          record.id,
-          record.clientId,
-          record.caseId,
-          record.currency,
-          record.status,
-          record.invoiceNumber,
-          record.issueDate,
-          record.dueDate,
-          record.subtotalMinor,
-          record.discountMinor,
-          record.totalMinor,
-          record.paidMinor,
-          record.outstandingMinor,
-          record.paymentStatus,
-          record.notes,
-          record.pdfState,
-          record.createdBy,
-          record.createdAt,
-          record.updatedAt,
-          record.version,
-        ],
-      );
-      await insertItems(executor, items);
+                   $15, $16, $17, $18, $19, $20, $21)`,
+          [
+            record.id,
+            record.clientId,
+            record.caseId,
+            record.currency,
+            record.status,
+            record.invoiceNumber,
+            record.issueDate,
+            record.dueDate,
+            record.subtotalMinor,
+            record.discountMinor,
+            record.totalMinor,
+            record.paidMinor,
+            record.outstandingMinor,
+            record.paymentStatus,
+            record.notes,
+            record.pdfState,
+            record.createdBy,
+            record.createdAt,
+            record.updatedAt,
+            record.version,
+            record.billingMode,
+          ],
+        );
+        await insertItems(executor, items);
+      });
     },
     findById: async (id) => await findOne(id, false),
     lockById: async (id) => await findOne(id, true),
     listItems: async (invoiceId) => {
       const rows = await executor.query(
-        'SELECT * FROM invoice_items WHERE invoice_id = $1 ORDER BY position',
+        `SELECT it.*, cl.client_code AS client_code, cl.display_name AS client_display_name,
+                tc.case_code AS case_code, tc.service_name AS case_service_name
+         FROM invoice_items it
+         LEFT JOIN clients cl ON cl.id = it.client_id
+         LEFT JOIN tax_cases tc ON tc.id = it.case_id
+         WHERE it.invoice_id = $1
+         ORDER BY it.position`,
         [invoiceId],
       );
       return rows.map(mapItem);
     },
-    replaceDraft: async ({ id, changes, items, expectedVersion, at }) => {
-      const rows = await executor.query(
-        `UPDATE invoices
+    snapshotLines: async (invoiceId, snapshots) => {
+      await guardCombined(async () => {
+        for (const snapshot of snapshots) {
+          await executor.query(
+            `UPDATE invoice_items
+           SET client_code_snapshot = $3, client_name_snapshot = $4
+           WHERE id = $2 AND invoice_id = $1`,
+            [invoiceId, snapshot.itemId, snapshot.clientCode, snapshot.clientName],
+          );
+        }
+      });
+    },
+    replaceDraft: async ({ id, changes, items, expectedVersion, at }) =>
+      await guardCombined(async () => {
+        const rows = await executor.query(
+          `UPDATE invoices
          SET subtotal_minor = $3, discount_minor = $4, total_minor = $5, outstanding_minor = $6,
              issue_date = $7::date, due_date = $8::date, notes = $9,
              updated_at = $10, version = version + 1
          WHERE id = $1 AND version = $2 AND status = 'draft'
          RETURNING id`,
-        [
-          id,
-          expectedVersion,
-          changes.subtotalMinor,
-          changes.discountMinor,
-          changes.totalMinor,
-          changes.outstandingMinor,
-          changes.issueDate,
-          changes.dueDate,
-          changes.notes,
-          at,
-        ],
-      );
-      if (rows[0] === undefined) {
-        return null;
-      }
-      await executor.query('DELETE FROM invoice_items WHERE invoice_id = $1', [id]);
-      await insertItems(executor, items);
-      return await findOne(id, false);
-    },
+          [
+            id,
+            expectedVersion,
+            changes.subtotalMinor,
+            changes.discountMinor,
+            changes.totalMinor,
+            changes.outstandingMinor,
+            changes.issueDate,
+            changes.dueDate,
+            changes.notes,
+            at,
+          ],
+        );
+        if (rows[0] === undefined) {
+          return null;
+        }
+        await executor.query('DELETE FROM invoice_items WHERE invoice_id = $1', [id]);
+        await insertItems(executor, items);
+        return await findOne(id, false);
+      }),
     finalize: async ({ id, finalization, expectedVersion, at }) =>
       await reload(
-        await executor.query(
-          `UPDATE invoices
+        await guardCombined(
+          async () =>
+            await executor.query(
+              `UPDATE invoices
            SET status = 'finalized', invoice_number = $3, issue_date = $4::date,
                finalized_at = $5, finalized_by = $6, pdf_state = 'pending',
                updated_at = $7, version = version + 1
            WHERE id = $1 AND version = $2 AND status = 'draft'
            RETURNING id`,
-          [
-            id,
-            expectedVersion,
-            finalization.invoiceNumber,
-            finalization.issueDate,
-            finalization.finalizedAt,
-            finalization.finalizedBy,
-            at,
-          ],
+              [
+                id,
+                expectedVersion,
+                finalization.invoiceNumber,
+                finalization.issueDate,
+                finalization.finalizedAt,
+                finalization.finalizedBy,
+                at,
+              ],
+            ),
         ),
       ),
     void: async ({ id, voiding, at }) =>
@@ -313,7 +376,12 @@ export function createPostgresInvoiceRepository(executor: SqlExecutor): InvoiceR
         where.push(`i.client_id = ANY (${bind([...filter.clientIds])}::uuid[])`);
       }
       if (filter.caseId !== undefined) {
-        where.push(`i.case_id = ${bind(filter.caseId)}::uuid`);
+        const caseId = bind(filter.caseId);
+        where.push(
+          `(i.case_id = ${caseId}::uuid OR EXISTS (
+             SELECT 1 FROM invoice_items it WHERE it.invoice_id = i.id AND it.case_id = ${caseId}::uuid
+           ))`,
+        );
       }
       if (filter.status !== undefined) {
         where.push(`i.status = ${bind(filter.status)}`);

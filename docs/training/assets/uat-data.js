@@ -520,6 +520,21 @@ window.TAXDESK_UAT = [
           ['Case → invoice → partial → settled', 'billing', 'pos', 'Filed case', ['Follow end-to-end walkthrough steps 7–8'], 'Every figure reconciles; audit shows billing.* events'],
         ],
       },
+      {
+        id: 'TD-511',
+        title: 'Combined group invoices',
+        cases: [
+          ['Create a combined invoice', 'billing', 'pos', 'Group head A with members B and C; B has a case', ['Open A → Create combined invoice'], 'Draft addressed to A, no case, no lines; page says "A combined invoice to A"'],
+          ['Only offered on a group head', 'billing', 'neg', 'Member B; client D with no members', ['Open B', 'Open D'], 'No Create combined invoice on either page'],
+          ['Bill a member case at the service fee', 'billing', 'pos', 'Combined draft for A', ['Add line → Billed for = B → Case = B\'s case', 'Add line for A and one for C → Save draft'], 'Case line filled with service, tax year, and fee; preview shows a subtotal for A, B, and C; total is the sum'],
+          ['Duplicate billing warns only', 'billing', 'pos', 'B\'s case already on a finalized invoice', ['Choose that case on a combined line → Save draft'], 'Warning names the other invoice; the draft still saves'],
+          ['Finalize rechecks the group', 'billing', 'neg', 'Saved combined draft with a line for C', ['Manager removes C from the group', 'Finalize'], 'Refused: "… is no longer in this group"; dialog closes and C\'s Billed for field is marked; still a draft with no number'],
+          ['Finalized invoice is frozen', 'billing', 'pos', 'Finalized combined invoice', ['Rename B and move it out of the group', 'Reopen the invoice and download the PDF'], 'Lines still show B\'s old name; PDF groups lines under A, B, C with subtotals, names only, no CNIC/NTN'],
+          ['Pay and reverse as a whole', 'billing', 'pos', 'Finalized combined invoice', ['Record a partial payment', 'Manager reverses it', 'Void the invoice'], 'Balance, receipt, reversal, and void behave as for any invoice'],
+          ['Counted against the group head', 'billing', 'pos', 'Finalized combined invoice', ['Invoices → Group = A', 'Open B → Invoices'], 'Group totals include it; B\'s own invoice list does not'],
+          ['Hidden from users who cannot see every client', 'consultant', 'neg', 'Combined invoice for A', ['Open the invoice link'], 'Access refused'],
+        ],
+      },
     ],
   },
   {

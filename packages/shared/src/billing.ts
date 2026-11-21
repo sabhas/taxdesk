@@ -22,6 +22,15 @@ export const INVOICE_STATUSES = ['draft', 'finalized', 'void'] as const;
 export const InvoiceStatusSchema = z.enum(INVOICE_STATUSES);
 export type InvoiceStatus = z.infer<typeof InvoiceStatusSchema>;
 
+/**
+ * How an invoice is addressed (TD-511). `individual` bills one client (and
+ * optionally one of its cases). `combined` bills a group head for work done
+ * for the head and its members: each line names the client it is for.
+ */
+export const INVOICE_BILLING_MODES = ['individual', 'combined'] as const;
+export const InvoiceBillingModeSchema = z.enum(INVOICE_BILLING_MODES);
+export type InvoiceBillingMode = z.infer<typeof InvoiceBillingModeSchema>;
+
 export const PAYMENT_STATUSES = ['unpaid', 'partially_paid', 'paid'] as const;
 export const PaymentStatusSchema = z.enum(PAYMENT_STATUSES);
 export type PaymentStatus = z.infer<typeof PaymentStatusSchema>;
@@ -68,8 +77,20 @@ export const InvoiceItemInputSchema = z
       .min(1, 'The quantity must be at least 1.')
       .max(INVOICE_LIMITS.quantityMax, 'The quantity is too large.'),
     unitAmountMinor: MinorAmountSchema,
+    /**
+     * Combined invoices only (TD-511): the client the line is for, either the
+     * group head or a current member. Required on a combined invoice and
+     * rejected on an individual one.
+     */
+    clientId: UuidV7Schema.optional(),
+    /** Combined invoices only: one of the line client's cases. */
+    caseId: UuidV7Schema.optional(),
   })
-  .strict();
+  .strict()
+  .refine((value) => value.caseId === undefined || value.clientId !== undefined, {
+    message: 'Choose the client before the case.',
+    path: ['caseId'],
+  });
 
 export type InvoiceItemInput = z.infer<typeof InvoiceItemInputSchema>;
 
@@ -167,16 +188,25 @@ const reasonField = z
   .min(1, 'Enter a reason.')
   .max(INVOICE_LIMITS.reasonMax, 'Use a shorter reason.');
 
-/** Start a draft from a case (default line = its service) or manually from a client. */
+/**
+ * Start a draft from a case (default line = its service) or manually from a
+ * client. `billingMode: 'combined'` (TD-511) starts an empty combined group
+ * invoice addressed to a group head, so it needs a client and no case.
+ */
 export const InvoiceDraftCreateRequestSchema = z
   .object({
     clientId: UuidV7Schema.optional(),
     caseId: UuidV7Schema.optional(),
+    billingMode: InvoiceBillingModeSchema.optional(),
   })
   .strict()
   .refine((value) => (value.clientId === undefined) !== (value.caseId === undefined), {
     message: 'Send either a client or a case.',
     path: ['clientId'],
+  })
+  .refine((value) => value.billingMode !== 'combined' || value.caseId === undefined, {
+    message: 'A combined invoice is created from the group head client, not from a case.',
+    path: ['caseId'],
   });
 
 export type InvoiceDraftCreateRequest = z.infer<typeof InvoiceDraftCreateRequestSchema>;
@@ -199,19 +229,6 @@ export const InvoiceDraftUpdateRequestSchema = z
 
 export type InvoiceDraftUpdateRequest = z.infer<typeof InvoiceDraftUpdateRequestSchema>;
 
-export const InvoiceItemSchema = z
-  .object({
-    id: UuidSchema,
-    position: z.number().int().min(1),
-    description: z.string().min(1).max(INVOICE_LIMITS.descriptionMax),
-    quantity: z.number().int().min(1),
-    unitAmountMinor: MinorAmountSchema,
-    lineTotalMinor: MinorAmountSchema,
-  })
-  .strict();
-
-export type InvoiceItem = z.infer<typeof InvoiceItemSchema>;
-
 const InvoiceClientSchema = z
   .object({ id: UuidSchema, clientCode: z.string(), displayName: z.string() })
   .strict();
@@ -220,11 +237,34 @@ const InvoiceCaseSchema = z
   .object({ id: UuidSchema, caseCode: z.string(), serviceName: z.string() })
   .strict();
 
+export const InvoiceItemSchema = z
+  .object({
+    id: UuidSchema,
+    position: z.number().int().min(1),
+    description: z.string().min(1).max(INVOICE_LIMITS.descriptionMax),
+    quantity: z.number().int().min(1),
+    unitAmountMinor: MinorAmountSchema,
+    lineTotalMinor: MinorAmountSchema,
+    /**
+     * Combined invoices only (TD-511): the client the line is for. On a
+     * finalized invoice the code and name are the snapshot taken at
+     * finalization, so a later group or name change never alters them.
+     * `null` on individual invoices.
+     */
+    client: InvoiceClientSchema.nullable(),
+    /** Combined invoices only: the line's case, when one was chosen. */
+    case: InvoiceCaseSchema.nullable(),
+  })
+  .strict();
+
+export type InvoiceItem = z.infer<typeof InvoiceItemSchema>;
+
 const invoiceSummaryFields = {
   id: UuidSchema,
   invoiceNumber: z.string().regex(INVOICE_NUMBER_PATTERN).nullable(),
   status: InvoiceStatusSchema,
   paymentStatus: PaymentStatusSchema,
+  billingMode: InvoiceBillingModeSchema,
   currency: z.literal(FIRM_CURRENCY),
   client: InvoiceClientSchema,
   case: InvoiceCaseSchema.nullable(),
@@ -298,6 +338,84 @@ export const InvoiceListSchema = z
   .strict();
 
 export type InvoiceList = z.infer<typeof InvoiceListSchema>;
+
+/**
+ * The default line for billing a case: its service and tax year. A case
+ * invoice and a combined-invoice case line both start from it, with the case's
+ * service fee as the unit amount.
+ */
+export function caseLineDescription(serviceName: string, taxYear: number): string {
+  return `${serviceName} (tax year ${String(taxYear)})`.slice(0, INVOICE_LIMITS.descriptionMax);
+}
+
+/** One member's share of a combined invoice, in the order the client first appears. */
+export interface InvoiceLineGroup<T> {
+  readonly clientId: string;
+  readonly items: readonly T[];
+  readonly subtotalMinor: number;
+}
+
+/**
+ * Groups a combined invoice's lines by the client each is for (TD-511), in
+ * the order each client first appears, with a subtotal per client. Lines with
+ * no client (individual invoices) are ignored.
+ */
+export function groupLinesByClient<
+  T extends { readonly clientId: string | null; readonly lineTotalMinor: number },
+>(items: readonly T[]): InvoiceLineGroup<T>[] {
+  const groups = new Map<string, { items: T[]; subtotalMinor: number }>();
+  for (const item of items) {
+    if (item.clientId === null) continue;
+    const group = groups.get(item.clientId) ?? { items: [], subtotalMinor: 0 };
+    group.items.push(item);
+    group.subtotalMinor += item.lineTotalMinor;
+    groups.set(item.clientId, group);
+  }
+  return [...groups.entries()].map(([clientId, group]) => ({ clientId, ...group }));
+}
+
+export const BillableCasesQuerySchema = z
+  .object({
+    /** The line client: the combined invoice's group head or a current member. */
+    clientId: UuidV7Schema,
+  })
+  .strict();
+
+export type BillableCasesQuery = z.infer<typeof BillableCasesQuerySchema>;
+
+/** Another invoice that already bills a case (the duplicate-billing warning). */
+export const CaseInvoiceRefSchema = z
+  .object({
+    id: UuidSchema,
+    invoiceNumber: z.string().regex(INVOICE_NUMBER_PATTERN).nullable(),
+    status: InvoiceStatusSchema,
+  })
+  .strict();
+
+export type CaseInvoiceRef = z.infer<typeof CaseInvoiceRefSchema>;
+
+/**
+ * A case that can go on a combined-invoice line (TD-511), with the default
+ * line it starts from and the other invoices, not void, that already bill it.
+ * Those invoices are a warning only: partial and follow-up billing are allowed.
+ */
+export const BillableCaseSchema = z
+  .object({
+    id: UuidSchema,
+    caseCode: z.string(),
+    serviceName: z.string(),
+    taxYear: z.number().int(),
+    description: z.string().min(1).max(INVOICE_LIMITS.descriptionMax),
+    unitAmountMinor: MinorAmountSchema,
+    otherInvoices: z.array(CaseInvoiceRefSchema),
+  })
+  .strict();
+
+export type BillableCase = z.infer<typeof BillableCaseSchema>;
+
+export const BillableCaseListSchema = z.object({ cases: z.array(BillableCaseSchema) }).strict();
+
+export type BillableCaseList = z.infer<typeof BillableCaseListSchema>;
 
 export const GroupBillingTotalsQuerySchema = z
   .object({

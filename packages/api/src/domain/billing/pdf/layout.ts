@@ -1,4 +1,4 @@
-import { formatMinorAmount } from '@taxdesk/shared';
+import { formatMinorAmount, groupLinesByClient } from '@taxdesk/shared';
 
 /**
  * The text of a billing PDF as data. The renderer only draws this model, so
@@ -42,16 +42,28 @@ export interface InvoicePdfSnapshot {
   readonly finalizedAt: string;
   readonly client: { readonly clientCode: string; readonly displayName: string };
   readonly caseCode: string | null;
-  readonly items: readonly {
-    readonly description: string;
-    readonly quantity: number;
-    readonly unitAmountMinor: number;
-    readonly lineTotalMinor: number;
-  }[];
+  /** `combined`: lines are grouped under each client's name (TD-511). */
+  readonly billingMode: 'individual' | 'combined';
+  readonly items: readonly InvoicePdfLine[];
   readonly subtotalMinor: number;
   readonly discountMinor: number;
   readonly totalMinor: number;
   readonly notes: string;
+}
+
+export interface InvoicePdfLine {
+  readonly description: string;
+  readonly quantity: number;
+  readonly unitAmountMinor: number;
+  readonly lineTotalMinor: number;
+  /**
+   * Combined invoices: the line client's ID and its name as snapshotted at
+   * finalization. Only the name is printed, never a CNIC or NTN.
+   */
+  readonly clientId: string | null;
+  readonly clientName: string | null;
+  /** Combined invoices: the line's case code, when it has one. */
+  readonly caseCode: string | null;
 }
 
 export interface ReceiptPdfSnapshot {
@@ -81,8 +93,35 @@ function money(currency: string, minor: number): string {
   return `${currency} ${formatMinorAmount(minor)}`;
 }
 
+function lineRow(item: InvoicePdfLine): PdfTableRow {
+  return {
+    cells: [
+      item.caseCode === null ? item.description : `${item.description} (${item.caseCode})`,
+      String(item.quantity),
+      formatMinorAmount(item.unitAmountMinor),
+      formatMinorAmount(item.lineTotalMinor),
+    ],
+  };
+}
+
+/**
+ * A combined invoice's table (TD-511): each client's name as a heading row,
+ * its lines, then its subtotal, in the order the clients first appear.
+ */
+function combinedRows(items: readonly InvoicePdfLine[]): PdfTableRow[] {
+  return groupLinesByClient(items).flatMap((group) => {
+    const name = group.items[0]?.clientName ?? '';
+    return [
+      { cells: [name, '', '', ''], emphasis: true },
+      ...group.items.map(lineRow),
+      { cells: [`Subtotal for ${name}`, '', '', formatMinorAmount(group.subtotalMinor)] },
+    ];
+  });
+}
+
 export function buildInvoiceLayout(snapshot: InvoicePdfSnapshot): PdfLayout {
   const total = money(snapshot.currency, snapshot.totalMinor);
+  const combined = snapshot.billingMode === 'combined';
   return {
     metadata: {
       title: `Invoice ${snapshot.invoiceNumber}`,
@@ -107,6 +146,14 @@ export function buildInvoiceLayout(snapshot: InvoicePdfSnapshot): PdfLayout {
         kind: 'text',
         text: `Billed to: ${snapshot.client.displayName} (${snapshot.client.clientCode})`,
       },
+      ...(combined
+        ? [
+            {
+              kind: 'muted',
+              text: `Combined invoice for the ${snapshot.client.displayName} group`,
+            } as const,
+          ]
+        : []),
       ...(snapshot.caseCode === null
         ? []
         : [{ kind: 'text', text: `Case: ${snapshot.caseCode}` } as const]),
@@ -117,14 +164,7 @@ export function buildInvoiceLayout(snapshot: InvoicePdfSnapshot): PdfLayout {
       { title: `Unit (${snapshot.currency})`, align: 'right' },
       { title: `Amount (${snapshot.currency})`, align: 'right' },
     ],
-    rows: snapshot.items.map((item) => ({
-      cells: [
-        item.description,
-        String(item.quantity),
-        formatMinorAmount(item.unitAmountMinor),
-        formatMinorAmount(item.lineTotalMinor),
-      ],
-    })),
+    rows: combined ? combinedRows(snapshot.items) : snapshot.items.map(lineRow),
     summary: [
       { cells: ['Subtotal', money(snapshot.currency, snapshot.subtotalMinor)] },
       ...(snapshot.discountMinor === 0

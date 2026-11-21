@@ -310,6 +310,7 @@ describe('reports (TD-602, TD-603)', () => {
       invoiceNumber: 'INV-00001',
       status: 'finalized',
       paymentStatus: 'partially_paid',
+      billingMode: 'individual',
       currency: 'PKR',
       client: { id: OTHER_ID, clientCode: 'CL-00001', displayName: 'Synthetic Client' },
       case: null,

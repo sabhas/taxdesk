@@ -52,6 +52,19 @@ interface JoinState {
   readonly cases: Map<string, TaxCaseRecord>;
 }
 
+/** Line rows carry read-only client/case join fields too (combined invoices, TD-511). */
+function itemWithJoins(item: InvoiceItemRecord, joins: JoinState): InvoiceItemRecord {
+  const client = item.clientId === null ? undefined : joins.clients.get(item.clientId);
+  const taxCase = item.caseId === null ? undefined : joins.cases.get(item.caseId);
+  return {
+    ...item,
+    clientCode: client?.clientCode ?? null,
+    clientDisplayName: client?.displayName ?? null,
+    caseCode: taxCase?.caseCode ?? null,
+    caseServiceName: taxCase?.serviceName ?? null,
+  };
+}
+
 /** Invoice rows carry read-only client/case join fields; refresh them on read. */
 function withJoins(record: InvoiceRecord, joins: JoinState): InvoiceRecord {
   const client = joins.clients.get(record.clientId);
@@ -96,8 +109,27 @@ export function createInMemoryInvoiceRepository(
     lockById: async (id) => read(id),
     listItems: async (invoiceId) =>
       (state.invoiceItems.get(invoiceId) ?? [])
-        .map((item) => ({ ...item }))
+        .map((item) => itemWithJoins(item, joins))
         .sort((left, right) => left.position - right.position),
+    snapshotLines: async (invoiceId, snapshots) => {
+      const current = required(invoiceId);
+      if (current.status !== 'draft') {
+        throw new Error('Line items are frozen once an invoice is finalized or void.');
+      }
+      state.invoiceItems.set(
+        invoiceId,
+        (state.invoiceItems.get(invoiceId) ?? []).map((item) => {
+          const snapshot = snapshots.find((entry) => entry.itemId === item.id);
+          return snapshot === undefined
+            ? item
+            : {
+                ...item,
+                clientCodeSnapshot: snapshot.clientCode,
+                clientNameSnapshot: snapshot.clientName,
+              };
+        }),
+      );
+    },
     replaceDraft: async ({ id, changes, items, expectedVersion, at }) => {
       const current = state.invoices.get(id);
       if (
@@ -164,7 +196,11 @@ export function createInMemoryInvoiceRepository(
           if (filter.clientIds !== undefined && !filter.clientIds.includes(record.clientId)) {
             return false;
           }
-          if (filter.caseId !== undefined && record.caseId !== filter.caseId) {
+          if (
+            filter.caseId !== undefined &&
+            record.caseId !== filter.caseId &&
+            !(state.invoiceItems.get(record.id) ?? []).some((item) => item.caseId === filter.caseId)
+          ) {
             return false;
           }
           if (filter.status !== undefined && record.status !== filter.status) {

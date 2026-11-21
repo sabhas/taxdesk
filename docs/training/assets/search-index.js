@@ -442,6 +442,10 @@ window.TAXDESK_GUIDE_INDEX = [
     "Create and edit a draft"
    ],
    [
+    "combined",
+    "Combined invoice for a client group"
+   ],
+   [
     "finalize",
     "Finalize"
    ],

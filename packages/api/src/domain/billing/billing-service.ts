@@ -4,6 +4,7 @@ import {
   addDaysToDate,
   calculateInvoiceTotals,
   calendarDateIn,
+  caseLineDescription,
   formatInvoiceNumber,
   formatReceiptNumber,
   newUuidV7,
@@ -24,28 +25,42 @@ import {
   type ReversePaymentRequest,
   type VoidInvoiceRequest,
   type AuditMetadataValue,
+  type BillableCaseList,
+  type BillableCasesQuery,
+  type CaseInvoiceRef,
 } from '@taxdesk/shared';
 import { base64UrlToBytes, bytesToBase64Url } from '../../crypto/encoding.js';
 import { sha256Hex } from '../../crypto/token.js';
-import type { Repositories, UnitOfWork } from '../../repositories/ports.js';
+import {
+  CombinedInvoiceRuleError,
+  type Repositories,
+  type UnitOfWork,
+} from '../../repositories/ports.js';
 import { appendAuditEvent } from '../auth/audit-service.js';
 import { hasPermission } from '../auth/authorization.js';
-import { AuthError, forbidden } from '../auth/errors.js';
+import { AuthError, forbidden, type AuthErrorCode } from '../auth/errors.js';
 import type { Actor } from '../auth/types.js';
-import { requireAccessibleClient, visibleGroupClientIds } from '../clients/client-access.js';
-import { requireReadableCase } from '../cases/case-access.js';
+import {
+  canAccessClient,
+  requireAccessibleClient,
+  visibleGroupClientIds,
+} from '../clients/client-access.js';
+import type { ClientRecord } from '../clients/types.js';
+import { canReadCase, requireReadableCase } from '../cases/case-access.js';
 import { personLookup } from '../people.js';
 import {
   canManageBilling,
   canReadInvoiceTarget,
   canReversePayments,
   invoiceNotFound,
+  loadInvoiceTarget,
   paymentNotFound,
   readsAllInvoices,
   type InvoiceTarget,
 } from './billing-access.js';
 import type {
   InvoiceItemRecord,
+  InvoiceLineSnapshot,
   InvoiceListCursor,
   InvoiceRecord,
   PaymentRecord,
@@ -73,6 +88,33 @@ function stale(): AuthError {
 function validation(field: string, message: string): AuthError {
   return new AuthError(400, 'VALIDATION_FAILED', message, { errors: [{ field, message }] });
 }
+
+function lineError(status: number, code: AuthErrorCode, field: string, message: string): AuthError {
+  return new AuthError(status, code, message, { errors: [{ field, message }] });
+}
+
+/**
+ * Maps the database backstop for combined invoices (TD-511) to the same
+ * conflict the service's own checks return. It fires only when a group change
+ * slipped past those checks, so the user is asked to reload and review.
+ */
+async function combinedRule<T>(work: () => Promise<T>): Promise<T> {
+  try {
+    return await work();
+  } catch (error) {
+    if (error instanceof CombinedInvoiceRuleError) {
+      throw new AuthError(
+        409,
+        'INVOICE_GROUP_CHANGED',
+        'A client on this invoice is no longer in the group. Reload the invoice, then change or remove its lines.',
+      );
+    }
+    throw error;
+  }
+}
+
+/** Most cases offered for one client on a combined-invoice line. */
+const BILLABLE_CASES_LIMIT = 100;
 
 function encodeCursor(cursor: InvoiceListCursor): string {
   return bytesToBase64Url(new TextEncoder().encode(JSON.stringify([cursor.createdAt, cursor.id])));
@@ -136,6 +178,7 @@ export class BillingService {
       invoiceNumber: record.invoiceNumber,
       status: record.status,
       paymentStatus: record.paymentStatus,
+      billingMode: record.billingMode,
       currency: FIRM_CURRENCY,
       client: {
         id: record.clientId,
@@ -174,6 +217,23 @@ export class BillingService {
         quantity: item.quantity,
         unitAmountMinor: item.unitAmountMinor,
         lineTotalMinor: item.lineTotalMinor,
+        // A finalized combined line shows the client as it was at finalization.
+        client:
+          item.clientId === null
+            ? null
+            : {
+                id: item.clientId,
+                clientCode: item.clientCodeSnapshot ?? item.clientCode ?? '',
+                displayName: item.clientNameSnapshot ?? item.clientDisplayName ?? '',
+              },
+        case:
+          item.caseId === null
+            ? null
+            : {
+                id: item.caseId,
+                caseCode: item.caseCode ?? '',
+                serviceName: item.caseServiceName ?? '',
+              },
       })),
       notes: record.notes,
       finalizedAt: record.finalizedAt,
@@ -231,13 +291,7 @@ export class BillingService {
     repositories: Repositories,
     record: InvoiceRecord,
   ): Promise<InvoiceTarget> {
-    const client = await repositories.clients.findById(record.clientId);
-    if (client === null) {
-      throw new Error('The invoice references a missing client.');
-    }
-    const taxCase =
-      record.caseId === null ? null : await repositories.cases.findById(record.caseId);
-    return { client, taxCase };
+    return await loadInvoiceTarget(repositories, record);
   }
 
   /** Loads an invoice the actor may read, or throws the not-found/forbidden error. */
@@ -315,6 +369,7 @@ export class BillingService {
       invoiceNumber: record.invoiceNumber,
       totalMinor: record.totalMinor,
       currency: record.currency,
+      ...(record.billingMode === 'combined' ? { billingMode: 'combined' } : {}),
       ...extra,
     };
   }
@@ -342,7 +397,7 @@ export class BillingService {
         clientId = request.clientId ?? '';
       }
       const client = requireAccessibleClient(actor, await repositories.clients.findById(clientId));
-      const target: InvoiceTarget = { client, taxCase };
+      const target: InvoiceTarget = { client, taxCase, lineClients: [], lineCases: [] };
       this.requireManage(actor, target);
       if (client.deletedAt !== null) {
         throw new AuthError(409, 'CLIENT_ARCHIVED', 'Restore the client before billing them.');
@@ -350,16 +405,17 @@ export class BillingService {
       if (taxCase !== null && taxCase.deletedAt !== null) {
         throw new AuthError(409, 'CASE_ARCHIVED', 'Restore the case before billing it.');
       }
+      const billingMode = request.billingMode ?? 'individual';
+      if (billingMode === 'combined') {
+        await this.requireGroupHead(repositories, actor, client);
+      }
 
       const defaultItems: InvoiceItemInput[] =
         taxCase === null
           ? []
           : [
               {
-                description: `${taxCase.serviceName} (tax year ${String(taxCase.taxYear)})`.slice(
-                  0,
-                  300,
-                ),
+                description: caseLineDescription(taxCase.serviceName, taxCase.taxYear),
                 quantity: 1,
                 unitAmountMinor: taxCase.serviceFeeMinor,
               },
@@ -380,6 +436,7 @@ export class BillingService {
         caseCode: taxCase?.caseCode ?? null,
         caseServiceName: taxCase?.serviceName ?? null,
         currency: FIRM_CURRENCY,
+        billingMode,
         status: 'draft',
         invoiceNumber: null,
         issueDate: null,
@@ -417,6 +474,135 @@ export class BillingService {
     });
   }
 
+  /**
+   * A combined invoice is addressed to a group head (TD-511): a client that is
+   * not itself a member and has at least one member the actor can see.
+   */
+  private async requireGroupHead(
+    repositories: Repositories,
+    actor: Actor,
+    client: ClientRecord,
+  ): Promise<void> {
+    if (client.parentClientId !== null) {
+      throw new AuthError(
+        409,
+        'CLIENT_NOT_GROUP_HEAD',
+        'This client is a member of another group. Create the combined invoice from the group head.',
+      );
+    }
+    const members = await repositories.clients.listMembers([client.id]);
+    if (!members.some((member) => canAccessClient(actor, member))) {
+      throw new AuthError(
+        409,
+        'CLIENT_NOT_GROUP_HEAD',
+        'This client has no group members. Create an individual invoice instead.',
+      );
+    }
+  }
+
+  /**
+   * Checks every line of a combined draft (TD-511): each names the group head
+   * or a current member the actor can see, and an optional case of that
+   * client. A client the actor cannot see gets the same answer as one outside
+   * the group, so the check never reveals a hidden client.
+   */
+  private async checkCombinedLines(
+    repositories: Repositories,
+    actor: Actor,
+    record: InvoiceRecord,
+    items: readonly InvoiceItemInput[],
+  ): Promise<void> {
+    const clients = new Map<string, ClientRecord | null>();
+    for (const [index, item] of items.entries()) {
+      const field = `items.${String(index)}`;
+      if (item.clientId === undefined) {
+        throw validation(`${field}.clientId`, 'Choose who this line is for.');
+      }
+      if (!clients.has(item.clientId)) {
+        clients.set(item.clientId, await repositories.clients.findById(item.clientId));
+      }
+      const client = clients.get(item.clientId) ?? null;
+      if (
+        client === null ||
+        !canAccessClient(actor, client) ||
+        (client.id !== record.clientId && client.parentClientId !== record.clientId)
+      ) {
+        throw lineError(
+          409,
+          'INVOICE_LINE_NOT_IN_GROUP',
+          `${field}.clientId`,
+          'Choose the group head or a current member of its group.',
+        );
+      }
+      if (client.deletedAt !== null) {
+        throw lineError(
+          409,
+          'CLIENT_ARCHIVED',
+          `${field}.clientId`,
+          `Restore ${client.clientCode} before billing them.`,
+        );
+      }
+      if (item.caseId === undefined) {
+        continue;
+      }
+      const taxCase = await repositories.cases.findById(item.caseId);
+      if (taxCase?.clientId !== client.id || !canReadCase(actor, taxCase)) {
+        throw validation(`${field}.caseId`, "Choose one of this client's cases.");
+      }
+      if (taxCase.deletedAt !== null) {
+        throw lineError(
+          409,
+          'CASE_ARCHIVED',
+          `${field}.caseId`,
+          `Restore ${taxCase.caseCode} before billing it.`,
+        );
+      }
+    }
+  }
+
+  /**
+   * Rechecks a combined invoice's group under row locks at finalization and
+   * returns the client snapshot for each line (TD-511). The head and every
+   * line client are locked in ID order, the same order a group change locks
+   * them, so a concurrent group change either commits first (and is seen
+   * here) or waits until this invoice is finalized.
+   */
+  private async lockCombinedGroup(
+    repositories: Repositories,
+    record: InvoiceRecord,
+    items: readonly InvoiceItemRecord[],
+  ): Promise<InvoiceLineSnapshot[]> {
+    const ids = [
+      ...new Set([
+        record.clientId,
+        ...items.flatMap((item) => (item.clientId === null ? [] : [item.clientId])),
+      ]),
+    ];
+    const locked = new Map(
+      (await repositories.clients.lockForGrouping(ids)).map((client) => [client.id, client]),
+    );
+    const head = locked.get(record.clientId);
+    if (head?.parentClientId !== null) {
+      throw new AuthError(
+        409,
+        'INVOICE_GROUP_CHANGED',
+        'The group head is now a member of another group. Void this draft and bill the group again.',
+      );
+    }
+    return items.map((item, index) => {
+      const client = item.clientId === null ? undefined : locked.get(item.clientId);
+      if (client === undefined || (client.id !== head.id && client.parentClientId !== head.id)) {
+        throw lineError(
+          409,
+          'INVOICE_GROUP_CHANGED',
+          `items.${String(index)}.clientId`,
+          `${client?.clientCode ?? 'A line client'} is no longer in this group. Change or remove its lines, then finalize.`,
+        );
+      }
+      return { itemId: item.id, clientCode: client.clientCode, clientName: client.displayName };
+    });
+  }
+
   private itemRecords(
     invoiceId: string,
     items: readonly InvoiceItemInput[],
@@ -431,6 +617,14 @@ export class BillingService {
       quantity: item.quantity,
       unitAmountMinor: item.unitAmountMinor,
       lineTotalMinor: lineTotals[index] ?? 0,
+      clientId: item.clientId ?? null,
+      caseId: item.caseId ?? null,
+      clientCodeSnapshot: null,
+      clientNameSnapshot: null,
+      clientCode: null,
+      clientDisplayName: null,
+      caseCode: null,
+      caseServiceName: null,
       createdAt: at,
     }));
   }
@@ -477,24 +671,40 @@ export class BillingService {
       if (record.version !== input.expectedVersion) {
         throw stale();
       }
+      if (record.billingMode === 'combined') {
+        await this.checkCombinedLines(repositories, actor, record, request.items);
+      } else {
+        const index = request.items.findIndex(
+          (item) => item.clientId !== undefined || item.caseId !== undefined,
+        );
+        if (index >= 0) {
+          throw validation(
+            `items.${String(index)}.clientId`,
+            'Only a combined group invoice names a client on each line.',
+          );
+        }
+      }
       const before = await repositories.invoices.listItems(record.id);
       const at = this.now().toISOString();
       const items = this.itemRecords(record.id, request.items, totals.totals.lineTotalsMinor, at);
-      const updated = await repositories.invoices.replaceDraft({
-        id: record.id,
-        changes: {
-          subtotalMinor: totals.totals.subtotalMinor,
-          discountMinor: totals.totals.discountMinor,
-          totalMinor: totals.totals.totalMinor,
-          outstandingMinor: totals.totals.totalMinor,
-          issueDate: request.issueDate,
-          dueDate: request.dueDate,
-          notes: request.notes,
-        },
-        items,
-        expectedVersion: input.expectedVersion,
-        at,
-      });
+      const updated = await combinedRule(
+        async () =>
+          await repositories.invoices.replaceDraft({
+            id: record.id,
+            changes: {
+              subtotalMinor: totals.totals.subtotalMinor,
+              discountMinor: totals.totals.discountMinor,
+              totalMinor: totals.totals.totalMinor,
+              outstandingMinor: totals.totals.totalMinor,
+              issueDate: request.issueDate,
+              dueDate: request.dueDate,
+              notes: request.notes,
+            },
+            items,
+            expectedVersion: input.expectedVersion,
+            at,
+          }),
+      );
       if (updated === null) {
         throw stale();
       }
@@ -506,7 +716,9 @@ export class BillingService {
           return (
             next?.description === item.description &&
             next.quantity === item.quantity &&
-            next.unitAmountMinor === item.unitAmountMinor
+            next.unitAmountMinor === item.unitAmountMinor &&
+            next.clientId === item.clientId &&
+            next.caseId === item.caseId
           );
         });
       if (!sameItems) {
@@ -532,7 +744,7 @@ export class BillingService {
         requestId: input.requestId,
         metadata: this.auditMetadata(updated, { changedFields: changed.join(',') }),
       });
-      return this.toInvoice(updated, items);
+      return await this.invoiceView(repositories, updated);
     });
   }
 
@@ -579,7 +791,7 @@ export class BillingService {
             if (record.version !== input.expectedVersion) {
               throw stale();
             }
-            const items = await repositories.invoices.listItems(record.id);
+            let items = await repositories.invoices.listItems(record.id);
             if (items.length === 0 || record.totalMinor <= 0) {
               throw new AuthError(
                 409,
@@ -594,22 +806,34 @@ export class BillingService {
                 'The due date is before today. Update the due date before finalizing.',
               );
             }
+            if (record.billingMode === 'combined') {
+              // Snapshot each line's client while the draft can still change, so
+              // a later group change never alters the finalized invoice.
+              const snapshots = await this.lockCombinedGroup(repositories, record, items);
+              await combinedRule(async () => {
+                await repositories.invoices.snapshotLines(record.id, snapshots);
+              });
+              items = await repositories.invoices.listItems(record.id);
+            }
             const number = await repositories.numberSequences.next('invoice');
             const at = this.now().toISOString();
-            const finalized = await repositories.invoices.finalize({
-              id: record.id,
-              finalization: {
-                invoiceNumber: formatInvoiceNumber(
-                  number,
-                  (await repositories.firm.get())?.invoicePrefix,
-                ),
-                issueDate,
-                finalizedAt: at,
-                finalizedBy: actor.userId,
-              },
-              expectedVersion: input.expectedVersion,
-              at,
-            });
+            const finalized = await combinedRule(
+              async () =>
+                await repositories.invoices.finalize({
+                  id: record.id,
+                  finalization: {
+                    invoiceNumber: formatInvoiceNumber(
+                      number,
+                      (await repositories.firm.get())?.invoicePrefix,
+                    ),
+                    issueDate,
+                    finalizedAt: at,
+                    finalizedBy: actor.userId,
+                  },
+                  expectedVersion: input.expectedVersion,
+                  at,
+                }),
+            );
             if (finalized === null) {
               throw stale();
             }
@@ -687,6 +911,104 @@ export class BillingService {
       ? await repositories.invoices.finalizedTotals(clientIds)
       : { invoiceCount: 0, invoicedMinor: 0, paidMinor: 0, outstandingMinor: 0 };
     return { groupClientId: query.group, currency: FIRM_CURRENCY, ...totals };
+  }
+
+  /**
+   * The cases of one line client of a combined draft (TD-511), each with its
+   * default line (service, tax year, service fee) and the other invoices, not
+   * void, that already bill it. The editor shows those as a warning only.
+   */
+  async billableCases(
+    actor: Actor,
+    invoiceId: string,
+    query: BillableCasesQuery,
+  ): Promise<BillableCaseList> {
+    if (!hasPermission(actor, 'billing.manage')) {
+      throw forbidden();
+    }
+    const repositories = this.repositories;
+    const { record, target } = await this.readableInvoice(
+      repositories,
+      actor,
+      await repositories.invoices.findById(invoiceId),
+    );
+    this.requireManage(actor, target);
+    if (record.billingMode !== 'combined') {
+      throw new AuthError(
+        409,
+        'INVOICE_NOT_COMBINED',
+        'Only a combined group invoice bills cases line by line.',
+      );
+    }
+    if (record.status !== 'draft') {
+      throw new AuthError(409, 'INVOICE_NOT_DRAFT', 'Only a draft invoice can be edited.');
+    }
+    const client = await repositories.clients.findById(query.clientId);
+    if (
+      client === null ||
+      !canAccessClient(actor, client) ||
+      (client.id !== record.clientId && client.parentClientId !== record.clientId)
+    ) {
+      throw lineError(
+        409,
+        'INVOICE_LINE_NOT_IN_GROUP',
+        'clientId',
+        'Choose the group head or a current member of its group.',
+      );
+    }
+    const today = await this.firmToday(repositories);
+    const page = await repositories.cases.list({
+      view: 'active',
+      today,
+      dueSoonUntil: today,
+      actorUserId: actor.userId,
+      restrictToAssignedUserId: null,
+      serviceTypeId: null,
+      statusKey: null,
+      primaryConsultantUserId: null,
+      reviewerUserId: null,
+      taxYear: null,
+      clientId: client.id,
+      limit: BILLABLE_CASES_LIMIT,
+      after: null,
+    });
+    const cases = [];
+    for (const taxCase of page.cases) {
+      if (taxCase.deletedAt !== null || !canReadCase(actor, taxCase)) {
+        continue;
+      }
+      cases.push({
+        id: taxCase.id,
+        caseCode: taxCase.caseCode,
+        serviceName: taxCase.serviceName,
+        taxYear: taxCase.taxYear,
+        description: caseLineDescription(taxCase.serviceName, taxCase.taxYear),
+        unitAmountMinor: taxCase.serviceFeeMinor,
+        otherInvoices: await this.otherInvoicesForCase(repositories, actor, taxCase.id, record.id),
+      });
+    }
+    return { cases };
+  }
+
+  /** Invoices other than `exceptId`, not void, that bill the case and the actor can read. */
+  private async otherInvoicesForCase(
+    repositories: Repositories,
+    actor: Actor,
+    caseId: string,
+    exceptId: string,
+  ): Promise<CaseInvoiceRef[]> {
+    const page = await repositories.invoices.list({ caseId, limit: 20, after: null });
+    const result: CaseInvoiceRef[] = [];
+    for (const invoice of page.invoices) {
+      if (invoice.id === exceptId || invoice.status === 'void') {
+        continue;
+      }
+      if (!canReadInvoiceTarget(actor, await this.targetOf(repositories, invoice))) {
+        continue;
+      }
+      result.push({ id: invoice.id, invoiceNumber: invoice.invoiceNumber, status: invoice.status });
+    }
+    return result;
   }
 
   async listPayments(actor: Actor, invoiceId: string): Promise<PaymentList> {

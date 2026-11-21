@@ -102,6 +102,65 @@
             </li>
           </ol>
 
+          <h3 id="combined">Combined invoice for a client group</h3>
+          <p>
+            A group head can be billed with one invoice that covers work for the head and its
+            members. The head receives and pays the invoice. You can still bill each member on
+            its own instead.
+          </p>
+          <ol class="steps">
+            <li>
+              Open the group head's client page and select
+              <span class="ui">Create combined invoice</span> (next to
+              <span class="ui">Create invoice</span>). It is offered only on a client that heads a
+              group, and the draft starts empty with no case of its own.
+            </li>
+            <li>
+              Select <span class="ui">Add line</span>. Each line has <span class="ui">Billed for</span>
+              (the group head or an active member) and an optional
+              <span class="ui">Case (optional)</span> from that client's cases. Choosing a case
+              fills the line with the service name, tax year, and service fee; you can still change
+              them.
+            </li>
+            <li>
+              If the case is already on another invoice that is not void, a warning names that
+              invoice, for example <em>"TC-00009 is already on INV-00003 (finalized). You can still
+              bill it here, for example for follow-up work."</em> It never blocks you.
+            </li>
+            <li>
+              The total preview shows a <strong>subtotal for each client</strong>. Save and finalize
+              as usual.
+            </li>
+          </ol>
+          <ul>
+            <li>
+              At finalize, TaxDesk checks again that every line's client is still the head or a
+              member. If a member has left the group, the finalize dialog closes, the line's
+              <span class="ui">Billed for</span> field is marked, and you see <em>"CL-00002 is no
+              longer in this group. Change or remove its lines, then finalize."</em> The same
+              happens on <span class="ui">Save draft</span> if a line's client or case is refused.
+              The mark clears as soon as you edit the draft.
+            </li>
+            <li>
+              The finalized invoice keeps each line's client code and name as they were. Renaming a
+              client or changing the group later never changes the invoice or its PDF.
+            </li>
+            <li>
+              The PDF is addressed to the head. It groups the lines under each client's name with a
+              subtotal for each, then the discount and total. It shows names only, never a CNIC or
+              NTN.
+            </li>
+            <li>
+              Payments, receipts, reversals, and void work on the whole invoice, exactly as for any
+              other invoice. Amounts are not split between members.
+            </li>
+            <li>
+              You see a combined invoice only if you can see every client on it. The Invoices list
+              marks it <em>combined for the group</em>, and the invoice page shows a
+              <span class="ui">Combined</span> badge.
+            </li>
+          </ul>
+
           <h2 id="finalize">Finalize</h2>
           <p>
             Select <span class="ui">Finalize…</span>, then <span class="ui">Finalize invoice</span>
@@ -188,7 +247,9 @@
             the invoices of the head and its members, and three totals appear above it:
             <strong>Invoiced</strong>, <strong>Paid</strong>, and <strong>Outstanding</strong>.
             The totals count <em>finalized</em> invoices only; drafts and void invoices are left
-            out. Each member is still invoiced separately in this release.
+            out. A <a href="#combined">combined invoice</a> counts against the group head (and so
+            the group), never against a member. A case's invoice list also shows combined invoices
+            that bill that case on one of their lines.
           </p>
           <div class="callout">
             <strong>Billing never moves a case</strong>

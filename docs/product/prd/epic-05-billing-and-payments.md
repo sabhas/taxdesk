@@ -119,16 +119,25 @@ member individually. Decisions are recorded in
 covering work for its group members so that the group can be billed and paid
 together.
 
-- [ ] A draft can be created as a combined group invoice from a parent client. The invoice is addressed to the parent and has no invoice-level case.
-- [ ] Each line records the client it is for (the parent or a current member) and optionally one of that client's cases, using the service default fee when a case is chosen. Individual invoices are unchanged.
-- [ ] Finalization rechecks that every line's client is the parent or a current member, and snapshots each line's client code and display name. A later group change never alters a finalized invoice.
-- [ ] Payments and reversals apply to the whole combined invoice, exactly as for an individual invoice.
-- [ ] The draft editor warns, without blocking, when a case is already on another invoice that is not void.
-- [ ] A combined invoice is visible only to users who can see every client on it.
-- [ ] The invoice PDF groups lines under each member's name with a subtotal per member, then the discount and total. It shows names only, never a CNIC or NTN.
-- [ ] Group billing totals count a combined invoice against the parent and the group.
-- [ ] Database triggers enforce the combined-invoice line rules and keep the existing case-belongs-to-client rule for individual invoices. PostgreSQL tests cover finalization against a group change racing it.
-- [ ] The staff training guide, in-app help, and UAT scenarios describe combined invoices.
+- [x] A draft can be created as a combined group invoice from a parent client. The invoice is addressed to the parent and has no invoice-level case.
+- [x] Each line records the client it is for (the parent or a current member) and optionally one of that client's cases, using the service default fee when a case is chosen. Individual invoices are unchanged.
+- [x] Finalization rechecks that every line's client is the parent or a current member, and snapshots each line's client code and display name. A later group change never alters a finalized invoice.
+- [x] Payments and reversals apply to the whole combined invoice, exactly as for an individual invoice.
+- [x] The draft editor warns, without blocking, when a case is already on another invoice that is not void.
+- [x] A combined invoice is visible only to users who can see every client on it.
+- [x] The invoice PDF groups lines under each member's name with a subtotal per member, then the discount and total. It shows names only, never a CNIC or NTN.
+- [x] Group billing totals count a combined invoice against the parent and the group.
+- [x] Database triggers enforce the combined-invoice line rules and keep the existing case-belongs-to-client rule for individual invoices. PostgreSQL tests cover finalization against a group change racing it.
+- [x] The staff training guide, in-app help, and UAT scenarios describe combined invoices.
+
+**Implementation notes (verified locally with `/verify-story`, 2026-11-22; staging demonstration pending):** migration
+`0012_combined_group_invoices.sql` adds `invoices.billing_mode` and the line
+client, case, and snapshot columns, and replaces the invoice and line guard
+triggers. `POST /api/v1/invoices` accepts `billingMode: "combined"` with a
+group head `clientId`; draft lines carry `clientId` and `caseId`;
+`GET /api/v1/invoices/{id}/billable-cases?clientId=` supplies case defaults and
+the duplicate-billing warning. See the data model and the Billing training
+guide.
 
 ## Exit criteria
 

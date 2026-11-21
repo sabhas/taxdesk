@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   InvoiceDraftCreateRequestSchema,
+  InvoiceItemInputSchema,
   InvoiceDraftUpdateRequestSchema,
   RecordPaymentRequestSchema,
   VoidInvoiceRequestSchema,
   calculateInvoiceTotals,
+  caseLineDescription,
   formatInvoiceNumber,
+  groupLinesByClient,
   formatReceiptNumber,
   paymentStatusFor,
 } from './billing.js';
@@ -97,6 +100,27 @@ describe('request schemas', () => {
     );
   });
 
+  it('starts a combined invoice from a client only (TD-511)', () => {
+    expect(
+      InvoiceDraftCreateRequestSchema.safeParse({ clientId: id, billingMode: 'combined' }).success,
+    ).toBe(true);
+    expect(
+      InvoiceDraftCreateRequestSchema.safeParse({ caseId: id, billingMode: 'combined' }).success,
+    ).toBe(false);
+    expect(
+      InvoiceDraftCreateRequestSchema.safeParse({ clientId: id, billingMode: 'group' }).success,
+    ).toBe(false);
+  });
+
+  it('accepts a line client and case, but no case without a client (TD-511)', () => {
+    const base = { description: 'Filing', quantity: 1, unitAmountMinor: 100 };
+    expect(InvoiceItemInputSchema.safeParse({ ...base, clientId: id }).success).toBe(true);
+    expect(InvoiceItemInputSchema.safeParse({ ...base, clientId: id, caseId: id }).success).toBe(
+      true,
+    );
+    expect(InvoiceItemInputSchema.safeParse({ ...base, caseId: id }).success).toBe(false);
+  });
+
   it('never accepts client-supplied totals', () => {
     const base = { items: [], discountMinor: 0, issueDate: null, dueDate: null, notes: '' };
     expect(InvoiceDraftUpdateRequestSchema.safeParse(base).success).toBe(true);
@@ -126,5 +150,29 @@ describe('request schemas', () => {
     expect(VoidInvoiceRequestSchema.safeParse({ reason: 'Mistake', confirm: true }).success).toBe(
       true,
     );
+  });
+});
+
+describe('combined invoice helpers (TD-511)', () => {
+  it('groups lines by client in first-appearance order with subtotals', () => {
+    const groups = groupLinesByClient([
+      { clientId: 'b', lineTotalMinor: 100 },
+      { clientId: 'a', lineTotalMinor: 50 },
+      { clientId: 'b', lineTotalMinor: 25 },
+      { clientId: null, lineTotalMinor: 999 },
+    ]);
+    expect(
+      groups.map((group) => [group.clientId, group.subtotalMinor, group.items.length]),
+    ).toEqual([
+      ['b', 125, 2],
+      ['a', 50, 1],
+    ]);
+  });
+
+  it('describes a case line by service and tax year within the description limit', () => {
+    expect(caseLineDescription('Income tax return', 2026)).toBe(
+      'Income tax return (tax year 2026)',
+    );
+    expect(caseLineDescription('x'.repeat(400), 2026)).toHaveLength(300);
   });
 });

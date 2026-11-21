@@ -127,7 +127,57 @@ group table and no group name: a group is named after its head.
   Client activity shows the event only to users who can see every parent
   client it names.
 - Existing clients have no parent; no backfill is needed. Combined group
-  invoices (TD-511) will need their own migration.
+  invoices (TD-511) come in migration `0012` (below).
+
+### Combined group invoices (TD-511)
+
+Migration `0012_combined_group_invoices.sql` adds `invoices.billing_mode`
+(`individual`, the default for every existing invoice, or `combined`) and, on
+`invoice_items`, `client_id`, `case_id`, `client_code_snapshot`, and
+`client_name_snapshot`, with partial indexes on the line case and client. See
+[ADR 0010](../adr/0010-client-groups-and-combined-invoices.md).
+
+- A combined invoice is addressed to a group head (`invoices.client_id`) and
+  has no invoice-level case (check `invoices_combined_has_no_case`). The API
+  creates one only from a client that is not a member and has at least one
+  visible member (`409 CLIENT_NOT_GROUP_HEAD`).
+- Every line of a combined invoice names its client, the head or a member of
+  the head, and optionally one of that client's cases. Lines of an individual
+  invoice name no client, case, or snapshot, and the 0008 rule that the
+  invoice's case belongs to its client is unchanged. The rewritten
+  `taxdesk_guard_invoice_item` trigger enforces both; the API answers first
+  (`400` for a missing client or a foreign case, `409 INVOICE_LINE_NOT_IN_GROUP`
+  for a client outside the group, `409 CLIENT_ARCHIVED`/`CASE_ARCHIVED`).
+- Finalization locks the invoice, then the head and every line client in ID
+  order (the order a group change uses), rechecks membership
+  (`409 INVOICE_GROUP_CHANGED` with the line's field), and copies each line's
+  client code and display name onto the line before the invoice is numbered.
+  The rewritten `taxdesk_guard_invoice` trigger share-locks the same client
+  rows on draft → finalized and rejects a combined invoice whose head has a
+  parent or whose line lacks a snapshot or names a client outside the group.
+  `billing_mode` is immutable. Lines stay frozen after finalization (0008), so
+  a later group or name change never alters a finalized invoice or its PDF.
+- The PostgreSQL repository maps a violation of these rules (`23514` on
+  `invoice_items_combined_line`, `invoices_combined_group`,
+  `invoices_combined_has_no_case`, or `invoice_items_case_needs_client`) to
+  `CombinedInvoiceRuleError`. The service answers it with the same
+  `409 INVOICE_GROUP_CHANGED` as its own check, never a `500`.
+- Payments, reversals, and void act on the whole invoice. Group billing totals
+  and the group filter count a combined invoice against the head; a member's
+  own invoice list does not include it. The invoice list's `caseId` filter
+  also matches a case on any line.
+- A combined invoice is readable only by users who can read every line client
+  and line case as well as the head.
+- `GET /api/v1/invoices/{id}/billable-cases?clientId=` (`billing.manage`, a
+  combined draft, a line client in the group) lists that client's active cases
+  with the default line (service, tax year, service fee) and the other invoices,
+  not void and readable by the user, that already bill each case. The editor
+  shows these as a warning only.
+- The invoice PDF of a combined invoice groups lines under each client name (as
+  snapshotted) with a subtotal per client, then the discount and total. It
+  prints names only, never a CNIC or NTN.
+- Existing invoices become `individual` and existing lines have no client; no
+  backfill is needed.
 
 ## Tax-case workflow tables
 

@@ -7,6 +7,8 @@ import {
   type PaymentStatus,
 } from '@taxdesk/shared';
 
+import { ApiError } from '../../api-client.js';
+
 type BadgeVariant = 'default' | 'secondary' | 'success' | 'warning' | 'destructive' | 'outline';
 
 export function money(minor: number): string {
@@ -62,3 +64,30 @@ export const PDF_STATE_LABELS: Readonly<Record<BillingPdfState, string>> = {
   ready: 'PDF ready',
   failed: 'PDF could not be stored',
 };
+
+/** The draft editor's per-line error keys for each line field the API names. */
+const LINE_FIELD_KEYS: Readonly<Record<string, string>> = {
+  description: 'd',
+  quantity: 'q',
+  unitAmountMinor: 'u',
+  clientId: 'c',
+  caseId: 'k',
+};
+
+/**
+ * Line errors from an API failure, keyed as the draft editor keys them (for
+ * example `items.2.clientId` → `c2`). `null` when the failure names no line, so
+ * the caller shows only its page notice.
+ */
+export function invoiceLineErrors(error: unknown): ReadonlyMap<string, string> | null {
+  if (!(error instanceof ApiError)) return null;
+  const errors = new Map<string, string>();
+  for (const { field, message } of error.fieldErrors) {
+    const match = /^items\.(\d+)\.(\w+)$/u.exec(field);
+    const key = match === null ? undefined : LINE_FIELD_KEYS[match[2] ?? ''];
+    if (match !== null && key !== undefined) {
+      errors.set(`${key}${match[1] ?? ''}`, message);
+    }
+  }
+  return errors.size === 0 ? null : errors;
+}

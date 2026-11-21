@@ -339,6 +339,7 @@ async function createOpeningInvoice(
     caseCode: taxCase?.caseCode ?? null,
     caseServiceName: taxCase?.serviceName ?? null,
     currency: FIRM_CURRENCY,
+    billingMode: 'individual',
     status: 'draft',
     invoiceNumber: null,
     issueDate: input.asOfDate,
@@ -370,6 +371,14 @@ async function createOpeningInvoice(
     quantity: 1,
     unitAmountMinor: input.amountMinor,
     lineTotalMinor: totals.totals.lineTotalsMinor[0] ?? input.amountMinor,
+    clientId: null,
+    caseId: null,
+    clientCodeSnapshot: null,
+    clientNameSnapshot: null,
+    clientCode: null,
+    clientDisplayName: null,
+    caseCode: null,
+    caseServiceName: null,
     createdAt: at,
   };
   await repositories.invoices.create(draft, [item]);

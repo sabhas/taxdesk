@@ -418,7 +418,11 @@ export function ClientDetailPage() {
           )}
 
           <ClientCasesCard clientId={client.id} archived={archived} />
-          <InvoicesCard scope={{ kind: 'client', id: client.id }} archived={archived} />
+          <InvoicesCard
+            scope={{ kind: 'client', id: client.id }}
+            archived={archived}
+            groupHead={client.parentClient === null && client.groupMembers.length > 0}
+          />
 
           {can('documents.read') && (
             <DocumentsPanel scope={{ kind: 'client', clientId: client.id }} readOnly={archived} />

@@ -1,6 +1,8 @@
 import { Hono, type Context } from 'hono';
 import { type z } from 'zod';
 import {
+  BillableCaseListSchema,
+  BillableCasesQuerySchema,
   BillingPdfResultSchema,
   GroupBillingTotalsQuerySchema,
   GroupBillingTotalsSchema,
@@ -142,6 +144,16 @@ billingRoutes.patch('/invoices/:invoiceId', manage(), async (c) => {
   });
   setEtag(c, invoice.version);
   return c.json(InvoiceSchema.parse(invoice));
+});
+
+// The cases a combined draft can bill for one line client, with their default
+// line and any other invoice already billing them (TD-511).
+billingRoutes.get('/invoices/:invoiceId/billable-cases', manage(), async (c) => {
+  const id = invoiceId(c);
+  const query = parseQuery(c, BillableCasesQuerySchema);
+  const list = await c.get('dependencies').billingService.billableCases(c.get('actor'), id, query);
+  noStore(c);
+  return c.json(BillableCaseListSchema.parse(list));
 });
 
 billingRoutes.post('/invoices/:invoiceId/finalize', manage(), async (c) => {

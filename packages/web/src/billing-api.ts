@@ -1,10 +1,12 @@
 import {
+  BillableCaseListSchema,
   BillingPdfResultSchema,
   GroupBillingTotalsSchema,
   InvoiceListSchema,
   InvoiceSchema,
   PaymentListSchema,
   PaymentOutcomeSchema,
+  type BillableCaseList,
   type BillingPdfResult,
   type GroupBillingTotals,
   type Invoice,
@@ -91,6 +93,23 @@ export async function createInvoiceDraft(request: InvoiceDraftCreateRequest): Pr
     body: request,
     sessionScoped: true,
   });
+}
+
+/**
+ * The cases a combined draft can bill for one line client (TD-511), with the
+ * default line and any other invoice already billing each case.
+ */
+export async function listBillableCases(
+  invoiceId: string,
+  clientId: string,
+  signal?: AbortSignal,
+): Promise<BillableCaseList> {
+  const query = new URLSearchParams({ clientId });
+  return await apiRequest(
+    invoiceUrl(invoiceId, `/billable-cases?${query.toString()}`),
+    BillableCaseListSchema,
+    { sessionScoped: true, ...signalOption(signal) },
+  );
 }
 
 export async function updateInvoiceDraft(

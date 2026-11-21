@@ -15,6 +15,7 @@ import {
   canManageBilling,
   canReadInvoiceTarget,
   invoiceNotFound,
+  loadInvoiceTarget,
   paymentNotFound,
   type InvoiceTarget,
 } from './billing-access.js';
@@ -65,13 +66,7 @@ export class BillingDocumentService {
   }
 
   private async targetOf(invoice: InvoiceRecord): Promise<InvoiceTarget> {
-    const client = await this.repositories.clients.findById(invoice.clientId);
-    if (client === null) {
-      throw new Error('The invoice references a missing client.');
-    }
-    const taxCase =
-      invoice.caseId === null ? null : await this.repositories.cases.findById(invoice.caseId);
-    return { client, taxCase };
+    return await loadInvoiceTarget(this.repositories, invoice);
   }
 
   private async readableInvoice(
@@ -139,7 +134,17 @@ export class BillingDocumentService {
         finalizedAt,
         client: { clientCode: invoice.clientCode, displayName: invoice.clientDisplayName },
         caseCode: invoice.caseCode,
-        items,
+        billingMode: invoice.billingMode,
+        // Combined lines print the client name snapshotted at finalization.
+        items: items.map((item) => ({
+          description: item.description,
+          quantity: item.quantity,
+          unitAmountMinor: item.unitAmountMinor,
+          lineTotalMinor: item.lineTotalMinor,
+          clientId: item.clientId,
+          clientName: item.clientNameSnapshot ?? item.clientDisplayName,
+          caseCode: item.caseCode,
+        })),
         subtotalMinor: invoice.subtotalMinor,
         discountMinor: invoice.discountMinor,
         totalMinor: invoice.totalMinor,

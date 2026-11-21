@@ -27,7 +27,7 @@ import { finalizeInvoice, recordPayment, reversePayment, voidInvoice } from '../
 import { ApiError, newRequestId } from '../../api-client.js';
 import { ErrorAlert, type ErrorNotice } from '../../components/feedback.js';
 import { toErrorNotice } from '../error-notice.js';
-import { PAYMENT_METHOD_LABELS, money, toMajorInput } from './billing-format.js';
+import { PAYMENT_METHOD_LABELS, invoiceLineErrors, money, toMajorInput } from './billing-format.js';
 
 /**
  * Financial dialogs. Each form mounts only while its dialog is open, so the
@@ -139,10 +139,16 @@ function FinalizeBody({
               try {
                 onFinalized(await finalizeInvoice(invoice.id, invoice.version, key));
               } catch (error) {
-                // A stale version is handled by the page (refresh and review).
-                if (error instanceof ApiError && error.status === 412) {
+                // A stale version is handled by the page (refresh and review), and
+                // so is a refusal that names a line (TD-511), which the editor
+                // marks on that line.
+                if (
+                  error instanceof ApiError &&
+                  (error.status === 412 || invoiceLineErrors(error) !== null)
+                ) {
                   onError(error);
                   onCancel();
+                  return;
                 }
                 throw error;
               }
