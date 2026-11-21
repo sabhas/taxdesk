@@ -11,6 +11,7 @@ import {
   type ClientCreateRequest,
   type ClientDuplicateCheckResponse,
   type ClientDuplicateMatch,
+  type ClientListItem,
   type ClientType,
   type ClientUpdateRequest,
 } from '@taxdesk/shared';
@@ -36,6 +37,7 @@ import {
   createClient,
   getClient,
   listClientAssignees,
+  listClients,
   updateClient,
 } from '../../client-api.js';
 import {
@@ -68,6 +70,8 @@ interface ClientDraft {
   contacts: ContactDraft[];
   notes: string;
   assignedManagerUserId: string;
+  /** Group head's client ID, or '' for none (TD-207). */
+  parentClientId: string;
 }
 
 type FieldErrors = Readonly<Record<string, string>>;
@@ -96,6 +100,7 @@ function emptyDraft(): ClientDraft {
     contacts: [newContact(true)],
     notes: '',
     assignedManagerUserId: '',
+    parentClientId: '',
   };
 }
 
@@ -116,6 +121,7 @@ function draftFromClient(client: Client): ClientDraft {
     })),
     notes: client.notes,
     assignedManagerUserId: client.assignedManager?.id ?? '',
+    parentClientId: client.parentClient?.id ?? '',
   };
 }
 
@@ -124,7 +130,11 @@ function optional(value: string): string | undefined {
   return trimmed.length === 0 ? undefined : trimmed;
 }
 
-function requestBody(draft: ClientDraft, mode: 'create' | 'edit'): Record<string, unknown> {
+function requestBody(
+  draft: ClientDraft,
+  mode: 'create' | 'edit',
+  original: Client | null = null,
+): Record<string, unknown> {
   const body: Record<string, unknown> = {
     type: draft.type,
     legalName: draft.legalName,
@@ -142,6 +152,14 @@ function requestBody(draft: ClientDraft, mode: 'create' | 'edit'): Record<string
       draft.assignedManagerUserId.length === 0 ? null : draft.assignedManagerUserId,
   };
   if (optional(draft.displayName) !== undefined) body['displayName'] = optional(draft.displayName);
+  // The parent link is sent only when it changes, so saving other fields never
+  // touches a group link (the API keeps an omitted link).
+  const parentClientId = draft.parentClientId.length === 0 ? null : draft.parentClientId;
+  if (mode === 'create') {
+    if (parentClientId !== null) body['parentClientId'] = parentClientId;
+  } else if (parentClientId !== (original?.parentClient?.id ?? null)) {
+    body['parentClientId'] = parentClientId;
+  }
   if (draft.type === 'individual') {
     if (mode === 'create' || optional(draft.cnic) !== undefined) body['cnic'] = draft.cnic;
   }
@@ -242,6 +260,7 @@ function comparisonRows(
   draft: ClientDraft,
   latest: Client,
   assignees: readonly ClientAssignee[],
+  parents: readonly ClientListItem[],
 ): ComparisonRow[] {
   const managerName = (id: string) =>
     id.length === 0
@@ -272,6 +291,17 @@ function comparisonRows(
       mine: managerName(draft.assignedManagerUserId),
       latest: latest.assignedManager?.displayName ?? 'Unassigned',
     },
+    {
+      label: 'Parent client',
+      mine:
+        draft.parentClientId.length === 0
+          ? 'None'
+          : draft.parentClientId === latest.parentClient?.id
+            ? latest.parentClient.displayName
+            : (parents.find((parent) => parent.id === draft.parentClientId)?.displayName ??
+              'Selected client'),
+      latest: latest.parentClient?.displayName ?? 'None',
+    },
   ];
   if (latest.type === 'individual') {
     rows.push({
@@ -293,6 +323,66 @@ function comparisonRows(
 }
 
 /**
+ * "Parent client" (TD-207): links a client to its group head. A client that
+ * heads a group cannot be given a parent, because groups are one level deep.
+ */
+function ParentClientField({
+  draft,
+  original,
+  parents,
+  errors,
+  onChange,
+}: {
+  draft: ClientDraft;
+  original: Client | null;
+  parents: readonly ClientListItem[];
+  errors: FieldErrors;
+  onChange: (parentClientId: string) => void;
+}) {
+  const memberCount = original?.groupMembers.length ?? 0;
+  const options = parents.filter((parent) => parent.id !== original?.id);
+  const current = original?.parentClient ?? null;
+  const showCurrent = current !== null && !options.some((parent) => parent.id === current.id);
+  return (
+    <FormField
+      path="parentClientId"
+      label="Parent client"
+      description={
+        memberCount > 0
+          ? `This client heads a group of ${String(memberCount)} ${memberCount === 1 ? 'client' : 'clients'}, so it cannot have a parent client. Groups are one level deep.`
+          : 'Optional. Link this client to the client who brought them in, to review the group together.'
+      }
+      errors={errors}
+    >
+      {(props) => (
+        <NativeSelect
+          {...props}
+          className="w-full"
+          disabled={memberCount > 0 && draft.parentClientId.length === 0}
+          value={draft.parentClientId}
+          onChange={(event) => {
+            onChange(event.target.value);
+          }}
+        >
+          <NativeSelectOption value="">None</NativeSelectOption>
+          {showCurrent && (
+            <NativeSelectOption value={current.id}>
+              {current.displayName} ({current.clientCode})
+              {current.state === 'archived' ? ' (archived)' : ''}
+            </NativeSelectOption>
+          )}
+          {options.map((parent) => (
+            <NativeSelectOption key={parent.id} value={parent.id}>
+              {parent.displayName} ({parent.clientCode})
+            </NativeSelectOption>
+          ))}
+        </NativeSelect>
+      )}
+    </FormField>
+  );
+}
+
+/**
  * Create or edit a client. The shared Zod contract gives field-level feedback
  * before the request; the API re-validates and is authoritative. Creation
  * runs a duplicate preview first. A stale edit (412) loads the latest saved
@@ -306,6 +396,7 @@ export function ClientFormPage({ mode }: { mode: 'create' | 'edit' }) {
   const [original, setOriginal] = useState<Client | null>(null);
   const [version, setVersion] = useState<number | null>(null);
   const [assignees, setAssignees] = useState<readonly ClientAssignee[]>([]);
+  const [parents, setParents] = useState<readonly ClientListItem[]>([]);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [notice, setNotice] = useState<ErrorNotice | null>(null);
   const [loading, setLoading] = useState(mode === 'edit');
@@ -327,6 +418,18 @@ export function ClientFormPage({ mode }: { mode: 'create' | 'edit' }) {
       })
       .catch(() => {
         // Without the list the field still offers "Unassigned" and the current value.
+      });
+    // Parent client options: active clients the user can see that are not
+    // themselves group members. The server re-checks every rule.
+    void listClients(
+      { grouping: 'eligible_parents', state: 'active', limit: 100 },
+      controller.signal,
+    )
+      .then((result) => {
+        setParents(result.clients);
+      })
+      .catch(() => {
+        // Without the list the field still offers "None" and the current parent.
       });
     if (mode === 'edit') {
       void getClient(clientId, controller.signal)
@@ -402,6 +505,9 @@ export function ClientFormPage({ mode }: { mode: 'create' | 'edit' }) {
       if (error.code === 'ASSIGNEE_INVALID') {
         showErrors({ assignedManagerUserId: error.message });
       }
+      if (error.code === 'CLIENT_GROUP_INVALID') {
+        showErrors({ parentClientId: error.message });
+      }
     }
     setNotice(toErrorNotice(error, 'Could not save the client'));
   }
@@ -409,7 +515,7 @@ export function ClientFormPage({ mode }: { mode: 'create' | 'edit' }) {
   async function submit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setNotice(null);
-    const body = requestBody(draft, mode);
+    const body = requestBody(draft, mode, original);
     const parsed =
       mode === 'create'
         ? ClientCreateRequestSchema.safeParse(body)
@@ -559,7 +665,7 @@ export function ClientFormPage({ mode }: { mode: 'create' | 'edit' }) {
                 </tr>
               </thead>
               <tbody>
-                {comparisonRows(draft, conflict, assignees).map((row) => (
+                {comparisonRows(draft, conflict, assignees, parents).map((row) => (
                   <tr key={row.label} className="border-t align-top">
                     <th scope="row" className="py-2 pr-3 font-medium">
                       {row.label}
@@ -748,6 +854,15 @@ export function ClientFormPage({ mode }: { mode: 'create' | 'edit' }) {
                   </NativeSelect>
                 )}
               </FormField>
+              <ParentClientField
+                draft={draft}
+                original={original}
+                parents={parents}
+                errors={errors}
+                onChange={(parentClientId) => {
+                  change({ parentClientId });
+                }}
+              />
             </FieldGroup>
           </CardContent>
         </Card>

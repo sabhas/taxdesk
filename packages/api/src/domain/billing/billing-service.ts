@@ -12,6 +12,8 @@ import {
   type InvoiceDraftCreateRequest,
   type InvoiceDraftUpdateRequest,
   type InvoiceItemInput,
+  type GroupBillingTotals,
+  type GroupBillingTotalsQuery,
   type InvoiceList,
   type InvoiceListQuery,
   type InvoiceSummary,
@@ -30,7 +32,7 @@ import { appendAuditEvent } from '../auth/audit-service.js';
 import { hasPermission } from '../auth/authorization.js';
 import { AuthError, forbidden } from '../auth/errors.js';
 import type { Actor } from '../auth/types.js';
-import { requireAccessibleClient } from '../clients/client-access.js';
+import { requireAccessibleClient, visibleGroupClientIds } from '../clients/client-access.js';
 import { requireReadableCase } from '../cases/case-access.js';
 import { personLookup } from '../people.js';
 import {
@@ -637,12 +639,17 @@ export class BillingService {
     if (query.caseId !== undefined) {
       requireReadableCase(actor, await repositories.cases.findById(query.caseId));
     }
+    const groupClientIds =
+      query.group === undefined
+        ? undefined
+        : await visibleGroupClientIds(repositories.clients, actor, query.group);
     const after = query.cursor === undefined ? null : decodeCursor(query.cursor);
     const today = await this.firmToday(repositories);
     const page = await repositories.invoices.list({
       ...(query.balance === undefined ? {} : { outstandingOnly: true }),
       ...(query.balance === 'overdue' ? { dueBefore: today } : {}),
       ...(query.clientId === undefined ? {} : { clientId: query.clientId }),
+      ...(groupClientIds === undefined ? {} : { clientIds: groupClientIds }),
       ...(query.caseId === undefined ? {} : { caseId: query.caseId }),
       ...(query.status === undefined ? {} : { status: query.status }),
       ...(query.paymentStatus === undefined ? {} : { paymentStatus: query.paymentStatus }),
@@ -663,6 +670,23 @@ export class BillingService {
           ? encodeCursor({ createdAt: last.createdAt, id: last.id })
           : null,
     };
+  }
+
+  /**
+   * Invoiced, paid, and outstanding totals for a client group (TD-207): the
+   * finalized invoices of the head and its visible members. Like the invoice
+   * list, a role that cannot read every client sees no invoice amounts.
+   */
+  async groupBillingTotals(
+    actor: Actor,
+    query: GroupBillingTotalsQuery,
+  ): Promise<GroupBillingTotals> {
+    const repositories = this.repositories;
+    const clientIds = await visibleGroupClientIds(repositories.clients, actor, query.group);
+    const totals = readsAllInvoices(actor)
+      ? await repositories.invoices.finalizedTotals(clientIds)
+      : { invoiceCount: 0, invoicedMinor: 0, paidMinor: 0, outstandingMinor: 0 };
+    return { groupClientId: query.group, currency: FIRM_CURRENCY, ...totals };
   }
 
   async listPayments(actor: Actor, invoiceId: string): Promise<PaymentList> {

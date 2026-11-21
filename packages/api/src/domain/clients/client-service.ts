@@ -21,6 +21,7 @@ import {
   type ClientDuplicateCheckResponse,
   type ClientDuplicateMatch,
   type ClientField,
+  type ClientGroupRef,
   type ClientList,
   type ClientListItem,
   type ClientListQuery,
@@ -33,6 +34,7 @@ import type {
 } from '../../crypto/identifier-protection.js';
 import { base64UrlToBytes, bytesToBase64Url } from '../../crypto/encoding.js';
 import {
+  ClientGroupRuleError,
   DuplicateClientIdentifierError,
   type Repositories,
   type UnitOfWork,
@@ -41,6 +43,7 @@ import { appendAuditEvent } from '../auth/audit-service.js';
 import { AuthError, forbidden } from '../auth/errors.js';
 import type { Actor, UserRecord } from '../auth/types.js';
 import {
+  canAccessClient,
   canOverrideDuplicateWarning,
   canReadAllClients,
   requireAccessibleClient,
@@ -78,6 +81,42 @@ function identifierExists(): AuthError {
     'CLIENT_IDENTIFIER_EXISTS',
     'A client with this CNIC or NTN already exists. Open the existing client instead.',
   );
+}
+
+/** A parent client choice that breaks a group rule (TD-207). */
+function groupInvalid(message: string): AuthError {
+  return new AuthError(409, 'CLIENT_GROUP_INVALID', message, {
+    errors: [{ field: 'parentClientId', message }],
+  });
+}
+
+const GROUP_RULE_MESSAGE =
+  'This parent client is not allowed. Groups are one level deep: choose an active client that is not itself part of a group.';
+
+function toGroupRef(record: ClientRecord): ClientGroupRef {
+  return {
+    id: record.id,
+    clientCode: record.clientCode,
+    displayName: record.displayName,
+    state: record.deletedAt === null ? 'active' : 'archived',
+  };
+}
+
+function byDisplayName(left: ClientRecord, right: ClientRecord): number {
+  const leftKey = clientSortKey(left.displayName);
+  const rightKey = clientSortKey(right.displayName);
+  return leftKey === rightKey ? left.id.localeCompare(right.id) : leftKey < rightKey ? -1 : 1;
+}
+
+/** Maps repository write errors to the client API's conflict responses. */
+function mapWriteError(error: unknown): never {
+  if (error instanceof DuplicateClientIdentifierError) {
+    throw identifierExists();
+  }
+  if (error instanceof ClientGroupRuleError) {
+    throw groupInvalid(GROUP_RULE_MESSAGE);
+  }
+  throw error;
 }
 
 function protectionUnavailable(): AuthError {
@@ -226,9 +265,77 @@ export class ClientService {
     };
   }
 
-  private async toClient(record: ClientRecord): Promise<Client> {
+  /**
+   * Checks the one-level group rule for giving `clientId` (`null` while
+   * creating) the parent `parent`. It runs before the write for a clear error
+   * and again on locked rows inside the unit of work. A parent the actor
+   * cannot see is treated as missing.
+   */
+  private assertParentAllowed(
+    actor: Actor,
+    clientId: string | null,
+    parent: ClientRecord | null,
+    hasMembers: boolean,
+  ): void {
+    if (parent === null || !canAccessClient(actor, parent)) {
+      throw groupInvalid('Choose an active client you can see as the parent client.');
+    }
+    if (parent.id === clientId) {
+      throw groupInvalid('A client cannot be its own parent client.');
+    }
+    if (parent.deletedAt !== null) {
+      throw groupInvalid(
+        'This client is archived. Restore it before choosing it as a parent client.',
+      );
+    }
+    if (parent.parentClientId !== null) {
+      throw groupInvalid(
+        'This client is already part of a group, so it cannot be a parent client. Groups are one level deep.',
+      );
+    }
+    if (hasMembers) {
+      throw groupInvalid(
+        'This client has group members, so it cannot be given a parent client. Groups are one level deep.',
+      );
+    }
+  }
+
+  /**
+   * Locks the client (when it exists) and the new parent, in ID order, then
+   * re-checks the group rule on their current rows. A concurrent change that
+   * gives the parent a parent, or the client a member, either waits for this
+   * lock or is seen here, so the rule holds without relying on the trigger.
+   */
+  private async lockAndCheckParent(
+    repositories: Repositories,
+    actor: Actor,
+    clientId: string | null,
+    parentId: string,
+  ): Promise<ClientRecord> {
+    const locked = await repositories.clients.lockForGrouping(
+      clientId === null ? [parentId] : [clientId, parentId],
+    );
+    const parent = locked.find((record) => record.id === parentId) ?? null;
+    const hasMembers =
+      clientId !== null && (await repositories.clients.listMembers([clientId])).length > 0;
+    this.assertParentAllowed(actor, clientId, parent, hasMembers);
+    if (parent === null) {
+      // Unreachable: the rule above refuses a missing parent.
+      throw groupInvalid('Choose an active client you can see as the parent client.');
+    }
+    return parent;
+  }
+
+  private async toClient(actor: Actor, record: ClientRecord): Promise<Client> {
     const contacts = await this.repositories.clients.listContacts([record.id]);
     const lookup = this.assigneeLookup();
+    const parent =
+      record.parentClientId === null
+        ? null
+        : await this.repositories.clients.findById(record.parentClientId);
+    const members = (await this.repositories.clients.listMembers([record.id]))
+      .filter((member) => canAccessClient(actor, member))
+      .sort(byDisplayName);
     return {
       id: record.id,
       clientCode: record.clientCode,
@@ -240,6 +347,8 @@ export class ClientService {
       contacts: contacts.map(toContactDto),
       notes: record.notes,
       assignedManager: await lookup(record.assignedManagerUserId),
+      parentClient: parent !== null && canAccessClient(actor, parent) ? toGroupRef(parent) : null,
+      groupMembers: members.map(toGroupRef),
       state: record.deletedAt === null ? 'active' : 'archived',
       archivedAt: record.deletedAt,
       createdAt: record.createdAt,
@@ -253,7 +362,7 @@ export class ClientService {
       actor,
       await this.repositories.clients.findById(clientId),
     );
-    return await this.toClient(record);
+    return await this.toClient(actor, record);
   }
 
   private async searchTerms(q: string): Promise<ClientSearchTerms> {
@@ -284,12 +393,18 @@ export class ClientService {
   }
 
   async listClients(actor: Actor, query: ClientListQuery): Promise<ClientList> {
+    if (query.group !== undefined) {
+      // The group filter names a head the actor must be able to see.
+      requireAccessibleClient(actor, await this.repositories.clients.findById(query.group));
+    }
     const page = await this.repositories.clients.list({
       search: query.q === undefined ? null : await this.searchTerms(query.q),
       type: query.type ?? null,
       manager: query.manager ?? null,
       state: query.state,
       restrictToManagerUserId: canReadAllClients(actor) ? null : actor.userId,
+      groupClientId: query.group ?? null,
+      grouping: query.grouping ?? null,
       limit: query.limit,
       after: query.cursor === undefined ? null : decodeCursor(query.cursor),
     });
@@ -303,10 +418,27 @@ export class ClientService {
         primaryByClient.set(contact.clientId, contact);
       }
     }
+    const parentIds = [...new Set(page.clients.flatMap((client) => client.parentClientId ?? []))];
+    const visibleParents = new Map(
+      (await this.repositories.clients.findByIds(parentIds))
+        .filter((parent) => canAccessClient(actor, parent))
+        .map((parent) => [parent.id, parent]),
+    );
+    // Only visible members are counted: a count would disclose hidden clients.
+    const memberCounts = new Map<string, number>();
+    for (const member of await this.repositories.clients.listMembers(
+      page.clients.map((client) => client.id),
+    )) {
+      if (member.parentClientId !== null && canAccessClient(actor, member)) {
+        memberCounts.set(member.parentClientId, (memberCounts.get(member.parentClientId) ?? 0) + 1);
+      }
+    }
     const lookup = this.assigneeLookup();
     const clients: ClientListItem[] = [];
     for (const record of page.clients) {
       const primary = primaryByClient.get(record.id);
+      const parent =
+        record.parentClientId === null ? undefined : visibleParents.get(record.parentClientId);
       clients.push({
         id: record.id,
         clientCode: record.clientCode,
@@ -317,6 +449,8 @@ export class ClientService {
         ntnMasked: record.ntn?.masked ?? null,
         primaryContact: primary === undefined ? null : toContactDto(primary),
         assignedManager: await lookup(record.assignedManagerUserId),
+        parentClient: parent === undefined ? null : toGroupRef(parent),
+        memberCount: memberCounts.get(record.id) ?? 0,
         state: record.deletedAt === null ? 'active' : 'archived',
         updatedAt: record.updatedAt,
       });
@@ -406,11 +540,24 @@ export class ClientService {
         throw forbidden('Only a manager or administrator can override a duplicate warning.');
       }
     }
+    const parentClientId = request.parentClientId ?? null;
+    if (parentClientId !== null) {
+      this.assertParentAllowed(
+        actor,
+        null,
+        await this.repositories.clients.findById(parentClientId),
+        false,
+      );
+    }
 
     const clientId = newUuidV7(now.getTime());
     const displayName = displayNameFor(request.legalName, request.displayName);
     const created = await this.dependencies.unitOfWork
       .run(async (repositories) => {
+        const parent =
+          parentClientId === null
+            ? null
+            : await this.lockAndCheckParent(repositories, actor, null, parentClientId);
         const clientCode = formatClientCode(await repositories.clients.nextClientNumber());
         const record: ClientRecord = {
           id: clientId,
@@ -426,6 +573,7 @@ export class ClientService {
             cnic === null && ntn === null ? null : this.requireProtector().keyVersion,
           notes: request.notes ?? '',
           assignedManagerUserId: request.assignedManagerUserId,
+          parentClientId,
           createdBy: actor.userId,
           deletedAt: null,
           createdAt: now.toISOString(),
@@ -463,15 +611,19 @@ export class ClientService {
             },
           });
         }
+        if (parent !== null) {
+          await this.appendGroupChanged(repositories, now, {
+            actor,
+            requestId: input.requestId,
+            client: record,
+            previousParent: null,
+            parent,
+          });
+        }
         return record;
       })
-      .catch((error: unknown) => {
-        if (error instanceof DuplicateClientIdentifierError) {
-          throw identifierExists();
-        }
-        throw error;
-      });
-    return await this.toClient(created);
+      .catch(mapWriteError);
+    return await this.toClient(actor, created);
   }
 
   async updateClient(input: {
@@ -500,6 +652,18 @@ export class ClientService {
     }
     if (request.assignedManagerUserId !== current.assignedManagerUserId) {
       await this.assertAssignable(request.assignedManagerUserId);
+    }
+    // An omitted parent keeps the stored link (TD-207).
+    const parentClientId =
+      request.parentClientId === undefined ? current.parentClientId : request.parentClientId;
+    const parentChanged = parentClientId !== current.parentClientId;
+    if (parentChanged && parentClientId !== null) {
+      this.assertParentAllowed(
+        actor,
+        current.id,
+        await this.repositories.clients.findById(parentClientId),
+        (await this.repositories.clients.listMembers([current.id])).length > 0,
+      );
     }
 
     const changed: ClientField[] = [];
@@ -537,8 +701,8 @@ export class ClientService {
     const contactsChanged = !contactsEqual(currentContacts, nextContacts);
     if (contactsChanged) changed.push('contacts');
 
-    if (changed.length === 0) {
-      return await this.toClient(current);
+    if (changed.length === 0 && !parentChanged) {
+      return await this.toClient(actor, current);
     }
     const ordered = CLIENT_FIELDS.filter((field) => changed.includes(field));
 
@@ -557,10 +721,15 @@ export class ClientService {
             : current.identifierKeyVersion,
       notes: request.notes,
       assignedManagerUserId: request.assignedManagerUserId,
+      parentClientId,
     };
 
     const updated = await this.dependencies.unitOfWork
       .run(async (repositories) => {
+        const parent =
+          parentChanged && parentClientId !== null
+            ? await this.lockAndCheckParent(repositories, actor, current.id, parentClientId)
+            : null;
         const next = await repositories.clients.update({
           id: current.id,
           changes,
@@ -573,29 +742,64 @@ export class ClientService {
         if (contactsChanged) {
           await repositories.clients.replaceContacts(current.id, nextContacts);
         }
-        const metadata: Record<string, AuditMetadataValue> = {
-          clientCode: current.clientCode,
-          changedFields: ordered.join(','),
-        };
-        if (ordered.includes('cnic')) metadata['cnicMasked'] = cnic?.masked ?? null;
-        if (ordered.includes('ntn')) metadata['ntnMasked'] = ntn?.masked ?? null;
-        await appendAuditEvent(repositories.audit, now, {
-          actorUserId: actor.userId,
-          action: AUDIT_ACTIONS.clientUpdated,
-          entityType: ENTITY_TYPE,
-          entityId: current.id,
-          requestId: input.requestId,
-          metadata,
-        });
+        if (ordered.length > 0) {
+          const metadata: Record<string, AuditMetadataValue> = {
+            clientCode: current.clientCode,
+            changedFields: ordered.join(','),
+          };
+          if (ordered.includes('cnic')) metadata['cnicMasked'] = cnic?.masked ?? null;
+          if (ordered.includes('ntn')) metadata['ntnMasked'] = ntn?.masked ?? null;
+          await appendAuditEvent(repositories.audit, now, {
+            actorUserId: actor.userId,
+            action: AUDIT_ACTIONS.clientUpdated,
+            entityType: ENTITY_TYPE,
+            entityId: current.id,
+            requestId: input.requestId,
+            metadata,
+          });
+        }
+        if (parentChanged) {
+          await this.appendGroupChanged(repositories, now, {
+            actor,
+            requestId: input.requestId,
+            client: current,
+            previousParent:
+              current.parentClientId === null
+                ? null
+                : await repositories.clients.findById(current.parentClientId),
+            parent,
+          });
+        }
         return next;
       })
-      .catch((error: unknown) => {
-        if (error instanceof DuplicateClientIdentifierError) {
-          throw identifierExists();
-        }
-        throw error;
-      });
-    return await this.toClient(updated);
+      .catch(mapWriteError);
+    return await this.toClient(actor, updated);
+  }
+
+  /** `client.group_changed` records client codes only, never names or identifiers. */
+  private async appendGroupChanged(
+    repositories: Repositories,
+    now: Date,
+    input: {
+      readonly actor: Actor;
+      readonly requestId: string;
+      readonly client: ClientRecord;
+      readonly previousParent: ClientRecord | null;
+      readonly parent: ClientRecord | null;
+    },
+  ): Promise<void> {
+    await appendAuditEvent(repositories.audit, now, {
+      actorUserId: input.actor.userId,
+      action: AUDIT_ACTIONS.clientGroupChanged,
+      entityType: ENTITY_TYPE,
+      entityId: input.client.id,
+      requestId: input.requestId,
+      metadata: {
+        clientCode: input.client.clientCode,
+        previousParentCode: input.previousParent?.clientCode ?? null,
+        parentCode: input.parent?.clientCode ?? null,
+      },
+    });
   }
 
   async setArchived(input: {
@@ -639,7 +843,7 @@ export class ClientService {
       });
       return next;
     });
-    return await this.toClient(updated);
+    return await this.toClient(input.actor, updated);
   }
 
   /**

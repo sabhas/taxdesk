@@ -175,10 +175,20 @@
           <h2 id="list">Finding invoices</h2>
           <p>
             <span class="path">Invoices</span> lists every invoice ("Invoices and what is still
-            owed"). Filter by Status (Draft, Finalized, Void) and Payment. Columns: Invoice,
-            Client, Due, Total, Outstanding, Status. Case and client pages show their own invoices.
+            owed"). Filter by Status (Draft, Finalized, Void), Payment, and Group. Columns:
+            Invoice, Client, Due, Total, Outstanding, Status. Case and client pages show their own
+            invoices.
             The invoice page shows Issue date, Due date, Subtotal, Discount, Total, Paid,
             Outstanding, the line items, the PDF, and Payments and receipts.
+          </p>
+          <h3 id="group-billing">Billing for a client group</h3>
+          <p>
+            Choose a group head in the <strong>Group</strong> filter, or select
+            <span class="ui">Group billing</span> on the group head's client page. The list shows
+            the invoices of the head and its members, and three totals appear above it:
+            <strong>Invoiced</strong>, <strong>Paid</strong>, and <strong>Outstanding</strong>.
+            The totals count <em>finalized</em> invoices only; drafts and void invoices are left
+            out. Each member is still invoiced separately in this release.
           </p>
           <div class="callout">
             <strong>Billing never moves a case</strong>

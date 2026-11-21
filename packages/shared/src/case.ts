@@ -401,6 +401,8 @@ const caseFilterFields = {
   reviewer: UuidSchema.optional(),
   taxYear: z.coerce.number().pipe(TaxYearSchema).optional(),
   client: UuidSchema.optional(),
+  /** A group head's client ID: cases of the head and its members (TD-207). */
+  group: UuidSchema.optional(),
   /** Status kind of the case's current status (open, filed, completed, cancelled). */
   statusKind: WorkflowStatusKindSchema.optional(),
   /**

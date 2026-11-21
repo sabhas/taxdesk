@@ -1,10 +1,12 @@
 import {
   BillingPdfResultSchema,
+  GroupBillingTotalsSchema,
   InvoiceListSchema,
   InvoiceSchema,
   PaymentListSchema,
   PaymentOutcomeSchema,
   type BillingPdfResult,
+  type GroupBillingTotals,
   type Invoice,
   type InvoiceDraftCreateRequest,
   type InvoiceDraftUpdateRequest,
@@ -27,6 +29,8 @@ import { apiRequest } from './api-client.js';
 
 export interface InvoiceFilters {
   readonly clientId?: string;
+  /** A group head's client ID: invoices of the whole group (TD-207). */
+  readonly group?: string;
   readonly caseId?: string;
   readonly status?: InvoiceStatus;
   readonly paymentStatus?: PaymentStatus;
@@ -60,6 +64,18 @@ export async function listInvoices(
     sessionScoped: true,
     ...signalOption(signal),
   });
+}
+
+export async function getGroupBillingTotals(
+  group: string,
+  signal?: AbortSignal,
+): Promise<GroupBillingTotals> {
+  const query = new URLSearchParams({ group });
+  return await apiRequest(
+    `/api/v1/invoices/group-totals?${query.toString()}`,
+    GroupBillingTotalsSchema,
+    { sessionScoped: true, ...signalOption(signal) },
+  );
 }
 
 export async function getInvoice(id: string, signal?: AbortSignal): Promise<Invoice> {

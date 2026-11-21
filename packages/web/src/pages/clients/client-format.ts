@@ -27,6 +27,7 @@ export const ACTIVITY_LABELS: Readonly<Record<ClientActivityAction, string>> = {
   'client.archived': 'Archived the client',
   'client.restored': 'Restored the client',
   'client.duplicate_override': 'Overrode a duplicate warning',
+  'client.group_changed': 'Changed the parent client',
 };
 
 export const DUPLICATE_REASON_LABELS: Readonly<Record<DuplicateMatchReason, string>> = {

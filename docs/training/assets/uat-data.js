@@ -230,6 +230,21 @@ window.TAXDESK_UAT = [
           ['Activity masks sensitive values', 'admin', 'pos', 'Client whose NTN was changed', ['Open its Activity'], 'Shows that the NTN changed, never the value'],
         ],
       },
+      {
+        id: 'TD-207',
+        title: 'Client groups',
+        cases: [
+          ['Link a member to a group head', 'manager', 'pos', 'Business client A and individual client B', ['Edit B → Parent client = A → Save changes'], 'B shows "Part of A"; A shows B under Group members; Clients list Group column shows "Group head · 1 member" on A'],
+          ['Create a client inside a group', 'manager', 'pos', 'Group head A', ['New client → Parent client = A → Check and create client'], 'New client page shows "Part of A"'],
+          ['Groups are one level deep', 'manager', 'neg', 'A heads a group with member B; client C', ['Edit C → Parent client: B is not offered', 'Edit A → Parent client is switched off'], 'B cannot be a parent; A cannot be given a parent; nothing saved'],
+          ['Archive keeps the link', 'manager', 'pos', 'A heads a group with member B', ['Archive A', 'Open B', 'Edit C → look for A under Parent client'], 'B still shows "Part of A" (Archived); A is not offered as a new parent'],
+          ['Group filters', 'manager', 'pos', 'A heads a group with member B; each has a case and a finalized invoice', ['Clients → Group = A', 'Cases → Group = A', 'Invoices → Group = A'], 'Each list shows only A and B records; queue counts follow the filter'],
+          ['Group billing totals', 'billing', 'pos', 'A and B have finalized invoices, one part-paid, and a draft', ['Invoices → Group = A'], 'Invoiced, Paid, and Outstanding match the finalized invoices; the draft is not counted'],
+          ['Consultant sees only visible members', 'consultant', 'neg', 't.consultant manages A and B but not member D', ['Open A', 'Clients → Group = A'], 'Group members lists only B; D is not named or counted'],
+          ['Only managers set a parent', 'billing', 'neg', '—', ['Try to edit a client'], 'No Edit or New client; direct PATCH with parentClientId returns 403'],
+          ['Group change is audited by code', 'admin', 'pos', 'B moved from group A to group E', ['Audit → action client.group_changed'], 'Event shows B, A, and E client codes only; B activity shows "Changed the parent client"'],
+        ],
+      },
     ],
   },
   {

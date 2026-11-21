@@ -40,6 +40,10 @@
     {
       "name": "0010_data_import.sql",
       "checksum": "78d8002f5fdbcce717772a0403049b71bac8cf616dd550e9b939c16bf20e46fb"
+    },
+    {
+      "name": "0011_client_groups.sql",
+      "checksum": "fdaacbacd1265a36747326c7232c9ff6d2074b115bdd9b1fd241d2e762853bce"
     }
   ]
 }

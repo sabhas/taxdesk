@@ -62,6 +62,8 @@ function client(overrides: Partial<Client> = {}): Client {
     ],
     notes: 'Synthetic notes.',
     assignedManager: { id: MANAGER_ID, displayName: 'Manager Person' },
+    parentClient: null,
+    groupMembers: [],
     state: 'active',
     archivedAt: null,
     createdAt: NOW,
@@ -82,6 +84,8 @@ function listItem(source: Client): ClientListItem {
     ntnMasked: source.ntnMasked,
     primaryContact: source.contacts[0] ?? null,
     assignedManager: source.assignedManager,
+    parentClient: source.parentClient,
+    memberCount: source.groupMembers.length,
     state: source.state,
     updatedAt: source.updatedAt,
   };
@@ -538,5 +542,229 @@ describe('client detail, archive, and activity (TD-202, TD-206)', () => {
     render(<App />);
     expect(await screen.findByText('Access denied')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Back to clients' })).toBeInTheDocument();
+  });
+});
+
+describe('client groups (TD-207)', () => {
+  const HEAD_ID = '0198a000-0000-7000-8000-0000000000a1';
+  const MEMBER_ID = '0198a000-0000-7000-8000-0000000000a2';
+  const headRef = {
+    id: HEAD_ID,
+    clientCode: 'CL-00010',
+    displayName: 'Group Head Trading',
+    state: 'active' as const,
+  };
+  const memberRef = {
+    id: MEMBER_ID,
+    clientCode: 'CL-00011',
+    displayName: 'Family Member',
+    state: 'active' as const,
+  };
+  const head = client({
+    id: HEAD_ID,
+    clientCode: headRef.clientCode,
+    legalName: headRef.displayName,
+    displayName: headRef.displayName,
+    groupMembers: [memberRef],
+  });
+  const member = client({
+    id: MEMBER_ID,
+    clientCode: memberRef.clientCode,
+    legalName: memberRef.displayName,
+    displayName: memberRef.displayName,
+    parentClient: headRef,
+  });
+
+  it('shows the Group column and sends the Group filter to the server', async () => {
+    const recorded = mockApi('manager', [
+      (r) =>
+        r.url.startsWith('/api/v1/clients?')
+          ? json({
+              clients: r.url.includes('grouping=heads')
+                ? [listItem(head)]
+                : [listItem(head), listItem(member), listItem(client())],
+              nextCursor: null,
+            })
+          : undefined,
+    ]);
+    at('/clients');
+    const rendered = render(<App />);
+    expect(await screen.findByRole('link', { name: 'Group head · 1 member' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Group' })).toBeInTheDocument();
+    const partOf = screen.getByRole('link', { name: 'Part of Group Head Trading' });
+    expect(partOf).toHaveAttribute('href', `/clients/${HEAD_ID}`);
+    const results = await axe(rendered.container);
+    expect(
+      results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical'),
+    ).toEqual([]);
+
+    const groupFilter = screen.getByLabelText('Group');
+    await within(groupFilter).findByRole('option', { name: 'Group Head Trading (CL-00010)' });
+    fireEvent.change(groupFilter, { target: { value: HEAD_ID } });
+    await waitFor(() => {
+      const last = recorded
+        .filter((r) => r.url.startsWith('/api/v1/clients?') && !r.url.includes('grouping='))
+        .at(-1);
+      expect(last?.url).toContain(`group=${HEAD_ID}`);
+    });
+  });
+
+  it('shows "Part of" on a member and the group members on a head', async () => {
+    mockApi('read_only', [
+      (r) => {
+        if (r.url.includes('/activity')) return json({ events: [], nextCursor: null });
+        if (r.url === `/api/v1/clients/${MEMBER_ID}`) return json(member);
+        if (r.url === `/api/v1/clients/${HEAD_ID}`) return json(head);
+        return undefined;
+      },
+    ]);
+    at(`/clients/${MEMBER_ID}`);
+    const rendered = render(<App />);
+    expect(await screen.findByText('Part of')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Group Head Trading' })).toHaveAttribute(
+      'href',
+      `/clients/${HEAD_ID}`,
+    );
+    expect(screen.queryByRole('heading', { name: 'Group members' })).not.toBeInTheDocument();
+    const results = await axe(rendered.container);
+    expect(
+      results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical'),
+    ).toEqual([]);
+    cleanup();
+
+    at(`/clients/${HEAD_ID}`);
+    const headPage = render(<App />);
+    expect(await screen.findByRole('heading', { name: 'Group members' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Family Member' })).toHaveAttribute(
+      'href',
+      `/clients/${MEMBER_ID}`,
+    );
+    expect(screen.getByRole('link', { name: 'Group cases' })).toHaveAttribute(
+      'href',
+      `/cases?group=${HEAD_ID}`,
+    );
+    expect(screen.getByRole('link', { name: 'Group billing' })).toHaveAttribute(
+      'href',
+      `/invoices?group=${HEAD_ID}`,
+    );
+    const headResults = await axe(headPage.container);
+    expect(
+      headResults.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical'),
+    ).toEqual([]);
+  });
+
+  it('sends the parent client on create', async () => {
+    const recorded = mockApi('manager', [
+      (r) =>
+        r.url.startsWith('/api/v1/clients?')
+          ? json({ clients: [listItem(head)], nextCursor: null })
+          : undefined,
+      (r) =>
+        r.url === '/api/v1/clients/duplicate-check'
+          ? json({ blocking: [], warnings: [] })
+          : undefined,
+      (r) => (r.url === '/api/v1/clients' && r.method === 'POST' ? json(member, 201) : undefined),
+      (r) =>
+        r.url.startsWith(`/api/v1/clients/${MEMBER_ID}`)
+          ? r.url.includes('/activity')
+            ? json({ events: [], nextCursor: null })
+            : json(member)
+          : undefined,
+    ]);
+    at('/clients/new');
+    render(<App />);
+    const parent = await screen.findByLabelText('Parent client');
+    await within(parent).findByRole('option', { name: 'Group Head Trading (CL-00010)' });
+    fireEvent.change(screen.getByLabelText('Legal name (required)'), {
+      target: { value: 'Family Member' },
+    });
+    fireEvent.change(screen.getByLabelText('CNIC (required)'), {
+      target: { value: '42101-7654321-9' },
+    });
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Self' } });
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'one@example.test' } });
+    fireEvent.change(parent, { target: { value: HEAD_ID } });
+    fireEvent.click(screen.getByRole('button', { name: 'Check and create client' }));
+    expect(await screen.findByText('Client created.')).toBeInTheDocument();
+    const created = recorded.find((r) => r.url === '/api/v1/clients' && r.method === 'POST');
+    expect(created?.body).toMatchObject({ parentClientId: HEAD_ID });
+  });
+
+  it('sends the parent only when it changes and shows a group rule error on the field', async () => {
+    const recorded = mockApi('manager', [
+      (r) =>
+        r.url.startsWith('/api/v1/clients?')
+          ? json({ clients: [listItem(head), listItem(client())], nextCursor: null })
+          : undefined,
+      (r) => {
+        if (r.url === `/api/v1/clients/${MEMBER_ID}` && r.method === 'GET') return json(member);
+        if (r.url === `/api/v1/clients/${MEMBER_ID}` && r.method === 'PATCH') {
+          const body = r.body as Record<string, unknown>;
+          if (body['parentClientId'] === CLIENT_ID) {
+            return new Response(
+              JSON.stringify({
+                type: 'https://taxdesk.app/problems/client_group_invalid',
+                title: 'Error',
+                status: 409,
+                code: 'CLIENT_GROUP_INVALID',
+                detail: 'This client is already part of a group, so it cannot be a parent client.',
+                requestId: 'req-group',
+                errors: [
+                  {
+                    field: 'parentClientId',
+                    message:
+                      'This client is already part of a group, so it cannot be a parent client.',
+                  },
+                ],
+              }),
+              { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
+            );
+          }
+          return json({ ...member, version: 2 });
+        }
+        if (r.url.includes('/activity')) return json({ events: [], nextCursor: null });
+        return undefined;
+      },
+    ]);
+    at(`/clients/${MEMBER_ID}/edit`);
+    const rendered = render(<App />);
+    const parent = await screen.findByLabelText('Parent client');
+    expect(parent).toHaveValue(HEAD_ID);
+
+    fireEvent.change(parent, { target: { value: CLIENT_ID } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => {
+      expect(screen.getByLabelText('Parent client')).toHaveAttribute('aria-invalid', 'true');
+    });
+    const results = await axe(rendered.container);
+    expect(
+      results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical'),
+    ).toEqual([]);
+
+    fireEvent.change(parent, { target: { value: HEAD_ID } });
+    fireEvent.change(screen.getByLabelText('Notes'), { target: { value: 'Edited notes.' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    expect(await screen.findByText('Client saved.')).toBeInTheDocument();
+    const patches = recorded.filter((r) => r.method === 'PATCH');
+    expect(patches[0]?.body).toMatchObject({ parentClientId: CLIENT_ID });
+    expect(patches[1]?.body).not.toHaveProperty('parentClientId');
+  });
+
+  it('does not offer a parent to a client that heads a group', async () => {
+    mockApi('manager', [
+      (r) =>
+        r.url.startsWith('/api/v1/clients?')
+          ? json({ clients: [listItem(head), listItem(client())], nextCursor: null })
+          : undefined,
+      (r) => (r.url === `/api/v1/clients/${HEAD_ID}` ? json(head) : undefined),
+    ]);
+    at(`/clients/${HEAD_ID}/edit`);
+    render(<App />);
+    const parent = await screen.findByLabelText('Parent client');
+    expect(parent).toBeDisabled();
+    expect(screen.getByText(/heads a group of 1 client/u)).toBeInTheDocument();
+    expect(
+      within(parent).queryByRole('option', { name: 'Group Head Trading (CL-00010)' }),
+    ).not.toBeInTheDocument();
   });
 });

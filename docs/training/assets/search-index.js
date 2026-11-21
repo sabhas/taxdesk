@@ -462,6 +462,10 @@ window.TAXDESK_GUIDE_INDEX = [
     "Finding invoices"
    ],
    [
+    "group-billing",
+    "Billing for a client group"
+   ],
+   [
     "rules",
     "Money rules to remember"
    ]
@@ -532,6 +536,10 @@ window.TAXDESK_GUIDE_INDEX = [
    [
     "edit",
     "Edit a client and handle conflicts"
+   ],
+   [
+    "groups",
+    "Client groups"
    ],
    [
     "detail",

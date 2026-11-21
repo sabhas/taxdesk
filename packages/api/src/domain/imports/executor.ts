@@ -89,6 +89,7 @@ async function createClient(
       execution.cnic === null && execution.ntn === null ? null : context.identifierKeyVersion,
     notes: input.notes,
     assignedManagerUserId: execution.managerUserId,
+    parentClientId: null,
     createdBy: context.actorUserId,
     deletedAt: null,
     createdAt: at,
@@ -153,6 +154,8 @@ async function updateClient(
       identifierKeyVersion: client.identifierKeyVersion,
       notes: input.notes,
       assignedManagerUserId: execution.managerUserId,
+      // CSV import does not carry a parent client yet (TD-207); keep the link.
+      parentClientId: client.parentClientId,
     },
     expectedVersion: client.version,
     at: now.toISOString(),

@@ -4,6 +4,7 @@ import { LoaderCircle } from 'lucide-react';
 import {
   INVOICE_STATUSES,
   PAYMENT_STATUSES,
+  type GroupBillingTotals,
   type InvoiceStatus,
   type InvoiceSummary,
   type PaymentStatus,
@@ -22,7 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { listInvoices, type InvoiceFilters } from '../../billing-api.js';
+import { getGroupBillingTotals, listInvoices, type InvoiceFilters } from '../../billing-api.js';
 import {
   EmptyState,
   ErrorAlert,
@@ -33,6 +34,7 @@ import {
 import { PageHeader } from '../../components/layout/PageHeader.js';
 import { invoicePath } from '../../routes.js';
 import { toErrorNotice } from '../error-notice.js';
+import { GroupFilterField } from '../clients/GroupFilterField.js';
 import {
   INVOICE_STATUS_BADGE,
   INVOICE_STATUS_LABELS,
@@ -48,8 +50,10 @@ function readFilters(parameters: URLSearchParams): InvoiceFilters {
   const status = parameters.get('status');
   const paymentStatus = parameters.get('paymentStatus');
   const balance = parameters.get('balance');
+  const group = parameters.get('group');
   return {
     ...(balance === 'outstanding' || balance === 'overdue' ? { balance } : {}),
+    ...(group === null || group.length === 0 ? {} : { group }),
     ...(status !== null && (INVOICE_STATUSES as readonly string[]).includes(status)
       ? { status: status as InvoiceStatus }
       : {}),
@@ -57,6 +61,58 @@ function readFilters(parameters: URLSearchParams): InvoiceFilters {
       ? { paymentStatus: paymentStatus as PaymentStatus }
       : {}),
   };
+}
+
+/**
+ * Invoiced, paid, and outstanding totals for the selected group (TD-207):
+ * finalized invoices of the group head and its visible members, calculated by
+ * the server. Drafts and void invoices are not counted.
+ */
+function GroupTotals({ group }: { group: string }) {
+  const [totals, setTotals] = useState<GroupBillingTotals | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setTotals(null);
+    setFailed(false);
+    void getGroupBillingTotals(group, controller.signal)
+      .then(setTotals)
+      .catch(() => {
+        if (!controller.signal.aborted) setFailed(true);
+      });
+    return () => {
+      controller.abort();
+    };
+  }, [group]);
+
+  if (failed) {
+    return <InfoNotice tone="warning">Could not load the group&apos;s billing totals.</InfoNotice>;
+  }
+  if (totals === null) {
+    return <LoadingMessage>Loading group totals…</LoadingMessage>;
+  }
+  const figures = [
+    { label: 'Invoiced', value: totals.invoicedMinor },
+    { label: 'Paid', value: totals.paidMinor },
+    { label: 'Outstanding', value: totals.outstandingMinor },
+  ];
+  return (
+    <section aria-label="Group billing totals" className="mb-4">
+      <dl className="grid gap-3 sm:grid-cols-3">
+        {figures.map((figure) => (
+          <Card key={figure.label} className="gap-1 px-4 py-3">
+            <dt className="text-sm text-muted-foreground">{figure.label}</dt>
+            <dd className="text-lg font-semibold tabular-nums">{money(figure.value)}</dd>
+          </Card>
+        ))}
+      </dl>
+      <p className="mt-2 text-sm text-muted-foreground">
+        {totals.invoiceCount} finalized {totals.invoiceCount === 1 ? 'invoice' : 'invoices'} for the
+        group head and its members. Drafts and void invoices are not counted.
+      </p>
+    </section>
+  );
 }
 
 /** All invoices, newest first, with URL-held filters and load-more paging. */
@@ -182,7 +238,18 @@ export function InvoicesPage() {
             ))}
           </NativeSelect>
         </Field>
+        <div className="w-64">
+          <GroupFilterField
+            id={`${headingId}-group`}
+            value={filters.group ?? ''}
+            onChange={(value) => {
+              setParameter('group', value);
+            }}
+          />
+        </div>
       </div>
+
+      {filters.group !== undefined && <GroupTotals group={filters.group} />}
 
       {notice !== null && <ErrorAlert notice={notice} />}
       {invoices === null ? (

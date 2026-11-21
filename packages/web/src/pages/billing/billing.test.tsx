@@ -597,3 +597,64 @@ describe('invoice states', () => {
     expect((await axe(view.container)).violations).toEqual([]);
   });
 });
+
+describe('group billing (TD-207)', () => {
+  it('filters invoices by group and shows the group totals from the server', async () => {
+    const backend = billingBackend();
+    backend.seedFinalized();
+    const groupBackend = {
+      ...backend,
+      handle: (request: Recorded): Response | undefined => {
+        if (request.url.startsWith('/api/v1/invoices/group-totals?')) {
+          return json({
+            groupClientId: CLIENT_ID,
+            currency: 'PKR',
+            invoiceCount: 2,
+            invoicedMinor: 1_500_000,
+            paidMinor: 200_000,
+            outstandingMinor: 1_300_000,
+          });
+        }
+        if (request.url.startsWith('/api/v1/clients?')) {
+          return json({
+            clients: [
+              {
+                id: CLIENT_ID,
+                clientCode: 'CL-00001',
+                type: 'individual',
+                legalName: 'Synthetic Group Head',
+                displayName: 'Synthetic Group Head',
+                cnicMasked: null,
+                ntnMasked: null,
+                primaryContact: null,
+                assignedManager: null,
+                parentClient: null,
+                memberCount: 1,
+                state: 'active',
+                updatedAt: NOW,
+              },
+            ],
+            nextCursor: null,
+          });
+        }
+        return backend.handle(request);
+      },
+    };
+    const recorded = mockApi('billing', groupBackend);
+    const { container } = visit(`/invoices?group=${CLIENT_ID}`);
+    const totals = await screen.findByRole('region', { name: 'Group billing totals' });
+    expect(totals).toHaveTextContent('InvoicedPKR 15,000.00');
+    expect(totals).toHaveTextContent('PaidPKR 2,000.00');
+    expect(totals).toHaveTextContent('OutstandingPKR 13,000.00');
+    expect(totals).toHaveTextContent('2 finalized invoices');
+    expect(screen.getByLabelText('Group')).toHaveValue(CLIENT_ID);
+    expect(
+      recorded.some(
+        (request) =>
+          request.url.startsWith('/api/v1/invoices?') && request.url.includes(`group=${CLIENT_ID}`),
+      ),
+    ).toBe(true);
+    await screen.findByText('INV-00001');
+    expect((await axe(container)).violations).toEqual([]);
+  });
+});

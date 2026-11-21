@@ -424,6 +424,146 @@ describeWithDatabase('identity repositories against PostgreSQL', () => {
         executor.query("UPDATE audit_events SET action = 'x.y' WHERE entity_type = 'client'"),
       ).rejects.toThrow();
     });
+
+    describe('client groups (TD-207)', () => {
+      let groupSequence = 0;
+
+      async function groupClient(parentClientId: string | null = null) {
+        const actor = await ownerActor();
+        groupSequence += 1;
+        tick();
+        return await dependencies.clientService.createClient({
+          actor,
+          requestId: `db-group-${String(groupSequence)}`,
+          request: {
+            type: 'individual',
+            legalName: `Group Person ${String(groupSequence)}`,
+            cnic: `61101-${String(5_000_000 + groupSequence)}-3`,
+            contacts: [],
+            assignedManagerUserId: null,
+            parentClientId,
+          },
+        });
+      }
+
+      async function setParent(clientId: string, parentClientId: string | null) {
+        const actor = await ownerActor();
+        const current = await dependencies.clientService.getClient(actor, clientId);
+        return await dependencies.clientService.updateClient({
+          actor,
+          clientId,
+          expectedVersion: current.version,
+          requestId: `db-group-edit-${clientId}`,
+          request: {
+            type: 'individual',
+            legalName: current.legalName,
+            contacts: [],
+            notes: current.notes,
+            assignedManagerUserId: null,
+            parentClientId,
+          },
+        });
+      }
+
+      it('links members, filters by group in SQL, and records codes only', async () => {
+        const actor = await ownerActor();
+        const head = await groupClient();
+        const member = await groupClient(head.id);
+        await groupClient();
+        expect(member.parentClient?.id).toBe(head.id);
+
+        const group = await dependencies.clientService.listClients(actor, {
+          state: 'all',
+          limit: 25,
+          group: head.id,
+        });
+        expect(group.clients.map((client) => client.id).sort()).toEqual(
+          [head.id, member.id].sort(),
+        );
+        expect(group.clients.find((client) => client.id === head.id)?.memberCount).toBe(1);
+
+        const heads = await dependencies.clientService.listClients(actor, {
+          state: 'all',
+          limit: 100,
+          grouping: 'heads',
+        });
+        expect(heads.clients.map((client) => client.id)).toContain(head.id);
+        expect(heads.clients.map((client) => client.id)).not.toContain(member.id);
+
+        const audit = await executor.query(
+          "SELECT metadata FROM audit_events WHERE action = 'client.group_changed' AND entity_id = $1",
+          [member.id],
+        );
+        expect(audit.map((row) => row['metadata'])).toEqual([
+          { clientCode: member.clientCode, previousParentCode: null, parentCode: head.clientCode },
+        ]);
+      });
+
+      it('rejects self links and two-level chains in the database itself', async () => {
+        const head = await groupClient();
+        const member = await groupClient(head.id);
+        const other = await groupClient();
+
+        await expect(
+          executor.query('UPDATE clients SET parent_client_id = id WHERE id = $1', [other.id]),
+        ).rejects.toMatchObject({ code: '23514' });
+        // A member cannot become a parent.
+        await expect(
+          executor.query('UPDATE clients SET parent_client_id = $2 WHERE id = $1', [
+            other.id,
+            member.id,
+          ]),
+        ).rejects.toMatchObject({ code: '23514' });
+        // A head cannot be given a parent.
+        await expect(
+          executor.query('UPDATE clients SET parent_client_id = $2 WHERE id = $1', [
+            head.id,
+            other.id,
+          ]),
+        ).rejects.toMatchObject({ code: '23514' });
+        // Unrelated edits of a member keep passing the trigger.
+        await executor.query("UPDATE clients SET notes = 'unrelated' WHERE id = $1", [member.id]);
+
+        await expect(setParent(head.id, other.id)).rejects.toMatchObject({
+          status: 409,
+          code: 'CLIENT_GROUP_INVALID',
+        });
+      });
+
+      it('lets only one of two concurrent changes that would chain groups win', async () => {
+        for (let round = 0; round < 5; round += 1) {
+          const a = await groupClient();
+          const b = await groupClient();
+          const c = await groupClient();
+          tick();
+          // b under a, and c under b, are each valid alone; together they chain.
+          const results = await Promise.allSettled([setParent(b.id, a.id), setParent(c.id, b.id)]);
+          expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+          const rejected = results.find((result) => result.status === 'rejected');
+          expect(rejected?.status === 'rejected' ? rejected.reason : null).toMatchObject({
+            status: 409,
+            code: 'CLIENT_GROUP_INVALID',
+          });
+          const rows = await executor.query(
+            `SELECT count(*)::int AS n FROM clients m JOIN clients p ON p.id = m.parent_client_id
+             WHERE p.parent_client_id IS NOT NULL`,
+          );
+          expect(rows[0]?.['n']).toBe(0);
+        }
+      });
+
+      it('totals finalized group invoices in SQL', async () => {
+        const totals = await dependencies.repositories.invoices.finalizedTotals([
+          '0198a000-0000-7000-8000-00000000fff1',
+        ]);
+        expect(totals).toEqual({
+          invoiceCount: 0,
+          invoicedMinor: 0,
+          paidMinor: 0,
+          outstandingMinor: 0,
+        });
+      });
+    });
   });
 
   describe('tax-case workflow repositories', () => {

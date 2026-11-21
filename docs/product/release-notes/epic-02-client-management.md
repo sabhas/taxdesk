@@ -69,3 +69,38 @@ view a full identifier in this release.
 2. Apply migration `0005` before deploying the API (`pnpm db:migrate`, run by
    the staging delivery workflow).
 3. Use synthetic client data only until TD-709 and TD-710 pass.
+
+## TD-207 client groups (added after staging feedback)
+
+Staff can link a client to the client who brought them in, its **parent
+client**, and review the whole group together.
+
+- The client form has a **Parent client** field (managers and administrators).
+  It is saved with the client's versioned edit and offers active clients that
+  are not themselves part of a group.
+- Groups are one level deep. A client cannot be its own parent, a member
+  cannot be a parent, and a group head cannot be given a parent. Conflicting
+  edits return `409 CLIENT_GROUP_INVALID`.
+- Archiving a head or a member keeps the link; an archived client cannot be
+  chosen as a new parent.
+- The client list has a **Group** filter and column. A member's page shows
+  **Part of**; a head's page lists its **Group members** with links to the
+  group's clients, cases, and billing.
+- Cases, work-queue counts, and invoices filter by group. The invoice list
+  shows the group's invoiced, paid, and outstanding totals
+  (`GET /api/v1/invoices/group-totals`), counting finalized invoices only.
+- Grouping never widens access: hidden members are neither listed nor counted.
+- Changing a parent writes `client.group_changed` with client codes only.
+
+### Data changes
+
+- Migration `0011_client_groups.sql` (forward-only): `clients.parent_client_id`
+  with a self-reference, the `clients_not_own_parent` check, the
+  `clients_flat_group` trigger, and a partial index. Existing clients have no
+  parent; no backfill.
+
+### Operational actions
+
+1. Apply migration `0011` before deploying the API (`pnpm db:migrate`, run by
+   the staging delivery workflow). No new secrets.
+2. Demonstrate the TD-207 UAT scenarios on staging with synthetic clients.

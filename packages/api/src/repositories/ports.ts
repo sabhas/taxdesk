@@ -261,6 +261,15 @@ export interface ClientRepository {
   findById(id: string): Promise<ClientRecord | null>;
   /** Exact client code (`CL-00001`), archived clients included. */
   findByCode(clientCode: string): Promise<ClientRecord | null>;
+  findByIds(ids: readonly string[]): Promise<ClientRecord[]>;
+  /** Every member (archived included) of the given group heads. */
+  listMembers(parentIds: readonly string[]): Promise<ClientRecord[]>;
+  /**
+   * Locks the given client rows (`FOR UPDATE`, in ID order so two group
+   * changes never deadlock) and returns their current values. Use inside a
+   * unit of work before checking the one-level group rule.
+   */
+  lockForGrouping(ids: readonly string[]): Promise<ClientRecord[]>;
   listContacts(clientIds: readonly string[]): Promise<ClientContactRecord[]>;
   /** Optimistic update; `null` when `expectedVersion` is stale or the client is missing. */
   update(input: {
@@ -279,6 +288,18 @@ export interface ClientRepository {
   }): Promise<ClientRecord | null>;
   list(filter: ClientListFilter): Promise<ClientListPage>;
   findDuplicateCandidates(query: DuplicateCandidateQuery): Promise<DuplicateCandidate[]>;
+}
+
+/**
+ * Raised by a client repository when the database rejects a group link: a
+ * client as its own parent, a parent that has a parent, or a parent given to
+ * a client that has members (TD-207 backstop).
+ */
+export class ClientGroupRuleError extends Error {
+  constructor() {
+    super('The client group link breaks the one-level group rule.');
+    this.name = 'ClientGroupRuleError';
+  }
 }
 
 /** Raised when a write would duplicate a unique name (service type or template). */
@@ -546,6 +567,18 @@ export interface InvoiceRepository {
   }): Promise<void>;
   /** Newest first (`createdAt` desc, `id` desc). */
   list(filter: InvoiceListFilter): Promise<InvoiceListPage>;
+  /**
+   * Totals of the finalized invoices of the given clients (group billing,
+   * TD-207). Drafts and void invoices are not counted.
+   */
+  finalizedTotals(clientIds: readonly string[]): Promise<FinalizedInvoiceTotals>;
+}
+
+export interface FinalizedInvoiceTotals {
+  readonly invoiceCount: number;
+  readonly invoicedMinor: number;
+  readonly paidMinor: number;
+  readonly outstandingMinor: number;
 }
 
 /** Money totals for the billing report and dashboard (TD-601, TD-603). */

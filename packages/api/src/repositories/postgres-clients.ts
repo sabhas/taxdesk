@@ -6,7 +6,11 @@ import type {
   ClientRecord,
   DuplicateCandidate,
 } from '../domain/clients/types.js';
-import { DuplicateClientIdentifierError, type ClientRepository } from './ports.js';
+import {
+  ClientGroupRuleError,
+  DuplicateClientIdentifierError,
+  type ClientRepository,
+} from './ports.js';
 
 function text(row: SqlRow, key: string): string {
   const value = row[key];
@@ -84,6 +88,7 @@ function mapClient(row: SqlRow): ClientRecord {
     identifierKeyVersion: nullableInteger(row, 'identifier_key_version'),
     notes: text(row, 'notes'),
     assignedManagerUserId: nullableText(row, 'assigned_manager_user_id'),
+    parentClientId: nullableText(row, 'parent_client_id'),
     createdBy: nullableText(row, 'created_by'),
     deletedAt: nullableIso(row['deleted_at']),
     createdAt: iso(row['created_at']),
@@ -119,18 +124,34 @@ const IDENTIFIER_CONSTRAINTS = new Set([
   'clients_ntn_blind_index_key',
 ]);
 
-/** Maps a unique violation on a blind index to the domain's duplicate error. */
+/** The self-parent check and the flat-group trigger (migration 0011). */
+const GROUP_CONSTRAINTS = new Set(['clients_not_own_parent', 'clients_flat_group']);
+
+function constraintOf(error: unknown): { code: unknown; constraint: string } | null {
+  if (typeof error !== 'object' || error === null) {
+    return null;
+  }
+  const record = error as { code?: unknown; constraint_name?: unknown; constraint?: unknown };
+  return {
+    code: record.code,
+    constraint: String(record.constraint_name ?? record.constraint),
+  };
+}
+
+/**
+ * Maps a unique violation on a blind index to the domain's duplicate error,
+ * and a group-rule violation to the domain's group error.
+ */
 async function guardIdentifiers<T>(work: () => Promise<T>): Promise<T> {
   try {
     return await work();
   } catch (error) {
-    if (
-      typeof error === 'object' &&
-      error !== null &&
-      (error as { code?: unknown }).code === '23505' &&
-      IDENTIFIER_CONSTRAINTS.has(String((error as { constraint_name?: unknown }).constraint_name))
-    ) {
+    const violation = constraintOf(error);
+    if (violation?.code === '23505' && IDENTIFIER_CONSTRAINTS.has(violation.constraint)) {
       throw new DuplicateClientIdentifierError();
+    }
+    if (violation?.code === '23514' && GROUP_CONSTRAINTS.has(violation.constraint)) {
+      throw new ClientGroupRuleError();
     }
     throw error;
   }
@@ -188,10 +209,11 @@ export function createPostgresClientRepository(executor: SqlExecutor): ClientRep
              id, client_code, client_type, legal_name, display_name, normalized_name,
              normalized_display_name, cnic_ciphertext, cnic_blind_index, cnic_masked,
              ntn_ciphertext, ntn_blind_index, ntn_masked, identifier_key_version, notes,
-             assigned_manager_user_id, created_by, deleted_at, created_at, updated_at, version
+             assigned_manager_user_id, created_by, deleted_at, created_at, updated_at, version,
+             parent_client_id
            )
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
-                   $18, $19, $20, $21)`,
+                   $18, $19, $20, $21, $22)`,
           [
             client.id,
             client.clientCode,
@@ -214,6 +236,7 @@ export function createPostgresClientRepository(executor: SqlExecutor): ClientRep
             client.createdAt,
             client.updatedAt,
             client.version,
+            client.parentClientId,
           ],
         );
       });
@@ -228,6 +251,35 @@ export function createPostgresClientRepository(executor: SqlExecutor): ClientRep
         clientCode,
       ]);
       return rows[0] === undefined ? null : mapClient(rows[0]);
+    },
+    findByIds: async (ids) => {
+      if (ids.length === 0) {
+        return [];
+      }
+      const rows = await executor.query('SELECT * FROM clients WHERE id = ANY ($1::uuid[])', [ids]);
+      return rows.map(mapClient);
+    },
+    listMembers: async (parentIds) => {
+      if (parentIds.length === 0) {
+        return [];
+      }
+      const rows = await executor.query(
+        `SELECT * FROM clients
+         WHERE parent_client_id = ANY ($1::uuid[])
+         ORDER BY lower(display_name) COLLATE "C", id`,
+        [parentIds],
+      );
+      return rows.map(mapClient);
+    },
+    lockForGrouping: async (ids) => {
+      const rows = await executor.query(
+        `SELECT * FROM clients
+         WHERE id = ANY ($1::uuid[])
+         ORDER BY id
+         FOR UPDATE`,
+        [[...new Set(ids)]],
+      );
+      return rows.map(mapClient);
     },
     listContacts: async (clientIds) => {
       if (clientIds.length === 0) {
@@ -260,6 +312,7 @@ export function createPostgresClientRepository(executor: SqlExecutor): ClientRep
                notes = $14,
                assigned_manager_user_id = $15,
                updated_at = $16,
+               parent_client_id = $17,
                version = version + 1
            WHERE id = $1 AND version = $2
            RETURNING *`,
@@ -280,6 +333,7 @@ export function createPostgresClientRepository(executor: SqlExecutor): ClientRep
             changes.notes,
             changes.assignedManagerUserId,
             input.at,
+            changes.parentClientId,
           ],
         );
         return rows[0] === undefined ? null : mapClient(rows[0]);
@@ -322,6 +376,22 @@ export function createPostgresClientRepository(executor: SqlExecutor): ClientRep
       if (filter.restrictToManagerUserId !== null) {
         conditions.push(
           `c.assigned_manager_user_id = ${parameter(filter.restrictToManagerUserId)}::uuid`,
+        );
+      }
+      if (filter.groupClientId !== null) {
+        const group = parameter(filter.groupClientId);
+        conditions.push(`(c.id = ${group}::uuid OR c.parent_client_id = ${group}::uuid)`);
+      }
+      if (filter.grouping === 'eligible_parents') {
+        conditions.push('c.parent_client_id IS NULL');
+      } else if (filter.grouping === 'heads') {
+        // A head with only hidden members is not a group to this user.
+        const memberVisible =
+          filter.restrictToManagerUserId === null
+            ? ''
+            : ` AND m.assigned_manager_user_id = ${parameter(filter.restrictToManagerUserId)}::uuid`;
+        conditions.push(
+          `EXISTS (SELECT 1 FROM clients m WHERE m.parent_client_id = c.id${memberVisible})`,
         );
       }
       if (filter.after !== null) {

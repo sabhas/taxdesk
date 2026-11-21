@@ -30,7 +30,7 @@ import { PageHeader } from '../../components/layout/PageHeader.js';
 import { InvoicesCard } from '../billing/InvoicesCard.js';
 import { ClientCasesCard } from '../cases/ClientCasesCard.js';
 import { DocumentsPanel } from '../documents/DocumentsPanel.js';
-import { ROUTE_PATHS, editClientPath } from '../../routes.js';
+import { CASE_READ_PERMISSIONS, ROUTE_PATHS, clientPath, editClientPath } from '../../routes.js';
 import { useSession } from '../../session/session-context.js';
 import { toErrorNotice } from '../error-notice.js';
 import {
@@ -282,6 +282,24 @@ export function ClientDetailPage() {
                 <Detail term="Assigned manager">
                   {client.assignedManager?.displayName ?? 'Unassigned'}
                 </Detail>
+                {client.parentClient !== null && (
+                  <Detail term="Part of">
+                    <Link
+                      to={clientPath(client.parentClient.id)}
+                      className="text-primary underline-offset-4 hover:underline"
+                    >
+                      {client.parentClient.displayName}
+                    </Link>{' '}
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {client.parentClient.clientCode}
+                    </span>
+                    {client.parentClient.state === 'archived' && (
+                      <Badge variant="secondary" className="ml-2">
+                        Archived
+                      </Badge>
+                    )}
+                  </Detail>
+                )}
                 <Detail term="Created">{formatDateTime(client.createdAt)}</Detail>
                 <Detail term="Last updated">{formatDateTime(client.updatedAt)}</Detail>
               </dl>
@@ -340,6 +358,64 @@ export function ClientDetailPage() {
               )}
             </CardContent>
           </Card>
+
+          {client.groupMembers.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>
+                  <h2 className="text-base font-semibold">Group members</h2>
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Clients linked to {client.displayName} as their parent client.
+                </p>
+              </CardHeader>
+              <CardContent>
+                <ul className="divide-y">
+                  {client.groupMembers.map((member) => (
+                    <li
+                      key={member.id}
+                      className="flex flex-wrap items-center gap-2 py-2 first:pt-0 last:pb-0"
+                    >
+                      <Link
+                        to={clientPath(member.id)}
+                        className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+                      >
+                        {member.displayName}
+                      </Link>
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {member.clientCode}
+                      </span>
+                      {member.state === 'archived' && <Badge variant="secondary">Archived</Badge>}
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                  <Link
+                    to={`${ROUTE_PATHS.clients}?group=${encodeURIComponent(client.id)}&state=all`}
+                    className="text-primary underline-offset-4 hover:underline"
+                  >
+                    Group clients
+                  </Link>
+                  {CASE_READ_PERMISSIONS.some((permission) => can(permission)) && (
+                    <Link
+                      to={`${ROUTE_PATHS.cases}?group=${encodeURIComponent(client.id)}`}
+                      className="text-primary underline-offset-4 hover:underline"
+                    >
+                      Group cases
+                    </Link>
+                  )}
+                  {can('billing.read') && (
+                    <Link
+                      to={`${ROUTE_PATHS.invoices}?group=${encodeURIComponent(client.id)}`}
+                      className="text-primary underline-offset-4 hover:underline"
+                    >
+                      Group billing
+                    </Link>
+                  )}
+                </p>
+              </CardContent>
+            </Card>
+          )}
 
           <ClientCasesCard clientId={client.id} archived={archived} />
           <InvoicesCard scope={{ kind: 'client', id: client.id }} archived={archived} />

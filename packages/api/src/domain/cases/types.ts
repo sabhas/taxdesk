@@ -123,6 +123,11 @@ export interface CaseQueryFilter {
   readonly reviewerUserId: string | null;
   readonly taxYear: number | null;
   readonly clientId: string | null;
+  /**
+   * Group filter (TD-207): the visible clients of a group, resolved by the
+   * service. `null` or absent means no group filter.
+   */
+  readonly groupClientIds?: readonly string[] | null;
   /** Report filters; the queue never sets them. */
   readonly statusKind?: WorkflowStatusKind | null;
   readonly dueFrom?: string | null;
@@ -237,7 +242,8 @@ export function matchesCaseFilter(
       record.primaryConsultantUserId === filter.primaryConsultantUserId) &&
     (filter.reviewerUserId === null || record.reviewerUserId === filter.reviewerUserId) &&
     (filter.taxYear === null || record.taxYear === filter.taxYear) &&
-    (filter.clientId === null || record.clientId === filter.clientId)
+    (filter.clientId === null || record.clientId === filter.clientId) &&
+    (filter.groupClientIds == null || filter.groupClientIds.includes(record.clientId))
   );
 }
 
