@@ -35,6 +35,8 @@ TD-007 (web UI foundation and design system, 5 points) was added to Epic 0 after
 
 TD-806 (in-app staff help, 3 points) was added to Epic 8 on 2026-11-18. It ships the TD-805 staff guides at `/help/` inside the web app and is unscheduled; see the Epic 8 PRD.
 
+TD-207 (client groups, 5 points, Epic 2) and TD-511 (combined group invoices, 5 points, Epic 5) were added on 2026-11-21 after staging feedback. Both are unscheduled; TD-511 depends on TD-207. See the Epic 2 and Epic 5 PRDs and ADR 0010.
+
 ## Engineering build order
 
 Within every story, build in this order unless the PRD says otherwise:

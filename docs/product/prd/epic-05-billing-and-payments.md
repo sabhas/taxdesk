@@ -106,6 +106,30 @@ Deliver draft and finalized invoices, case-linked billing, provider-stored invoi
 - [ ] Add a browser journey from case to invoice to partial payment to full settlement.
 - [ ] Verify financial routes require explicit, tested permissions.
 
+## Added after staging feedback
+
+### TD-511 — Combined group invoices — 5 points
+
+**Added 2026-11-21; unscheduled; depends on TD-207.** A firm can bill a client
+group with one invoice addressed to the parent client, as well as billing each
+member individually. Decisions are recorded in
+[ADR 0010](../../adr/0010-client-groups-and-combined-invoices.md).
+
+**User story:** As billing staff, I want to issue one invoice to a parent client
+covering work for its group members so that the group can be billed and paid
+together.
+
+- [ ] A draft can be created as a combined group invoice from a parent client. The invoice is addressed to the parent and has no invoice-level case.
+- [ ] Each line records the client it is for (the parent or a current member) and optionally one of that client's cases, using the service default fee when a case is chosen. Individual invoices are unchanged.
+- [ ] Finalization rechecks that every line's client is the parent or a current member, and snapshots each line's client code and display name. A later group change never alters a finalized invoice.
+- [ ] Payments and reversals apply to the whole combined invoice, exactly as for an individual invoice.
+- [ ] The draft editor warns, without blocking, when a case is already on another invoice that is not void.
+- [ ] A combined invoice is visible only to users who can see every client on it.
+- [ ] The invoice PDF groups lines under each member's name with a subtotal per member, then the discount and total. It shows names only, never a CNIC or NTN.
+- [ ] Group billing totals count a combined invoice against the parent and the group.
+- [ ] Database triggers enforce the combined-invoice line rules and keep the existing case-belongs-to-client rule for individual invoices. PostgreSQL tests cover finalization against a group change racing it.
+- [ ] The staff training guide, in-app help, and UAT scenarios describe combined invoices.
+
 ## Exit criteria
 
 - Final invoices, payments, and reversals are append-only.

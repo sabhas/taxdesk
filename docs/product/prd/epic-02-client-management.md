@@ -3,7 +3,7 @@ title: "Epic 2: Client Management"
 status: in_progress
 version: 1.0
 owners: [product, engineering]
-last_reviewed: 2026-11-10
+last_reviewed: 2026-11-21
 related:
   - ../roadmap.md
   - ../../technical/data-model.md
@@ -98,6 +98,35 @@ Deliver the protected client master record: individuals and businesses, contacts
 - Remaining for done: set `CLIENT_DATA_ENCRYPTION_KEY` and
   `CLIENT_IDENTIFIER_INDEX_KEY` in staging, apply migration `0005`,
   demonstrate the criteria on staging, and Sprint Review acceptance.
+
+## Added after staging feedback
+
+### TD-207 — Client groups — 5 points
+
+**Added 2026-11-21; unscheduled.** The firm's staging testers asked to link clients
+to the client who brought them in: for example, PGC (Punjab Group of Colleges)
+with its owner's family and business partners, or Sh. Zaheer & Co. with its
+family and business cases. The firm confirmed that every group head is itself a
+client with a CNIC or NTN, and that the main analysis is billing by group.
+Decisions are recorded in
+[ADR 0010](../../adr/0010-client-groups-and-combined-invoices.md).
+
+**User story:** As staff, I want to link a client to their parent client so that I
+can filter and review the whole group's clients, cases, and billing together.
+
+- [ ] A client has an optional "Parent client". It is set from the client's create and edit form as part of the client's versioned (`If-Match`) update, needs `clients.manage`, and offers only active clients the user can see.
+- [ ] Groups are one level deep. A client cannot be its own parent, a client with members cannot be given a parent, and a client with a parent cannot be chosen as a parent. The server enforces this under a lock on the parent row, and a database trigger is the backstop.
+- [ ] Archiving a parent or a member keeps the link. An archived client cannot be chosen as a new parent.
+- [ ] Changing a client's parent writes a `client.group_changed` audit event with the client's code and the old and new parent codes only.
+- [ ] The client list has a "Group" filter (the parent and all its members) and a "Group" column. Client detail shows "Part of" on a member and a "Group members" list on a parent.
+- [ ] Case lists and work queues, and the invoice list, filter by group. Billing shows invoiced, paid, and outstanding totals for a group.
+- [ ] Group member lists and filters show only clients the user can see. Hidden members are not counted.
+- [ ] Tests cover the shared contract, the flat-group rules (including concurrent edits), visibility for consultants, the filters, the audit event, and the migration; the web pages pass axe checks.
+- [ ] The staff training guide, in-app help, and UAT scenarios describe groups.
+
+**Later, not in this story:** a relationship type on the link (family, business
+partner), a group filter in Epic 6 reports and the dashboard, and a parent
+client column in the CSV import templates.
 
 ## Exit criteria
 
