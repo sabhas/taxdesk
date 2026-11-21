@@ -114,21 +114,21 @@ Decisions are recorded in
 **User story:** As staff, I want to link a client to their parent client so that I
 can filter and review the whole group's clients, cases, and billing together.
 
-- [ ] A client has an optional "Parent client". It is set from the client's create and edit form as part of the client's versioned (`If-Match`) update, needs `clients.manage`, and offers only active clients the user can see.
-- [ ] Groups are one level deep. A client cannot be its own parent, a client with members cannot be given a parent, and a client with a parent cannot be chosen as a parent. The server enforces this under a lock on the parent row, and a database trigger is the backstop.
-- [ ] Archiving a parent or a member keeps the link. An archived client cannot be chosen as a new parent.
-- [ ] Changing a client's parent writes a `client.group_changed` audit event with the client's code and the old and new parent codes only.
-- [ ] The client list has a "Group" filter (the parent and all its members) and a "Group" column. Client detail shows "Part of" on a member and a "Group members" list on a parent.
-- [ ] Case lists and work queues, and the invoice list, filter by group. Billing shows invoiced, paid, and outstanding totals for a group.
-- [ ] Group member lists and filters show only clients the user can see. Hidden members are not counted.
-- [ ] Tests cover the shared contract, the flat-group rules (including concurrent edits), visibility for consultants, the filters, the audit event, and the migration; the web pages pass axe checks.
-- [ ] The staff training guide, in-app help, and UAT scenarios describe groups.
+- [x] A client has an optional "Parent client". It is set from the client's create and edit form as part of the client's versioned (`If-Match`) update, needs `clients.manage`, and offers only active clients the user can see.
+- [x] Groups are one level deep. A client cannot be its own parent, a client with members cannot be given a parent, and a client with a parent cannot be chosen as a parent. The server enforces this under a lock on the parent row, and a database trigger is the backstop.
+- [x] Archiving a parent or a member keeps the link. An archived client cannot be chosen as a new parent.
+- [x] Changing a client's parent writes a `client.group_changed` audit event with the client's code and the old and new parent codes only.
+- [x] The client list has a "Group" filter (the parent and all its members) and a "Group" column. Client detail shows "Part of" on a member and a "Group members" list on a parent.
+- [x] Case lists and work queues, and the invoice list, filter by group. Billing shows invoiced, paid, and outstanding totals for a group.
+- [x] Group member lists and filters show only clients the user can see. Hidden members are not counted.
+- [x] Tests cover the shared contract, the flat-group rules (including concurrent edits), visibility for consultants, the filters, the audit event, and the migration; the web pages pass axe checks.
+- [x] The staff training guide, in-app help, and UAT scenarios describe groups.
 
 **Later, not in this story:** a relationship type on the link (family, business
 partner), a group filter in Epic 6 reports and the dashboard, and a parent
 client column in the CSV import templates.
 
-**Implementation notes (2026-11-21, implemented locally; awaiting `/verify-story`):**
+**Implementation notes (2026-11-21, implemented and verified locally with `/verify-story`):**
 
 - Contracts: `parentClientId` on the create and update requests (omitted on an
   update keeps the link), `parentClient` and `groupMembers` on `Client`,
@@ -143,13 +143,18 @@ client column in the CSV import templates.
   `CaseService` and `BillingService`. `GET /api/v1/invoices/group-totals`.
 - Web: Parent client field, Group filter and column, "Part of", Group members
   card with group links, and group totals on Invoices.
-- Tests: `packages/api/src/routes/client-groups.test.ts`, the client-groups
-  block in `packages/api/src/repositories/postgres.integration.test.ts`
-  (trigger and a real concurrent race), and the TD-207 blocks in the client,
-  case, and billing web tests (with axe checks).
-- Remaining for done: `/verify-story`, migration `0011` in staging, a staging
-  demonstration of the TD-207 UAT scenarios, and Sprint Review acceptance
-  (which also moves ADR 0010 from `proposed`).
+- Tests: `packages/api/src/routes/client-groups.test.ts`, the client group
+  routes in the role matrix (`authorization.test.ts`), the client-groups blocks
+  in `packages/api/src/repositories/postgres.integration.test.ts` (trigger and
+  a real concurrent race) and `postgres-billing.integration.test.ts` (case,
+  queue, and invoice group filters, totals against the invoice rows, and
+  visible-member group heads), and the TD-207 blocks in the client, case, and
+  billing web tests (with axe checks).
+- Client activity shows `client.group_changed` only to users who can see every
+  parent client it names.
+- Remaining for done: migration `0011` in staging, a staging demonstration of
+  the TD-207 UAT scenarios, a real-browser keyboard and accessibility pass, and
+  Sprint Review acceptance (which also moves ADR 0010 from `proposed`).
 
 ## Exit criteria
 

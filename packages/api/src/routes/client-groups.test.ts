@@ -526,6 +526,28 @@ describe('TD-207 visibility', () => {
     });
     expect(denied.status).toBe(403);
   });
+
+  it('leaves a link to a hidden parent out of the activity a consultant sees', async () => {
+    const w = await world();
+    const consultant = w.users.consultant.id;
+    const hiddenHead = await createClient(w);
+    const visibleHead = await createClient(w, { assignedManagerUserId: consultant });
+    const member = await createClient(w, { assignedManagerUserId: consultant });
+    await setParent(w, member, visibleHead['id']);
+    await setParent(w, member, hiddenHead['id']);
+
+    const actions = async (as: Actor) => {
+      const activity = await w.call(`/api/v1/clients/${member['id'] as string}/activity`, { as });
+      expect(activity.status).toBe(200);
+      return (activity.data['events'] as { action: string }[]).map((event) => event.action);
+    };
+    // The manager sees both changes; the consultant sees only the change that
+    // names clients they can see (none → visible head).
+    expect((await actions('manager')).filter((a) => a === 'client.group_changed')).toHaveLength(2);
+    expect((await actions('consultant')).filter((a) => a === 'client.group_changed')).toHaveLength(
+      1,
+    );
+  });
 });
 
 async function openCase(w: World, client: Record<string, any>): Promise<Record<string, any>> {

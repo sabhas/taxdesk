@@ -240,7 +240,7 @@ window.TAXDESK_UAT = [
           ['Archive keeps the link', 'manager', 'pos', 'A heads a group with member B', ['Archive A', 'Open B', 'Edit C → look for A under Parent client'], 'B still shows "Part of A" (Archived); A is not offered as a new parent'],
           ['Group filters', 'manager', 'pos', 'A heads a group with member B; each has a case and a finalized invoice', ['Clients → Group = A', 'Cases → Group = A', 'Invoices → Group = A'], 'Each list shows only A and B records; queue counts follow the filter'],
           ['Group billing totals', 'billing', 'pos', 'A and B have finalized invoices, one part-paid, and a draft', ['Invoices → Group = A'], 'Invoiced, Paid, and Outstanding match the finalized invoices; the draft is not counted'],
-          ['Consultant sees only visible members', 'consultant', 'neg', 't.consultant manages A and B but not member D', ['Open A', 'Clients → Group = A'], 'Group members lists only B; D is not named or counted'],
+          ['Consultant sees only visible members', 'consultant', 'neg', 't.consultant manages A and B but not member D', ['Open A', 'Clients → Group = A', 'Move a managed client from A to a group the consultant cannot see; open its Activity'], 'Group members lists only B; D is not named or counted; the move to the hidden group is not shown in Activity'],
           ['Only managers set a parent', 'billing', 'neg', '—', ['Try to edit a client'], 'No Edit or New client; direct PATCH with parentClientId returns 403'],
           ['Group change is audited by code', 'admin', 'pos', 'B moved from group A to group E', ['Audit → action client.group_changed'], 'Event shows B, A, and E client codes only; B activity shows "Changed the parent client"'],
         ],

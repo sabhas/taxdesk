@@ -776,6 +776,35 @@ export class ClientService {
     return await this.toClient(actor, updated);
   }
 
+  /**
+   * Whether the actor may see a `client.group_changed` entry: only when every
+   * parent it names is visible to them. Grouping never widens access, so a
+   * link to a hidden client is left out of the activity rather than hinted at.
+   */
+  private groupChangeVisibility(
+    actor: Actor,
+  ): (metadata: Readonly<Record<string, unknown>>) => Promise<boolean> {
+    if (canReadAllClients(actor)) {
+      return () => Promise.resolve(true);
+    }
+    const visibleByCode = new Map<string, boolean>();
+    const visible = async (code: unknown): Promise<boolean> => {
+      if (code === null || code === undefined) {
+        return true;
+      }
+      if (typeof code !== 'string') {
+        return false;
+      }
+      if (!visibleByCode.has(code)) {
+        const parent = await this.repositories.clients.findByCode(code);
+        visibleByCode.set(code, parent !== null && canAccessClient(actor, parent));
+      }
+      return visibleByCode.get(code) === true;
+    };
+    return async (metadata) =>
+      (await visible(metadata['previousParentCode'])) && (await visible(metadata['parentCode']));
+  }
+
   /** `client.group_changed` records client codes only, never names or identifiers. */
   private async appendGroupChanged(
     repositories: Repositories,
@@ -864,12 +893,19 @@ export class ClientService {
       cursor: input.cursor,
     });
     const lookup = this.assigneeLookup();
+    const canSeeGroupChange = this.groupChangeVisibility(input.actor);
     const events: ClientActivity[] = [];
     for (const event of page.events) {
       if (!(CLIENT_ACTIVITY_ACTIONS as readonly string[]).includes(event.action)) {
         continue;
       }
       const metadata = event.metadata;
+      if (
+        event.action === AUDIT_ACTIONS.clientGroupChanged &&
+        !(await canSeeGroupChange(metadata))
+      ) {
+        continue;
+      }
       const changedFields =
         typeof metadata['changedFields'] === 'string'
           ? metadata['changedFields']

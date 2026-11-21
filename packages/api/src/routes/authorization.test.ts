@@ -130,6 +130,68 @@ describe('server-side permission enforcement', () => {
     }
   });
 
+  it('enforces the role matrix on client group routes (TD-207)', async () => {
+    const harness = createTestHarness();
+    await seedFirm(harness);
+    const app = appFor(harness);
+    const cookies = {} as Record<RoleKey, string>;
+    for (const role of ROLE_MATRIX) {
+      const { user } = await seedUser(harness, {
+        username: `group-${role.replace('_', '-')}`,
+        password: PASSWORD,
+        role,
+        mfaEnrolled: true,
+      });
+      cookies[role] = (await sessionCookieFor(harness, user)).cookie;
+    }
+    const createClient = async (legalName: string, cnic: string) => {
+      const response = await call(app, '/api/v1/clients', {
+        method: 'POST',
+        cookie: cookies.administrator,
+        body: { type: 'individual', legalName, cnic, contacts: [], assignedManagerUserId: null },
+      });
+      expect(response.status).toBe(201);
+      return await body(response);
+    };
+    const head = await createClient('Matrix Group Head', '35202-7000001-1');
+    const member = await createClient('Matrix Group Member', '35202-7000002-1');
+    const headId = String(head['id']);
+    const memberId = String(member['id']);
+
+    const expected: Record<RoleKey, { totals: number; groupList: number; setParent: number }> = {
+      administrator: { totals: 200, groupList: 200, setParent: 200 },
+      manager: { totals: 200, groupList: 200, setParent: 200 },
+      // A consultant lacks billing.read, cannot see an unassigned head, and lacks clients.manage.
+      consultant: { totals: 403, groupList: 403, setParent: 403 },
+      billing: { totals: 200, groupList: 200, setParent: 403 },
+      read_only: { totals: 200, groupList: 200, setParent: 403 },
+    };
+    for (const role of ROLE_MATRIX) {
+      const cookie = cookies[role];
+      const totals = await call(app, `/api/v1/invoices/group-totals?group=${headId}`, { cookie });
+      expect(totals.status, `${role} group totals`).toBe(expected[role].totals);
+      const groupList = await call(app, `/api/v1/clients?group=${headId}`, { cookie });
+      expect(groupList.status, `${role} group list`).toBe(expected[role].groupList);
+      const current = await body(
+        await call(app, `/api/v1/clients/${memberId}`, { cookie: cookies.administrator }),
+      );
+      const setParent = await call(app, `/api/v1/clients/${memberId}`, {
+        method: 'PATCH',
+        cookie,
+        headers: { 'If-Match': `"${String(current['version'])}"` },
+        body: {
+          type: 'individual',
+          legalName: 'Matrix Group Member',
+          contacts: [],
+          notes: '',
+          assignedManagerUserId: null,
+          parentClientId: current['parentClient'] === null ? headId : null,
+        },
+      });
+      expect(setParent.status, `${role} set parent`).toBe(expected[role].setParent);
+    }
+  });
+
   it('applies the self-or-permission ownership rule to user records', async () => {
     const harness = createTestHarness();
     await seedFirm(harness);

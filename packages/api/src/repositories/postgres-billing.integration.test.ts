@@ -53,6 +53,8 @@ describeWithDatabase('billing repositories and triggers against PostgreSQL', () 
   let owner: Actor;
   let clientA: string;
   let caseA: string;
+  let serviceId: string;
+  let workflowVersionId: string;
 
   const tick = (): string => {
     clockNow = new Date(clockNow.getTime() + 1_000);
@@ -152,6 +154,8 @@ describeWithDatabase('billing repositories and triggers against PostgreSQL', () 
         defaultWorkflowTemplateId: template.id,
       },
     });
+    serviceId = service.id;
+    workflowVersionId = version.id;
     tick();
     clientA = (
       await dependencies.clientService.createClient({
@@ -194,11 +198,11 @@ describeWithDatabase('billing repositories and triggers against PostgreSQL', () 
   const idem = (): string => `idem-key-${String(++requests).padStart(12, '0')}`;
   const billing = () => dependencies.billingService;
 
-  async function draft(total = 1_000_000) {
+  async function draft(total = 1_000_000, clientId = clientA) {
     tick();
     const created = await billing().createDraft({
       actor: owner,
-      request: { clientId: clientA },
+      request: { clientId },
       requestId: rid(),
     });
     tick();
@@ -217,8 +221,8 @@ describeWithDatabase('billing repositories and triggers against PostgreSQL', () 
     });
   }
 
-  async function finalized(total = 1_000_000) {
-    const prepared = await draft(total);
+  async function finalized(total = 1_000_000, clientId = clientA) {
+    const prepared = await draft(total, clientId);
     tick();
     const result = await billing().finalizeInvoice({
       actor: owner,
@@ -469,6 +473,130 @@ describeWithDatabase('billing repositories and triggers against PostgreSQL', () 
     expect(second.invoices[0]!.id).not.toBe(first.invoices[0]!.id);
     const paid = await billing().listInvoices(owner, { paymentStatus: 'paid', limit: 50 });
     expect(paid.invoices.every((entry) => entry.paymentStatus === 'paid')).toBe(true);
+  });
+
+  describe('client groups (TD-207)', () => {
+    let groupSequence = 0;
+
+    async function groupClient(
+      parentClientId: string | null,
+      assignedManagerUserId: string | null = null,
+    ) {
+      groupSequence += 1;
+      tick();
+      return await dependencies.clientService.createClient({
+        actor: owner,
+        requestId: rid(),
+        request: {
+          type: 'business',
+          legalName: `Group Business ${String(groupSequence)}`,
+          ntn: String(7_100_000 + groupSequence),
+          contacts: [],
+          assignedManagerUserId,
+          parentClientId,
+        },
+      });
+    }
+
+    async function caseFor(clientId: string) {
+      tick();
+      return await dependencies.caseService.createCase({
+        actor: owner,
+        requestId: rid(),
+        request: {
+          clientId,
+          serviceTypeId: serviceId,
+          taxYear: 2024,
+          workflowVersionId,
+          dueDate: '2026-09-30',
+          primaryConsultantUserId: owner.userId,
+          reviewerUserId: null,
+          notes: '',
+        },
+      });
+    }
+
+    it('filters cases, queue counts, and invoices by group in SQL and totals the group', async () => {
+      const head = await groupClient(null);
+      const member = await groupClient(head.id);
+      const outsider = await groupClient(null);
+      const headCase = await caseFor(head.id);
+      const memberCase = await caseFor(member.id);
+      await caseFor(outsider.id);
+
+      const cases = await dependencies.caseService.listCases(owner, {
+        view: 'team',
+        limit: 25,
+        group: head.id,
+      });
+      expect(cases.total).toBe(2);
+      expect(cases.cases.map((entry) => entry.id).sort()).toEqual(
+        [headCase.id, memberCase.id].sort(),
+      );
+      const counts = await dependencies.caseService.queueCounts(owner, { group: head.id });
+      expect(counts.team).toBe(2);
+
+      const headInvoice = await finalized(1_000_000, head.id);
+      const memberInvoice = await finalized(500_000, member.id);
+      await finalized(900_000, outsider.id);
+      const memberDraft = await draft(300_000, member.id);
+      tick();
+      await pay(memberInvoice.id, 200_000);
+
+      const listed = await billing().listInvoices(owner, { group: head.id, limit: 50 });
+      expect(listed.invoices.map((entry) => entry.id).sort()).toEqual(
+        [headInvoice.id, memberInvoice.id, memberDraft.id].sort(),
+      );
+
+      const totals = await billing().groupBillingTotals(owner, { group: head.id });
+      expect(totals).toEqual({
+        groupClientId: head.id,
+        currency: 'PKR',
+        invoiceCount: 2,
+        invoicedMinor: 1_500_000,
+        paidMinor: 200_000,
+        outstandingMinor: 1_300_000,
+      });
+      // The SQL totals agree with the invoice rows they summarize.
+      const reference = await sql(
+        `SELECT count(*)::int AS n, sum(total_minor)::bigint AS invoiced,
+                sum(paid_minor)::bigint AS paid, sum(outstanding_minor)::bigint AS outstanding
+         FROM invoices WHERE status = 'finalized' AND client_id = ANY ($1::uuid[])`,
+        [[head.id, member.id]],
+      );
+      expect(Number(reference[0]?.['n'])).toBe(totals.invoiceCount);
+      expect(Number(reference[0]?.['invoiced'])).toBe(totals.invoicedMinor);
+      expect(Number(reference[0]?.['paid'])).toBe(totals.paidMinor);
+      expect(Number(reference[0]?.['outstanding'])).toBe(totals.outstandingMinor);
+    });
+
+    it('lists group heads by visible members only for a restricted user', async () => {
+      // Both heads are visible to the owner; only one has a member the owner manages.
+      const visibleHead = await groupClient(null, owner.userId);
+      await groupClient(visibleHead.id, owner.userId);
+      const hiddenHead = await groupClient(null, owner.userId);
+      await groupClient(hiddenHead.id, null);
+
+      const heads = async (restrictToManagerUserId: string | null) =>
+        (
+          await repositories.clients.list({
+            search: null,
+            type: null,
+            manager: null,
+            state: 'all',
+            restrictToManagerUserId,
+            groupClientId: null,
+            grouping: 'heads',
+            limit: 100,
+            after: null,
+          })
+        ).clients.map((client) => client.id);
+
+      expect(await heads(null)).toEqual(expect.arrayContaining([visibleHead.id, hiddenHead.id]));
+      const restricted = await heads(owner.userId);
+      expect(restricted).toContain(visibleHead.id);
+      expect(restricted).not.toContain(hiddenHead.id);
+    });
   });
 
   describe('database guards', () => {
