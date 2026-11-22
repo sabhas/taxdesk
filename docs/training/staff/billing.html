@@ -186,6 +186,44 @@
             <span class="ui">Generate PDF again</span> later.
           </p>
 
+          <h2 id="share">Share an invoice with the client</h2>
+          <p>
+            A finalized invoice whose PDF is ready has a <span class="ui">Share</span> button next
+            to <span class="ui">Download PDF</span>. Everyone who can open the invoice can share
+            it. TaxDesk sends nothing itself: your phone or computer does.
+          </p>
+          <ol class="steps">
+            <li>
+              Select <span class="ui">Share</span>. TaxDesk prepares the PDF and a message with the
+              invoice number, total, outstanding amount, due date, and firm name. The message
+              never contains a CNIC or NTN.
+            </li>
+            <li>
+              On a phone, and on browsers that can share files, select
+              <span class="ui">Share PDF…</span> and pick WhatsApp, email, or another app. The PDF
+              is attached for you.
+            </li>
+            <li>
+              Otherwise select <span class="ui">Send on WhatsApp</span>. TaxDesk downloads the
+              PDF and opens WhatsApp with the message, addressed to the client's primary contact
+              phone (or another contact's phone if the primary has none). Attach the downloaded
+              PDF to the chat before sending. With no phone on file, choose the chat yourself.
+            </li>
+          </ol>
+          <p>
+            Each completed share is recorded in the audit history as
+            <code>billing.invoice_shared</code> with the channel. If you cancel the share sheet,
+            you see "Sharing was cancelled. Nothing was sent." and nothing is recorded. If the share
+            went out but TaxDesk could not record it, you see "Shared, but not recorded"; the share
+            is then missing from the history, so tell an administrator if it matters. TaxDesk
+            cannot see whether the client received the message.
+          </p>
+          <p>
+            Drafts, void invoices, and invoices whose PDF is not stored yet cannot be shared; the
+            invoice page says why. If the PDF cannot be downloaded (for example, document storage
+            is unavailable), the dialog says so and offers <span class="ui">Try again</span>.
+          </p>
+
           <h2 id="payments">Record a payment</h2>
           <ol class="steps">
             <li>On the invoice, select <span class="ui">Record payment</span>.</li>

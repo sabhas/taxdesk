@@ -559,6 +559,20 @@ window.TAXDESK_UAT = [
           ['Keyboard and screen reader', 'admin', 'pos', 'No mouse', ['Tab to Logo image, choose a file, Upload logo; Tab to Remove logo and confirm'], 'All reachable; errors announced against the file field; the preview has the name "Current firm logo"'],
         ],
       },
+      {
+        id: 'TD-513',
+        title: 'Share an invoice from the app',
+        cases: [
+          ['Share from a phone', 'billing', 'pos', 'Finalized invoice with PDF ready; open TaxDesk on a phone', ['Open the invoice → Share → Share PDF… → WhatsApp → pick a test chat → send'], 'Chat receives the PDF; page says "Invoice … shared."; audit has billing.invoice_shared with channel share_sheet'],
+          ['Send on WhatsApp from a desktop', 'billing', 'pos', 'Client with a primary contact phone; desktop browser without file sharing', ['Share → Send on WhatsApp', 'Attach the downloaded PDF in WhatsApp and send'], 'PDF downloads; WhatsApp opens a chat with that number and the message filled in; page tells you to attach the file; audit channel whatsapp'],
+          ['Client without a phone', 'billing', 'pos', 'Client with no contact phone', ['Share → Send on WhatsApp'], 'WhatsApp opens with the message and no recipient; dialog said "no phone on file"'],
+          ['Message content', 'billing', 'pos', 'Partly paid invoice with a due date', ['Share → read the message'], 'Invoice number, total, outstanding, due date, and firm name; no CNIC or NTN'],
+          ['Cancel the share sheet', 'billing', 'neg', 'Phone', ['Share → Share PDF… → dismiss the sheet'], '"Sharing was cancelled. Nothing was sent."; no audit event'],
+          ['Cannot share drafts, void, or PDF-less invoices', 'billing', 'neg', 'A draft; a void invoice; an invoice whose PDF failed', ['Open each'], 'No Share button; each page says why'],
+          ['Read-only staff can share', 'read_only', 'pos', 'Finalized invoice', ['Open it → Share'], 'Share works and is audited; consultants cannot open the invoice at all'],
+          ['Keyboard and screen reader', 'any', 'pos', 'No mouse', ['Tab to Share; Enter; Tab through the dialog'], 'Dialog announced as "Share invoice …"; the message is readable; Close returns focus'],
+        ],
+      },
     ],
   },
   {

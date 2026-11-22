@@ -231,3 +231,45 @@ export async function apiRequestVoid(path: string, options: ApiRequestOptions = 
     ...(requestId === undefined ? {} : { requestId }),
   });
 }
+
+/**
+ * Same-origin binary download (for example a PDF to share). Failures map to
+ * the same public errors as JSON calls.
+ */
+export async function apiBlob(path: string, options: ApiRequestOptions = {}): Promise<Blob> {
+  let response: Response;
+  try {
+    response = await fetch(path, {
+      method: 'GET',
+      headers: { Accept: '*/*' },
+      credentials: 'same-origin',
+      ...(options.signal === undefined ? {} : { signal: options.signal }),
+    });
+  } catch {
+    throw new ApiError({
+      status: 0,
+      code: 'NETWORK_ERROR',
+      message: 'We could not reach TaxDesk. Check your connection and try again.',
+    });
+  }
+  if (response.ok) {
+    return await response.blob();
+  }
+  const data = await readResponseBody(response);
+  const problem = ProblemDetailsSchema.safeParse(data);
+  const code = problem.success ? problem.data.code : 'REQUEST_FAILED';
+  if (options.sessionScoped === true && endsSession(response.status, code)) {
+    notifySessionExpired();
+  }
+  const requestId = problem.success
+    ? problem.data.requestId
+    : (response.headers.get('X-Request-Id') ?? undefined);
+  throw new ApiError({
+    status: response.status,
+    code,
+    message: problem.success
+      ? problem.data.detail
+      : 'The request could not be completed. Please try again.',
+    ...(requestId === undefined ? {} : { requestId }),
+  });
+}

@@ -1,7 +1,12 @@
 import { z } from 'zod';
 import { IsoDateSchema } from './case.js';
 import { UuidSchema, UuidV7Schema } from './id.js';
-import { FIRM_CURRENCY, MinorAmountSchema, SERVICE_TYPE_LIMITS } from './service-type.js';
+import {
+  FIRM_CURRENCY,
+  MinorAmountSchema,
+  SERVICE_TYPE_LIMITS,
+  formatMinorAmount,
+} from './service-type.js';
 
 /**
  * Billing contracts (Epic 5). Money is an integer count of minor units. The
@@ -530,3 +535,92 @@ export const BillingPdfResultSchema = z
   .strict();
 
 export type BillingPdfResult = z.infer<typeof BillingPdfResultSchema>;
+
+// ---------------------------------------------------------------------------
+// Sharing an invoice (TD-513)
+// ---------------------------------------------------------------------------
+
+/**
+ * How a share was completed: the device share sheet with the PDF attached, or
+ * WhatsApp opened with the message (the PDF downloaded for staff to attach).
+ */
+export const InvoiceShareChannelSchema = z.enum(['share_sheet', 'whatsapp']);
+
+export type InvoiceShareChannel = z.infer<typeof InvoiceShareChannelSchema>;
+
+/** Phone digits WhatsApp accepts in a `wa.me` link: country code first, no `+`. */
+export const WhatsAppPhoneSchema = z.string().regex(/^[1-9][0-9]{7,14}$/u);
+
+/** What the browser needs to share one invoice. The server builds the message. */
+export const InvoiceShareContextSchema = z
+  .object({
+    invoiceId: UuidSchema,
+    invoiceNumber: z.string().min(1).max(32),
+    fileName: z.string().min(1).max(255),
+    title: z.string().min(1).max(200),
+    message: z.string().min(1).max(1000),
+    /** The client's contact phone, or `null` to let staff pick the chat. */
+    whatsappPhone: WhatsAppPhoneSchema.nullable(),
+  })
+  .strict();
+
+export type InvoiceShareContext = z.infer<typeof InvoiceShareContextSchema>;
+
+export const InvoiceShareRequestSchema = z.object({ channel: InvoiceShareChannelSchema }).strict();
+
+export type InvoiceShareRequest = z.infer<typeof InvoiceShareRequestSchema>;
+
+const SHARE_MONTHS = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+] as const;
+
+/** `2026-11-30` → `30 Nov 2026`, independent of the device's locale and timezone. */
+export function formatShareDate(isoDate: string): string {
+  const [year, month, day] = isoDate.split('-');
+  const name = SHARE_MONTHS[Number(month) - 1];
+  return name === undefined || day === undefined
+    ? isoDate
+    : `${String(Number(day))} ${name} ${year ?? ''}`;
+}
+
+export interface InvoiceShareMessageInput {
+  readonly firmName: string;
+  readonly clientName: string;
+  readonly invoiceNumber: string;
+  readonly currency: string;
+  readonly totalMinor: number;
+  readonly outstandingMinor: number;
+  readonly dueDate: string | null;
+}
+
+/**
+ * The message sent with a shared invoice. It names the client by display name
+ * only: no CNIC, NTN, or other identifier is ever an input.
+ */
+export function buildInvoiceShareMessage(input: InvoiceShareMessageInput): string {
+  const amount = (minor: number): string => `${input.currency} ${formatMinorAmount(minor)}`;
+  const outstanding =
+    input.outstandingMinor === 0 ? `${amount(0)} (paid in full)` : amount(input.outstandingMinor);
+  return [
+    `Dear ${input.clientName},`,
+    '',
+    `Please find attached invoice ${input.invoiceNumber} from ${input.firmName}.`,
+    `Total: ${amount(input.totalMinor)}`,
+    `Outstanding: ${outstanding}`,
+    ...(input.dueDate === null ? [] : [`Due date: ${formatShareDate(input.dueDate)}`]),
+    '',
+    `Thank you,`,
+    input.firmName,
+  ].join('\n');
+}

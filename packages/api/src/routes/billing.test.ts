@@ -533,6 +533,149 @@ describe('finalize (TD-503)', () => {
   });
 });
 
+describe('sharing an invoice (TD-513)', () => {
+  async function clientWithPhone(w: World, phone: string | null): Promise<Record<string, any>> {
+    const result = await w.call('/api/v1/clients', {
+      as: 'manager',
+      method: 'POST',
+      body: {
+        type: 'individual',
+        legalName: `Synthetic Sharer ${String(cnicCounter)}`,
+        cnic: `35202-${String(3_500_000 + cnicCounter++).padStart(7, '0')}-1`,
+        contacts: [
+          { name: 'Office', email: 'office@example.test', isPrimary: true },
+          ...(phone === null ? [] : [{ name: 'Owner', phone, isPrimary: false }]),
+        ],
+        assignedManagerUserId: null,
+      },
+    });
+    expect(result.status).toBe(201);
+    return result.data;
+  }
+
+  const shareContext = (w: World, invoice: Record<string, any>, as: Actor = 'billing') =>
+    w.call(`/api/v1/invoices/${invoice['id'] as string}/share`, { as });
+  const recordShare = (
+    w: World,
+    invoice: Record<string, any>,
+    channel: string,
+    as: Actor = 'billing',
+  ) =>
+    w.call(`/api/v1/invoices/${invoice['id'] as string}/shares`, {
+      as,
+      method: 'POST',
+      body: { channel },
+    });
+  const shares = (w: World) =>
+    w.harness.state.auditEvents.filter((event) => event.action === 'billing.invoice_shared');
+
+  it('gives the message, file name, and the client phone for a finalized invoice', async () => {
+    const w = await world();
+    const client = await clientWithPhone(w, '0300 1234567');
+    const invoice = await finalized(w, client);
+    const result = await shareContext(w, invoice);
+    expect(result.status).toBe(200);
+    expect(result.headers.get('Cache-Control')).toContain('no-store');
+    const number = invoice['invoiceNumber'] as string;
+    expect(result.data).toMatchObject({
+      invoiceId: invoice['id'],
+      invoiceNumber: number,
+      fileName: `${number}.pdf`,
+      whatsappPhone: '923001234567',
+    });
+    const message = result.data['message'] as string;
+    expect(message).toContain(`invoice ${number}`);
+    expect(message).toContain('Total: PKR 14,000.00');
+    expect(message).toContain('Outstanding: PKR 14,000.00');
+    expect(message).toMatch(/Due date: \d{1,2} [A-Z][a-z]{2} \d{4}/u);
+    expect(message).not.toMatch(/\d{5}-?\d{7}-?\d/u);
+    expect(message).not.toContain(client['cnic'] ?? '35202-');
+    // Reading the context is not a share.
+    expect(shares(w)).toHaveLength(0);
+  });
+
+  it('leaves the recipient empty when the client has no phone', async () => {
+    const w = await world();
+    const invoice = await finalized(w, await clientWithPhone(w, null));
+    const result = await shareContext(w, invoice);
+    expect(result.data['whatsappPhone']).toBeNull();
+  });
+
+  it('records one audited share per completed share with its channel and request ID', async () => {
+    const w = await world();
+    const invoice = await finalized(w, await clientWithPhone(w, '0300 1234567'));
+    expect((await recordShare(w, invoice, 'share_sheet')).status).toBe(204);
+    expect((await recordShare(w, invoice, 'whatsapp', 'read_only')).status).toBe(204);
+    const events = shares(w);
+    expect(events).toHaveLength(2);
+    expect(events[0]).toMatchObject({
+      entityType: 'invoice',
+      entityId: invoice['id'],
+      actorUserId: w.users.billing.id,
+      metadata: { channel: 'share_sheet', invoiceNumber: invoice['invoiceNumber'] },
+    });
+    expect(events[0]?.requestId).toMatch(/^bill-/u);
+    expect(events[1]?.metadata['channel']).toBe('whatsapp');
+    const bad = await recordShare(w, invoice, 'email');
+    expect(bad.status).toBe(400);
+    expect(shares(w)).toHaveLength(2);
+  });
+
+  it('is open to every role that can download the invoice and closed to the rest', async () => {
+    const w = await world();
+    const invoice = await finalized(w, await clientWithPhone(w, null));
+    for (const as of ['administrator', 'manager', 'billing', 'read_only'] as const) {
+      expect((await shareContext(w, invoice, as)).status, as).toBe(200);
+    }
+    const context = await shareContext(w, invoice, 'consultant');
+    const recorded = await recordShare(w, invoice, 'share_sheet', 'consultant');
+    expect([context.status, recorded.status]).toEqual([403, 403]);
+    expect(shares(w)).toHaveLength(0);
+  });
+
+  it('refuses drafts, void invoices, and invoices whose PDF is not stored, and says why', async () => {
+    const w = await world({ connected: false });
+    const client = await clientWithPhone(w, null);
+    const draft = await pricedDraft(w, client);
+    const noPdf = await finalized(w, client);
+    expect(noPdf['pdfState']).toBe('failed');
+
+    const draftResult = await shareContext(w, draft);
+    expect(draftResult.status).toBe(409);
+    expect(draftResult.data).toMatchObject({
+      code: 'INVOICE_NOT_SHAREABLE',
+      detail: 'Finalize this invoice before sharing it.',
+    });
+    const pending = await recordShare(w, noPdf, 'share_sheet');
+    expect(pending.status).toBe(409);
+    expect(pending.data['detail']).toBe('This invoice can be shared once its PDF is stored.');
+
+    await connectStorage(w.harness, w.users.administrator);
+    const ready = await finalized(w, client);
+    const voided = await w.call(`/api/v1/invoices/${ready['id'] as string}/void`, {
+      as: 'billing',
+      method: 'POST',
+      ifMatch: ready['version'],
+      key: key(),
+      body: { reason: 'Issued in error', confirm: true },
+    });
+    expect(voided.status).toBe(200);
+    // The server rechecks at record time, so a share after voiding is refused.
+    const afterVoid = await recordShare(w, ready, 'whatsapp');
+    expect(afterVoid.status).toBe(409);
+    expect(afterVoid.data['detail']).toBe('A void invoice cannot be shared.');
+    expect(shares(w)).toHaveLength(0);
+  });
+
+  it('returns not found for an unknown or malformed invoice ID', async () => {
+    const w = await world();
+    for (const id of ['0198a000-0000-7000-8000-00000000dead', 'not-a-uuid']) {
+      const result = await w.call(`/api/v1/invoices/${id}/share`, { as: 'billing' });
+      expect(result.status, id).toBe(404);
+    }
+  });
+});
+
 describe('firm logo on billing PDFs (TD-512)', () => {
   it('prints the logo on PDFs generated after an upload and never alters earlier ones', async () => {
     const w = await world();

@@ -2,12 +2,15 @@ import {
   BillableCaseListSchema,
   BillingPdfResultSchema,
   GroupBillingTotalsSchema,
+  InvoiceShareContextSchema,
   InvoiceListSchema,
   InvoiceSchema,
   PaymentListSchema,
   PaymentOutcomeSchema,
   type BillableCaseList,
   type BillingPdfResult,
+  type InvoiceShareChannel,
+  type InvoiceShareContext,
   type GroupBillingTotals,
   type Invoice,
   type InvoiceDraftCreateRequest,
@@ -21,7 +24,7 @@ import {
   type ReversePaymentRequest,
   type VoidInvoiceRequest,
 } from '@taxdesk/shared';
-import { apiRequest } from './api-client.js';
+import { apiBlob, apiRequest, apiRequestVoid } from './api-client.js';
 
 /**
  * Billing clients (Epic 5). The API enforces every rule and recomputes every
@@ -207,4 +210,25 @@ export function invoicePdfPath(id: string): string {
 
 export function receiptPdfPath(paymentId: string): string {
   return `/api/v1/payments/${encodeURIComponent(paymentId)}/receipt-pdf`;
+}
+
+/** The message, file name, and recipient for sharing an invoice (TD-513). */
+export async function getInvoiceShareContext(id: string): Promise<InvoiceShareContext> {
+  return await apiRequest(invoiceUrl(id, '/share'), InvoiceShareContextSchema, {
+    sessionScoped: true,
+  });
+}
+
+/** The invoice PDF as bytes, to attach to a share. The download is audited. */
+export async function fetchInvoicePdf(id: string): Promise<Blob> {
+  return await apiBlob(invoicePdfPath(id), { sessionScoped: true });
+}
+
+/** Records a share the device completed. */
+export async function recordInvoiceShare(id: string, channel: InvoiceShareChannel): Promise<void> {
+  await apiRequestVoid(invoiceUrl(id, '/shares'), {
+    method: 'POST',
+    body: { channel },
+    sessionScoped: true,
+  });
 }
