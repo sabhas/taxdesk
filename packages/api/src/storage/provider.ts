@@ -38,7 +38,7 @@ export interface ProviderConnectionGrant {
 
 /**
  * A storage location made of path segments relative to the provider's app
- * root. Built only by `buildDocumentStoragePath` from stable record IDs; the
+ * root. Built only by `buildDocumentStoragePath` from stable codes; the
  * adapter turns it into its own addressing scheme. Business logic never stores
  * or compares paths: the external item ID is the durable reference.
  */
@@ -180,6 +180,12 @@ export interface DocumentStorageProvider {
   checkHealth(credentials: ProviderCredentials): Promise<ProviderHealth>;
 
   // Upload and completion (TD-406)
+  /**
+   * Opens an upload session for `path`. An existing item with the same name
+   * never makes the upload fail: the provider stores the new object under a
+   * free name (OneDrive: `name 1.pdf`) and reports it in `ProviderItem.name`
+   * (TD-411, ADR 0011). Nothing is ever overwritten.
+   */
   createUploadSession(
     credentials: ProviderCredentials,
     input: CreateUploadSessionInput,

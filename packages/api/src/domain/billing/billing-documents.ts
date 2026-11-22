@@ -259,8 +259,7 @@ export class BillingDocumentService {
     const path = buildDocumentStoragePath({
       clientCode: input.target.client.clientCode,
       taxYear: input.target.taxCase?.taxYear ?? null,
-      caseId: input.target.taxCase?.id ?? null,
-      documentId,
+      caseCode: input.target.taxCase?.caseCode ?? null,
       fileName: input.fileName,
     });
     const { item, providerType } = await this.options.storage.run(

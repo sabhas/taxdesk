@@ -1,4 +1,4 @@
-import { CLIENT_CODE_PATTERN, UuidSchema, unsafeFileNameReason } from '@taxdesk/shared';
+import { CASE_CODE_PATTERN, CLIENT_CODE_PATTERN, unsafeFileNameReason } from '@taxdesk/shared';
 import type { StoragePath } from '../../storage/provider.js';
 
 export interface DocumentLocation {
@@ -6,8 +6,8 @@ export interface DocumentLocation {
   readonly clientCode: string;
   /** The case's tax year, or `null` for a client-level document. */
   readonly taxYear: number | null;
-  readonly caseId: string | null;
-  readonly documentId: string;
+  /** Stable case code (`TC-00042`), or `null` for a client-level document. */
+  readonly caseCode: string | null;
   readonly fileName: string;
 }
 
@@ -18,47 +18,48 @@ export class StorageLayoutError extends Error {
   }
 }
 
-/** Folder used for a client-level document's year segment. */
-export const CLIENT_LEVEL_YEAR_SEGMENT = 'general';
-/** Folder used for a client-level document's case segment. */
-export const CLIENT_LEVEL_CASE_SEGMENT = 'client-documents';
+/** Folder that holds a client's documents that do not belong to a case. */
+export const CLIENT_LEVEL_SEGMENT = 'general';
 
 /**
- * Stable storage layout (TD-405), relative to the provider's app root:
+ * Browsable storage layout (TD-411, ADR 0011), relative to the provider's app
+ * root:
  *
- *   clients/<client code>/<tax year | general>/<case ID | client-documents>/<document ID>/<file name>
+ *   clients/<client code>/<tax year>/<case code>/<file name>   case documents
+ *   clients/<client code>/general/<file name>                  client-level documents
  *
- * Every segment comes from an immutable record field, so renaming a client
- * never moves or breaks a stored object. The path is used only to create the
- * object; afterwards the provider's external item ID is the durable reference.
+ * Staff read these folders directly in OneDrive, so every folder is a code or
+ * a tax year they recognize. Codes are never changed or reused, and names are
+ * left out, so renaming a client never leaves a stale folder. Two files with
+ * the same name in one folder are kept apart by the provider, which picks a
+ * free name. The path is used only to create the object; afterwards the
+ * provider's external item ID is the durable reference.
  */
 export function buildDocumentStoragePath(location: DocumentLocation): StoragePath {
   if (!CLIENT_CODE_PATTERN.test(location.clientCode)) {
     throw new StorageLayoutError('The client code is not a stable client code.');
   }
-  if (!UuidSchema.safeParse(location.documentId).success) {
-    throw new StorageLayoutError('The document ID is not a UUID.');
+  if (location.caseCode !== null && !CASE_CODE_PATTERN.test(location.caseCode)) {
+    throw new StorageLayoutError('The case code is not a stable case code.');
   }
-  if (location.caseId !== null && !UuidSchema.safeParse(location.caseId).success) {
-    throw new StorageLayoutError('The case ID is not a UUID.');
-  }
-  if ((location.caseId === null) !== (location.taxYear === null)) {
+  if ((location.caseCode === null) !== (location.taxYear === null)) {
     throw new StorageLayoutError('A case document needs its tax year, and only a case document.');
   }
-  if (location.taxYear !== null && !Number.isSafeInteger(location.taxYear)) {
-    throw new StorageLayoutError('The tax year is not an integer.');
+  if (
+    location.taxYear !== null &&
+    (!Number.isSafeInteger(location.taxYear) || location.taxYear < 1)
+  ) {
+    throw new StorageLayoutError('The tax year is not a positive integer.');
   }
   if (unsafeFileNameReason(location.fileName) !== null) {
     throw new StorageLayoutError('The file name is not safe for storage.');
   }
+  const caseSegments =
+    location.caseCode === null || location.taxYear === null
+      ? [CLIENT_LEVEL_SEGMENT]
+      : [String(location.taxYear), location.caseCode];
   return {
-    segments: [
-      'clients',
-      location.clientCode,
-      location.taxYear === null ? CLIENT_LEVEL_YEAR_SEGMENT : String(location.taxYear),
-      location.caseId ?? CLIENT_LEVEL_CASE_SEGMENT,
-      location.documentId,
-    ],
+    segments: ['clients', location.clientCode, ...caseSegments],
     fileName: location.fileName,
   };
 }

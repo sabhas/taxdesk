@@ -596,6 +596,94 @@ describe('PDFs (TD-504, TD-507)', () => {
     expect(w.harness.state.billingDocuments.size).toBe(1);
   });
 
+  it('files PDFs in the case folder, or the client general folder without a case (TD-411)', async () => {
+    const w = await world();
+    const client = await createClient(w);
+    const taxCase = await openCase(w, client);
+    const fromCase = await w.call('/api/v1/invoices', {
+      as: 'billing',
+      method: 'POST',
+      body: { caseId: taxCase['id'] },
+    });
+    expect(fromCase.status).toBe(201);
+    const caseInvoice = await finalize(w, fromCase.data);
+    expect(caseInvoice.status).toBe(200);
+    const payment = await pay(w, caseInvoice.data, 100_000);
+    expect(payment.status).toBe(201);
+    const clientInvoice = await finalized(w, client);
+
+    const code = client['clientCode'] as string;
+    const caseFolder = `clients/${code}/2026/${taxCase['caseCode'] as string}`;
+    const paths = [...w.harness.storage.items.values()].map((entry) => entry.path).sort();
+    expect(paths).toEqual(
+      [
+        `${caseFolder}/${caseInvoice.data['invoiceNumber'] as string}.pdf`,
+        `${caseFolder}/${payment.data['payment']['receiptNumber'] as string}.pdf`,
+        `clients/${code}/general/${clientInvoice['invoiceNumber'] as string}.pdf`,
+      ].sort(),
+    );
+  });
+
+  it('records and opens the right PDF when a retry finds its name taken (TD-411)', async () => {
+    const w = await world({ connected: false });
+    const client = await createClient(w);
+    const invoice = await finalized(w, client);
+    expect(invoice['pdfState']).toBe('failed');
+    await connectStorage(w.harness, w.users.administrator);
+    // A copy from an earlier attempt already holds the name in the folder.
+    const folder = `clients/${client['clientCode'] as string}/general`;
+    const number = invoice['invoiceNumber'] as string;
+    const earlier = w.harness.storage.addExternally(
+      `${folder}/${number}.pdf`,
+      new TextEncoder().encode('not this file'),
+    );
+
+    const retry = await w.call(`/api/v1/invoices/${invoice['id'] as string}/pdf`, {
+      as: 'billing',
+      method: 'POST',
+    });
+    expect(retry.data).toEqual({ pdfState: 'ready', created: true });
+    const paths = [...w.harness.storage.items.values()].map((entry) => entry.path).sort();
+    expect(paths).toEqual([`${folder}/${number} 1.pdf`, `${folder}/${number}.pdf`]);
+    const [record] = [...w.harness.state.billingDocuments.values()];
+    expect(record?.externalItemId).not.toBe(earlier.externalItemId);
+
+    const download = await w.call(`/api/v1/invoices/${invoice['id'] as string}/pdf`, {
+      as: 'billing',
+    });
+    expect(download.status).toBe(200);
+    expect((await PDFDocument.load(download.bytes)).getTitle()).toBe(`Invoice ${number}`);
+  });
+
+  it('still downloads invoice and receipt PDFs stored under the TD-405 layout', async () => {
+    const w = await world();
+    const client = await createClient(w);
+    const invoice = await finalized(w, client);
+    const payment = await pay(w, invoice, 100_000);
+    expect(payment.status).toBe(201);
+    for (const record of w.harness.state.billingDocuments.values()) {
+      w.harness.storage.setStoredPath(
+        record.externalItemId,
+        `clients/${client['clientCode'] as string}/general/client-documents/${record.id}/old.pdf`,
+      );
+    }
+    const invoicePdf = await w.call(`/api/v1/invoices/${invoice['id'] as string}/pdf`, {
+      as: 'billing',
+    });
+    expect(invoicePdf.status).toBe(200);
+    expect((await PDFDocument.load(invoicePdf.bytes)).getTitle()).toBe(
+      `Invoice ${invoice['invoiceNumber'] as string}`,
+    );
+    const paymentId = payment.data['payment']['id'] as string;
+    const receiptPdf = await w.call(`/api/v1/payments/${paymentId}/receipt-pdf`, {
+      as: 'billing',
+    });
+    expect(receiptPdf.status).toBe(200);
+    expect((await PDFDocument.load(receiptPdf.bytes)).getTitle()).toBe(
+      `Receipt ${payment.data['payment']['receiptNumber'] as string}`,
+    );
+  });
+
   it('refuses a PDF for a draft', async () => {
     const w = await world();
     const client = await createClient(w);

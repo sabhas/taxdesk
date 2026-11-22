@@ -228,11 +228,19 @@ window.TAXDESK_GUIDE_INDEX = [
   "title": "OneDrive document storage",
   "url": "operators/onedrive.html",
   "track": "Operators",
-  "keywords": "Document files are stored in the firm's OneDrive (Personal) account, in a private app folder. TaxDesk keeps the file's metadata and its OneDrive item ID, never the file contents and never a OneDrive path. Files.ReadWrite.AppFolder offline_access STORAGE_TOKEN_ENCRYPTION_KEY TaxDesk staging consumers <APP_PUBLIC_URL>/settings/storage/callback http://localhost:5173/settings/storage/callback ONEDRIVE_CLIENT_SECRET packages/api/.dev.vars pnpm dev:api 503 STORAGE_NOT_CONFIGURED ONEDRIVE_CLIENT_ID",
+  "keywords": "Document files are stored in the firm's OneDrive (Personal) account, in a private app folder. TaxDesk keeps the file's metadata and its OneDrive item ID, never the file contents and never a OneDrive path. Files.ReadWrite.AppFolder offline_access STORAGE_TOKEN_ENCRYPTION_KEY bank-statement 1.pdf TaxDesk staging consumers <APP_PUBLIC_URL>/settings/storage/callback http://localhost:5173/settings/storage/callback ONEDRIVE_CLIENT_SECRET packages/api/.dev.vars pnpm dev:api 503 STORAGE_NOT_CONFIGURED ONEDRIVE_CLIENT_ID",
   "sections": [
    [
     "how",
     "How it works"
+   ],
+   [
+    "layout",
+    "Folder layout"
+   ],
+   [
+    "share",
+    "Share the folder with staff"
    ],
    [
     "register",
@@ -619,7 +627,7 @@ window.TAXDESK_GUIDE_INDEX = [
   "title": "Documents",
   "url": "staff/documents.html",
   "track": "Staff",
-  "keywords": "Upload client files once, link them to the checklist, review them, and open them whenever needed. Files are stored in the firm's OneDrive, but you only ever use them through TaxDesk.",
+  "keywords": "Upload client files once, link them to the checklist, review them, and open them whenever needed. Files are stored in the firm's OneDrive, but you only ever use them through TaxDesk. INV-00012.pdf bank-statement 1.pdf",
   "sections": [
    [
     "where",
@@ -632,6 +640,10 @@ window.TAXDESK_GUIDE_INDEX = [
    [
     "open",
     "Open and edit"
+   ],
+   [
+    "onedrive",
+    "Find a file in OneDrive"
    ],
    [
     "review",

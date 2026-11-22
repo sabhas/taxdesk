@@ -37,6 +37,8 @@ TD-806 (in-app staff help, 3 points) was added to Epic 8 on 2026-11-18. It ships
 
 TD-207 (client groups, 5 points, Epic 2) and TD-511 (combined group invoices, 5 points, Epic 5) were added on 2026-11-21 after staging feedback. Both are unscheduled; TD-511 depends on TD-207. See the Epic 2 and Epic 5 PRDs and ADR 0010.
 
+TD-411 (browsable OneDrive folder layout, 3 points, Epic 4) was added on 2026-11-22 after staging feedback that staff read documents directly in OneDrive. It is unscheduled and should ship before the first real OneDrive connection; see the Epic 4 PRD and ADR 0011.
+
 ## Engineering build order
 
 Within every story, build in this order unless the PRD says otherwise:

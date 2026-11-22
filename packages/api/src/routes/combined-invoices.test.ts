@@ -544,6 +544,10 @@ describe('TD-511 finalization', () => {
     expect(finalized.status, finalized.text).toBe(200);
     expect(finalized.data['status']).toBe('finalized');
     expect(finalized.data['pdfState']).toBe('ready');
+    // A combined invoice has no case, so its PDF is in the head's general folder (TD-411).
+    expect([...w.harness.storage.items.values()].map((entry) => entry.path)).toEqual([
+      `clients/${head['clientCode'] as string}/general/${finalized.data['invoiceNumber'] as string}.pdf`,
+    ]);
 
     // Rename the member and take it out of the group.
     const renamed = await editClient(w, member, {

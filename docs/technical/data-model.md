@@ -255,8 +255,14 @@ permission. See [ADR 0006](../adr/0006-provider-neutral-document-storage.md).
   `missing_provider`; `provider_state` is `present`, `missing`, or `moved`.
   `deleted_at`/`deleted_by` mark a soft delete; default lists exclude them.
   Edits use `version` with `If-Match`.
+- Storage paths follow ADR 0011 (TD-411): `clients/<client code>/<tax
+  year>/<case code>/<file name>` for case documents and billing PDFs, and
+  `clients/<client code>/general/<file name>` without a case. A name already
+  taken in the folder is resolved by the provider (`name 1.pdf`); the record
+  keeps the uploaded file name. Objects stored before TD-411 keep their
+  ID-based paths and are still reached by item ID.
 - `document_uploads` track a resumable upload: the pre-assigned document ID
-  (so the storage path is stable), the encrypted provider session handle, the
+  (the ID the completed document will have), the encrypted provider session handle, the
   next byte offset, and the state (`active`, `completed`, `cancelled`,
   `expired`, `failed`). `(created_by, request_id)` is unique so a retried create
   returns the same upload, and `documents.upload_id` is unique so completing an

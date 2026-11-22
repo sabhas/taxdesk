@@ -22,8 +22,9 @@ When implementation begins, create separate ADRs for decisions that change cost,
 | [0003](0003-ui-foundation.md) | shadcn/ui on Base UI and Tailwind CSS as the web UI foundation | accepted |
 | [0004](0004-client-identifier-protection-and-visibility.md) | Client identifier protection and assignment-scoped client visibility | proposed |
 | [0005](0005-case-workflow-integrity-and-authorization.md) | Tax-case workflow integrity and case authorization | proposed |
-| [0006](0006-provider-neutral-document-storage.md) | Provider-neutral document storage through the Worker | proposed |
+| [0006](0006-provider-neutral-document-storage.md) | Provider-neutral document storage through the Worker | proposed (storage layout superseded by 0011) |
 | [0007](0007-billing-integrity-and-idempotency.md) | Billing integrity, idempotency, and decoupled PDFs | proposed |
 | [0008](0008-dashboard-reports-and-firm-settings.md) | Reconciled dashboards, permissioned reports, and firm settings | proposed |
 | [0009](0009-data-import-and-independent-backups.md) | Retry-safe CSV import and independent encrypted backups | proposed |
 | [0010](0010-client-groups-and-combined-invoices.md) | Client groups and combined group invoices | proposed |
+| [0011](0011-browsable-onedrive-folder-layout.md) | Browsable OneDrive folder layout | proposed |

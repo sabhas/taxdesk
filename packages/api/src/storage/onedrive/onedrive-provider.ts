@@ -45,6 +45,9 @@ import {
  * - Upload-session URLs are pre-authenticated: chunks are sent without the
  *   bearer token, and the URL is treated as a secret.
  * - Chunks must be multiples of 320 KiB (TaxDesk uses 5 MiB).
+ * - Upload sessions use `conflictBehavior: rename` (TD-411, ADR 0011): a
+ *   file whose name already exists in the folder is stored as `name 1.pdf`
+ *   instead of failing, and is never overwritten.
  *
  * Only `storage/provider-factory.ts` may import this module.
  */
@@ -262,7 +265,7 @@ export function createOneDriveStorageProvider(
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          item: { '@microsoft.graph.conflictBehavior': 'fail', name: input.path.fileName },
+          item: { '@microsoft.graph.conflictBehavior': 'rename', name: input.path.fileName },
         }),
       };
       let response = await graph(credentials, path, init);

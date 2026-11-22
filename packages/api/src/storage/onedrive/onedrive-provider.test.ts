@@ -262,11 +262,11 @@ describe('OneDrive adapter: connection', () => {
 
 describe('OneDrive adapter: uploads', () => {
   const path = {
-    segments: ['clients', 'CL-00001', '2025', 'case id', 'doc-1'],
+    segments: ['clients', 'CL-00001', '2025', 'TC 00042'],
     fileName: 'Bank statement #1.pdf',
   };
 
-  it('creates a session under the app folder with conflictBehavior fail', async () => {
+  it('creates a session under the app folder that renames on a name conflict (TD-411)', async () => {
     const { provider, requests } = setup([
       () =>
         json(200, {
@@ -284,11 +284,11 @@ describe('OneDrive adapter: uploads', () => {
     const request = requests[0];
     expect(request?.method).toBe('POST');
     expect(request?.url).toBe(
-      `${GRAPH_API_BASE}/me/drive/special/approot:/clients/CL-00001/2025/case%20id/doc-1/Bank%20statement%20%231.pdf:/createUploadSession`,
+      `${GRAPH_API_BASE}/me/drive/special/approot:/clients/CL-00001/2025/TC%2000042/Bank%20statement%20%231.pdf:/createUploadSession`,
     );
     expect(request?.headers.get('Authorization')).toBe(`Bearer ${ACCESS_TOKEN}`);
     expect(JSON.parse(request?.body ?? '{}')).toEqual({
-      item: { '@microsoft.graph.conflictBehavior': 'fail', name: 'Bank statement #1.pdf' },
+      item: { '@microsoft.graph.conflictBehavior': 'rename', name: 'Bank statement #1.pdf' },
     });
   });
 

@@ -428,6 +428,17 @@ window.TAXDESK_UAT = [
           ['Reconciliation flags missing files', 'admin', 'neg', 'Delete one TaxDesk file directly in OneDrive (staging only)', ['Run reconciliation'], 'Missing count 1; document shows Missing in storage; nothing deleted'],
         ],
       },
+      {
+        id: 'TD-411',
+        title: 'Browsable OneDrive folder layout',
+        cases: [
+          ['Case file lands in a readable folder', 'consultant', 'pos', 'Case TC-xxxxx for client CL-xxxxx; app folder shared view-only with the tester', ['Upload a document on the case', 'Open the shared folder in OneDrive'], 'File is at clients → client code → tax year → case code, with no ID folders'],
+          ['Client-level file goes to general', 'manager', 'pos', 'Client with no case', ['Upload a document on the client page', 'Look in OneDrive'], 'File is at clients → client code → general'],
+          ['Same name twice keeps both', 'consultant', 'pos', 'Case already has bank-statement.pdf', ['Upload another bank-statement.pdf to the same case', 'Open both in TaxDesk'], 'Both upload; OneDrive shows bank-statement 1.pdf; TaxDesk shows bank-statement.pdf for both and each opens its own file'],
+          ['Invoice PDF sits with its case', 'billing', 'pos', 'Invoice drafted from a case', ['Finalize the invoice', 'Look in OneDrive'], 'INV number PDF is in the case folder; a combined group invoice is in the group head\'s general folder'],
+          ['Share cannot change files', 'readonly', 'neg', 'App folder shared view-only', ['Try to rename or delete a file in OneDrive'], 'OneDrive refuses; TaxDesk records are unchanged'],
+        ],
+      },
     ],
   },
   {

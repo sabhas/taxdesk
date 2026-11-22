@@ -419,8 +419,7 @@ export class DocumentService {
     const path = buildDocumentStoragePath({
       clientCode: target.client.clientCode,
       taxYear: target.taxCase?.taxYear ?? null,
-      caseId: target.taxCase?.id ?? null,
-      documentId,
+      caseCode: target.taxCase?.caseCode ?? null,
       fileName: request.fileName,
     });
     const audit: StorageAuditContext = { requestId, actorUserId: actor.userId };
