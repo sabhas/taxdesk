@@ -48,6 +48,10 @@
     {
       "name": "0012_combined_group_invoices.sql",
       "checksum": "a40b6cc9ae41a7fd2e2edbc9b1a0cbc9b564c6e10c41b211ee73bb517d87d098"
+    },
+    {
+      "name": "0013_firm_logo.sql",
+      "checksum": "3f93521fabb59e090dd5ba31b8bf5f07f72b28c6b63b7b1e92b6591e36e496d6"
     }
   ]
 }

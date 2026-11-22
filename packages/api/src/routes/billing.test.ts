@@ -15,6 +15,7 @@ import {
   type TestHarnessOptions,
 } from '../testing/harness.js';
 import type { UserRecord } from '../domain/auth/types.js';
+import { PNG_LOGO, imageCount } from '../testing/logo-fixtures.js';
 
 const PASSWORD = 'correct horse battery staple';
 let counter = 0;
@@ -33,6 +34,8 @@ interface CallOptions {
   as: Actor;
   method?: string;
   body?: unknown;
+  /** Raw bytes sent as `application/octet-stream`, e.g. a logo image. */
+  raw?: Uint8Array;
   ifMatch?: number;
   key?: string;
 }
@@ -78,6 +81,9 @@ async function world(options: TestHarnessOptions & { connected?: boolean } = {})
     if (call.body !== undefined) {
       headers['Content-Type'] = 'application/json';
       body = JSON.stringify(call.body);
+    } else if (call.raw !== undefined) {
+      headers['Content-Type'] = 'application/octet-stream';
+      body = call.raw;
     }
     if (call.ifMatch !== undefined) {
       headers['If-Match'] = `"${String(call.ifMatch)}"`;
@@ -524,6 +530,45 @@ describe('finalize (TD-503)', () => {
     const result = await finalize(w, draft);
     expect(result.status).toBe(400);
     expect(result.data['errors'][0].field).toBe('dueDate');
+  });
+});
+
+describe('firm logo on billing PDFs (TD-512)', () => {
+  it('prints the logo on PDFs generated after an upload and never alters earlier ones', async () => {
+    const w = await world();
+    const client = await createClient(w);
+    const before = await finalized(w, client);
+    const pdfOf = async (invoice: Record<string, any>): Promise<Uint8Array> =>
+      (await w.call(`/api/v1/invoices/${invoice['id'] as string}/pdf`, { as: 'billing' })).bytes;
+    const earlierBytes = await pdfOf(before);
+    expect(await imageCount(earlierBytes)).toBe(0);
+
+    const settings = await w.call('/api/v1/firm/settings', { as: 'administrator' });
+    const uploaded = await w.call('/api/v1/firm/logo', {
+      as: 'administrator',
+      method: 'PUT',
+      raw: PNG_LOGO,
+      ifMatch: settings.data['version'],
+    });
+    expect(uploaded.status).toBe(200);
+
+    const after = await finalized(w, client);
+    expect(await imageCount(await pdfOf(after))).toBeGreaterThan(0);
+    const payment = await pay(w, after, 100_000);
+    expect(payment.status).toBe(201);
+    const receipt = await w.call(
+      `/api/v1/payments/${payment.data['payment']['id'] as string}/receipt-pdf`,
+      { as: 'billing' },
+    );
+    expect(await imageCount(receipt.bytes)).toBeGreaterThan(0);
+
+    // The earlier PDF is stored once and never regenerated.
+    const regenerate = await w.call(`/api/v1/invoices/${before['id'] as string}/pdf`, {
+      as: 'billing',
+      method: 'POST',
+    });
+    expect(regenerate.data).toEqual({ pdfState: 'ready', created: false });
+    expect(Buffer.from(await pdfOf(before)).equals(Buffer.from(earlierBytes))).toBe(true);
   });
 });
 

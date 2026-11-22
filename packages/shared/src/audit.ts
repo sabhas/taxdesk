@@ -44,6 +44,8 @@ export type AuditEventList = z.infer<typeof AuditEventListSchema>;
 export const AUDIT_ACTIONS = {
   firmBootstrapped: 'firm.bootstrapped',
   firmSettingsUpdated: 'firm.settings_updated',
+  firmLogoUpdated: 'firm.logo_updated',
+  firmLogoRemoved: 'firm.logo_removed',
   userInvited: 'user.invited',
   userActivated: 'user.activated',
   userDeactivated: 'user.deactivated',

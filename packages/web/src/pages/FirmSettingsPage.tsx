@@ -17,6 +17,7 @@ import {
 } from '../components/feedback.js';
 import { PageHeader } from '../components/layout/PageHeader.js';
 import { toErrorNotice } from './error-notice.js';
+import { FirmLogoCard } from './FirmLogoCard.js';
 
 const MIB = 1024 * 1024;
 const COMMON_TIMEZONES = ['Asia/Karachi', 'UTC', 'Asia/Dubai', 'Europe/London', 'America/New_York'];
@@ -276,6 +277,14 @@ export function FirmSettingsPage() {
           </CardFooter>
         </form>
       </Card>
+      <FirmLogoCard
+        settings={settings}
+        canManage={canManage}
+        onChange={(updated) => {
+          // A logo change bumps the settings version the form saves against.
+          setSettings(updated);
+        }}
+      />
     </section>
   );
 }

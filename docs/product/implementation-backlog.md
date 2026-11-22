@@ -39,6 +39,8 @@ TD-207 (client groups, 5 points, Epic 2) and TD-511 (combined group invoices, 5 
 
 TD-411 (browsable OneDrive folder layout, 3 points, Epic 4) was added on 2026-11-22 after staging feedback that staff read documents directly in OneDrive. It is unscheduled and should ship before the first real OneDrive connection; see the Epic 4 PRD and ADR 0011.
 
+TD-512 (firm logo on invoices and receipts, 3 points, Epic 5) and TD-513 (share an invoice from the app, 3 points, Epic 5) were added on 2026-11-22 after the firm's representative tested staging. Both are unscheduled and independent of each other; see the Epic 5 PRD.
+
 ## Engineering build order
 
 Within every story, build in this order unless the PRD says otherwise:

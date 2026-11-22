@@ -180,6 +180,40 @@
             new values. If someone else saved in the meantime you get a conflict and must reload.
           </p>
 
+          <h3 id="firm-logo">Firm logo</h3>
+          <p>
+            The <span class="ui">Firm logo</span> card on <span class="path">Firm settings</span>
+            holds the logo printed at the top left of invoice and receipt PDFs, above the firm
+            name. Everyone can see the current logo; only administrators can change it, and others
+            see "Your role can view but not change the firm logo."
+          </p>
+          <ol>
+            <li>
+              Choose a file under <span class="ui">Logo image</span> (or
+              <span class="ui">Replace with</span> when a logo exists). Use a PNG or JPEG of at most
+              512 KiB and at most 2000 pixels on each side. A wide logo on a white or transparent
+              background prints best.
+            </li>
+            <li>
+              Select <span class="ui">Upload logo</span> (or <span class="ui">Replace logo</span>).
+              The preview updates and "Logo saved. New invoice and receipt PDFs will show it."
+              appears.
+            </li>
+            <li>
+              To go back to no logo, select <span class="ui">Remove logo</span> and confirm.
+            </li>
+          </ol>
+          <p>
+            Only PDFs created <strong>after</strong> a change use the new logo. A PDF that already
+            exists is never regenerated, so older invoices and receipts keep the logo they were
+            made with. TaxDesk checks the file itself, not its name: a renamed GIF or SVG is
+            refused with "Use a PNG or JPEG image.", and a damaged file with "This image could not
+            be read." Each upload, replacement, and removal is audited
+            (<code>firm.logo_updated</code>, <code>firm.logo_removed</code>) with the file type,
+            size, and a fingerprint of the image. If someone else changed the settings in the
+            meantime you see "Settings changed" and must reload.
+          </p>
+
           <h2 id="storage">Document storage</h2>
           <p>
             <span class="path">Document storage</span> connects the firm's OneDrive once, shows

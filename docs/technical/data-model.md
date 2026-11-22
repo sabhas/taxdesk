@@ -355,6 +355,29 @@ Dashboards and reports are read models over existing tables:
   cursor. Metadata is masked before display (secrets, hashes, and identifier-like
   values become `[masked]`).
 
+### Firm logo (TD-512)
+
+Migration `0013_firm_logo.sql` adds `firm_logos`, at most one row keyed by
+`firm_settings_id` ([ADR 0012](../adr/0012-invoice-branding-and-sharing.md)):
+
+- `content_type` is `image/png` or `image/jpeg`, `byte_size` is 1–524,288, and
+  `sha256` is lowercase hex. Database checks require `byte_size` to equal
+  `octet_length(bytes)` and `sha256` to equal the digest of `bytes`, so the
+  digest in the audit trail always identifies the stored image.
+- The API takes the type from the file signature, rejects images over 2000
+  pixels a side before decoding, decodes the whole image (pdf-lib for PNG,
+  `jpeg-js` in strict mode for JPEG), and requires it to embed in a PDF.
+- Uploading, replacing, or removing the logo bumps `firm_settings.version`
+  (so `If-Match` covers it) and appends `firm.logo_updated` or
+  `firm.logo_removed` with type, size, and digest, never the bytes. The audit
+  explorer masks the 64-character digest like any long opaque value, so each
+  event also carries a 12-character `imageFingerprint` that it shows.
+- `FirmSettings.logo` describes the current logo (or `null`); the image is
+  `GET /api/v1/firm/logo`. The repository moves bytes as hex
+  (`decode`/`encode`) so no driver binary handling is involved.
+- Invoice and receipt PDFs read the logo when they are generated. Stored PDFs
+  are never regenerated, so an existing PDF keeps the logo it was made with.
+
 ## Data import (Epic 7)
 
 Migration `0010_data_import.sql` adds `import_batches`, `import_batch_rows`,

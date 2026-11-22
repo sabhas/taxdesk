@@ -1,4 +1,5 @@
 import { PDFDocument } from 'pdf-lib';
+import { JPEG_LOGO, PNG_LOGO, imageCount } from '../../../testing/logo-fixtures.js';
 import { describe, expect, it } from 'vitest';
 import {
   buildInvoiceLayout,
@@ -169,6 +170,40 @@ describe('receipt layout', () => {
       'Reference',
       'Invoice total',
     ]);
+  });
+});
+
+describe('firm logo (TD-512)', () => {
+  it('draws a PNG or JPEG logo and leaves the text and metadata unchanged', async () => {
+    const renderer = createPdfRenderer();
+    const plain = await renderer.render(buildInvoiceLayout(invoice));
+    expect(await imageCount(plain)).toBe(0);
+    for (const logo of [
+      { contentType: 'image/png' as const, bytes: PNG_LOGO },
+      { contentType: 'image/jpeg' as const, bytes: JPEG_LOGO },
+    ]) {
+      const branded = await renderer.render({ ...buildInvoiceLayout(invoice), logo });
+      expect(await imageCount(branded)).toBeGreaterThan(0);
+      const loaded = await PDFDocument.load(branded);
+      expect(loaded.getTitle()).toBe('Invoice INV-00012');
+      expect(loaded.getPageCount()).toBe(1);
+    }
+    const receiptBytes = await renderer.render({
+      ...buildReceiptLayout(receipt),
+      logo: { contentType: 'image/png', bytes: PNG_LOGO },
+    });
+    expect(await imageCount(receiptBytes)).toBeGreaterThan(0);
+  });
+
+  it('renders the same bytes for the same snapshot and logo', async () => {
+    const renderer = createPdfRenderer();
+    const layout = {
+      ...buildInvoiceLayout(invoice),
+      logo: { contentType: 'image/png' as const, bytes: PNG_LOGO },
+    };
+    const first = await renderer.render(layout);
+    const second = await renderer.render(layout);
+    expect(Buffer.from(first).equals(Buffer.from(second))).toBe(true);
   });
 });
 

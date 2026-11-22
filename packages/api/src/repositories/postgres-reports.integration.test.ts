@@ -6,7 +6,7 @@ import {
   createPostgresExecutor,
   runMigrations,
 } from '@taxdesk/database/migrations';
-import { STARTER_WORKFLOW_DEFINITION } from '@taxdesk/shared';
+import { STARTER_WORKFLOW_DEFINITION, type FirmSettings } from '@taxdesk/shared';
 import { bytesToBase64Url } from '../crypto/encoding.js';
 import { createPasswordHasher } from '../crypto/password.js';
 import { createSecretCipher } from '../crypto/cipher.js';
@@ -14,6 +14,7 @@ import { buildDependencies, type AppDependencies } from '../dependencies.js';
 import { BootstrapService } from '../domain/auth/bootstrap-service.js';
 import type { Actor } from '../domain/auth/types.js';
 import { matchesCaseFilter } from '../domain/cases/types.js';
+import { JPEG_LOGO, PNG_LOGO } from '../testing/logo-fixtures.js';
 import type { Repositories } from './ports.js';
 
 /**
@@ -304,6 +305,113 @@ describeWithDatabase('report queries, audit search, and firm settings against Po
       await expect(
         sql(`UPDATE invoices SET invoice_number = 'tax-1' WHERE false`),
       ).resolves.toBeDefined();
+    });
+  });
+
+  describe('migration 0013 firm logo (TD-512)', () => {
+    it('stores, replaces, and removes the logo with a version check and exact bytes', async () => {
+      const start = await dependencies.firmService.getSettings();
+      expect(start.logo).toBeNull();
+      tick();
+      const stored = await dependencies.firmService.setLogo({
+        actor: owner,
+        bytes: PNG_LOGO,
+        expectedVersion: start.version,
+        requestId: rid(),
+      });
+      expect(stored.version).toBe(start.version + 1);
+      expect(stored.logo).toMatchObject({ contentType: 'image/png', byteSize: PNG_LOGO.length });
+      const image = await dependencies.firmService.getLogo();
+      expect(Array.from(image.bytes)).toEqual(Array.from(PNG_LOGO));
+      // The database digest matches the API's.
+      const [row] = await sql(`SELECT encode(sha256(bytes), 'hex') AS digest FROM firm_logos`);
+      expect(row?.['digest']).toBe(stored.logo?.sha256);
+
+      await expect(
+        dependencies.firmService.setLogo({
+          actor: owner,
+          bytes: JPEG_LOGO,
+          expectedVersion: start.version,
+          requestId: rid(),
+        }),
+      ).rejects.toMatchObject({ status: 412 });
+
+      tick();
+      const replaced = await dependencies.firmService.setLogo({
+        actor: owner,
+        bytes: JPEG_LOGO,
+        expectedVersion: stored.version,
+        requestId: rid(),
+      });
+      expect(replaced.logo?.contentType).toBe('image/jpeg');
+      expect(await sql('SELECT count(*)::int AS n FROM firm_logos')).toEqual([{ n: 1 }]);
+
+      tick();
+      const removed = await dependencies.firmService.removeLogo({
+        actor: owner,
+        expectedVersion: replaced.version,
+        requestId: rid(),
+      });
+      expect(removed.logo).toBeNull();
+      expect(await repositories.firm.getLogo()).toBeNull();
+    });
+
+    it('lets exactly one of two concurrent uploads at the same version win', async () => {
+      const current = await dependencies.firmService.getSettings();
+      tick();
+      const results = await Promise.allSettled(
+        [PNG_LOGO, JPEG_LOGO].map((bytes) =>
+          dependencies.firmService.setLogo({
+            actor: owner,
+            bytes,
+            expectedVersion: current.version,
+            requestId: rid(),
+          }),
+        ),
+      );
+      const won = results.filter(
+        (result): result is PromiseFulfilledResult<FirmSettings> => result.status === 'fulfilled',
+      );
+      const lost = results.filter(
+        (result): result is PromiseRejectedResult => result.status === 'rejected',
+      );
+      expect(won).toHaveLength(1);
+      expect(lost).toHaveLength(1);
+      expect(lost[0]?.reason).toMatchObject({ status: 412 });
+      const after = await dependencies.firmService.getSettings();
+      expect(after.version).toBe(current.version + 1);
+      expect(after.logo?.sha256).toBe(won[0]?.value.logo?.sha256);
+      tick();
+      await dependencies.firmService.removeLogo({
+        actor: owner,
+        expectedVersion: after.version,
+        requestId: rid(),
+      });
+    });
+
+    it('rejects a logo whose size, digest, or type disagrees with its bytes', async () => {
+      const [firm] = await sql('SELECT id FROM firm_settings');
+      const [user] = await sql('SELECT id FROM users LIMIT 1');
+      const insert = (columns: { type?: string; size?: number; sha?: string }) =>
+        sql(
+          `INSERT INTO firm_logos
+             (firm_settings_id, content_type, byte_size, sha256, bytes, updated_by_user_id, updated_at)
+           VALUES ($1, $2, $3, $4, decode('00ff', 'hex'), $5, now())`,
+          [
+            firm?.['id'],
+            columns.type ?? 'image/png',
+            columns.size ?? 2,
+            columns.sha ?? 'a'.repeat(64),
+            user?.['id'],
+          ],
+        );
+      await expect(insert({})).rejects.toThrow(/firm_logos_sha256_matches_check/u);
+      const [digest] = await sql(`SELECT encode(sha256(decode('00ff', 'hex')), 'hex') AS d`);
+      const sha = digest?.['d'] as string;
+      await expect(insert({ sha, size: 3 })).rejects.toThrow(/firm_logos_byte_size_matches_check/u);
+      await expect(insert({ sha, type: 'image/gif' })).rejects.toThrow(
+        /firm_logos_content_type_check/u,
+      );
     });
   });
 

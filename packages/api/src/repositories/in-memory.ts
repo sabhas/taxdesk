@@ -10,6 +10,7 @@ import {
 import type {
   ActivationTokenRecord,
   AuditEventRecord,
+  FirmLogoImage,
   FirmRecord,
   LoginAttemptRecord,
   LoginChallengeRecord,
@@ -65,6 +66,7 @@ export interface InMemoryState
     InMemoryBillingState,
     InMemoryImportState {
   firm: FirmRecord | null;
+  firmLogo: FirmLogoImage | null;
   users: Map<string, UserRecord>;
   roles: Map<string, RoleRecord>;
   roleAssignments: Map<string, Set<string>>;
@@ -94,6 +96,7 @@ function copyEvent(event: AuditEventRecord): AuditEventRecord {
 export function createInMemoryRepositories(): InMemoryRepositories {
   const state: InMemoryState = {
     firm: null,
+    firmLogo: null,
     users: new Map(),
     roles: new Map(),
     roleAssignments: new Map(),
@@ -155,6 +158,7 @@ export function createInMemoryRepositories(): InMemoryRepositories {
           receiptPrefix: DEFAULT_FIRM_SETTINGS.receiptPrefix,
           documentMaxUploadBytes: DEFAULT_FIRM_SETTINGS.documentMaxUploadBytes,
           dueSoonDays: DEFAULT_FIRM_SETTINGS.dueSoonDays,
+          logo: null,
           bootstrapCompletedAt: null,
           createdAt: input.createdAt,
           updatedAt: input.createdAt,
@@ -184,6 +188,42 @@ export function createInMemoryRepositories(): InMemoryRepositories {
           receiptPrefix: input.receiptPrefix,
           documentMaxUploadBytes: input.documentMaxUploadBytes,
           dueSoonDays: input.dueSoonDays,
+          updatedAt: input.updatedAt,
+          version: state.firm.version + 1,
+        };
+        return { ...state.firm };
+      },
+      getLogo: async () =>
+        state.firmLogo === null
+          ? null
+          : { ...state.firmLogo, bytes: new Uint8Array(state.firmLogo.bytes) },
+      setLogo: async (input) => {
+        if (state.firm?.id !== input.id || state.firm.version !== input.expectedVersion) {
+          return null;
+        }
+        const logo = {
+          contentType: input.contentType,
+          byteSize: input.bytes.length,
+          sha256: input.sha256,
+          updatedAt: input.updatedAt,
+        };
+        state.firmLogo = { ...logo, bytes: new Uint8Array(input.bytes) };
+        state.firm = {
+          ...state.firm,
+          logo,
+          updatedAt: input.updatedAt,
+          version: state.firm.version + 1,
+        };
+        return { ...state.firm };
+      },
+      removeLogo: async (input) => {
+        if (state.firm?.id !== input.id || state.firm.version !== input.expectedVersion) {
+          return null;
+        }
+        state.firmLogo = null;
+        state.firm = {
+          ...state.firm,
+          logo: null,
           updatedAt: input.updatedAt,
           version: state.firm.version + 1,
         };

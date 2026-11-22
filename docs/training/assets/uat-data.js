@@ -546,6 +546,19 @@ window.TAXDESK_UAT = [
           ['Hidden from users who cannot see every client', 'consultant', 'neg', 'Combined invoice for A', ['Open the invoice link'], 'Access refused'],
         ],
       },
+      {
+        id: 'TD-512',
+        title: 'Firm logo on invoices and receipts',
+        cases: [
+          ['Upload a logo', 'admin', 'pos', 'No logo set; a PNG logo under 512 KiB', ['Firm settings → Firm logo → Logo image → choose the PNG → Upload logo'], 'Preview shows the logo; "Logo saved. New invoice and receipt PDFs will show it."; audit has firm.logo_updated'],
+          ['New PDFs carry the logo', 'billing', 'pos', 'Logo uploaded', ['Finalize an invoice → Download PDF', 'Record a payment → download the receipt'], 'Logo top left above the firm name on both; totals and text unchanged'],
+          ['Earlier PDFs are unchanged', 'billing', 'pos', 'An invoice finalized before the upload', ['Open it → Download PDF'], 'No logo; the PDF is the same file as before'],
+          ['Wrong file refused', 'admin', 'neg', 'A GIF renamed to .png; a 2 MB photo', ['Choose each file'], '"Use a PNG or JPEG image." / "Use a logo of at most 512 KiB."; nothing uploaded'],
+          ['Replace and remove', 'admin', 'pos', 'Logo set', ['Choose a JPEG → Replace logo', 'Remove logo → confirm'], 'Preview changes, then "No logo uploaded."; new PDFs have no logo; both changes audited'],
+          ['Non-admin view only', 'manager', 'neg', 'Logo set', ['Open Firm settings'], 'Logo visible; no upload or remove controls; "Your role can view but not change the firm logo."'],
+          ['Keyboard and screen reader', 'admin', 'pos', 'No mouse', ['Tab to Logo image, choose a file, Upload logo; Tab to Remove logo and confirm'], 'All reachable; errors announced against the file field; the preview has the name "Current firm logo"'],
+        ],
+      },
     ],
   },
   {

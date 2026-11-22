@@ -4,6 +4,7 @@ import type {
   ActivationPurpose,
   ActivationTokenRecord,
   AuditEventRecord,
+  FirmLogoRecord,
   FirmRecord,
   LoginAttemptRecord,
   LoginChallengeRecord,
@@ -176,6 +177,44 @@ function mapRecoveryCode(row: SqlRow): RecoveryCodeRecord {
   };
 }
 
+/** Firm settings with the current logo's description, never its bytes. */
+const SELECT_FIRM = `SELECT f.*, l.content_type AS logo_content_type, l.byte_size AS logo_byte_size,
+         l.sha256 AS logo_sha256, l.updated_at AS logo_updated_at
+  FROM firm_settings f
+  LEFT JOIN firm_logos l ON l.firm_settings_id = f.id`;
+
+function logoContentType(value: unknown): FirmLogoRecord['contentType'] {
+  if (value === 'image/png' || value === 'image/jpeg') {
+    return value;
+  }
+  throw new Error('Unexpected firm logo content type.');
+}
+
+/** `null` when the row has no joined logo (or was not read with `SELECT_FIRM`). */
+function mapFirmLogo(row: SqlRow): FirmLogoRecord | null {
+  if (row['logo_sha256'] === null || row['logo_sha256'] === undefined) {
+    return null;
+  }
+  return {
+    contentType: logoContentType(row['logo_content_type']),
+    byteSize: integer(row, 'logo_byte_size'),
+    sha256: text(row, 'logo_sha256'),
+    updatedAt: iso(row['logo_updated_at']),
+  };
+}
+
+function hexToBytes(hex: string): Uint8Array {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let index = 0; index < bytes.length; index += 1) {
+    bytes[index] = Number.parseInt(hex.slice(index * 2, index * 2 + 2), 16);
+  }
+  return bytes;
+}
+
+function bytesToHex(bytes: Uint8Array): string {
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
 function mapFirm(row: SqlRow): FirmRecord {
   return {
     id: text(row, 'id'),
@@ -186,6 +225,7 @@ function mapFirm(row: SqlRow): FirmRecord {
     receiptPrefix: text(row, 'receipt_prefix'),
     documentMaxUploadBytes: integer(row, 'document_max_upload_bytes'),
     dueSoonDays: integer(row, 'due_soon_days'),
+    logo: mapFirmLogo(row),
     bootstrapCompletedAt: nullableIso(row['bootstrap_completed_at']),
     createdAt: iso(row['created_at']),
     updatedAt: iso(row['updated_at']),
@@ -242,12 +282,27 @@ export function isUniqueViolation(error: unknown): boolean {
 }
 
 export function createPostgresRepositories(executor: SqlExecutor): Repositories {
+  const selectFirm = async (): Promise<FirmRecord | null> => {
+    const rows = await executor.query(`${SELECT_FIRM} LIMIT 1`);
+    return rows[0] === undefined ? null : mapFirm(rows[0]);
+  };
+  /** Optimistic concurrency for a logo change: `false` when the version is stale. */
+  const bumpFirmVersion = async (input: {
+    readonly id: string;
+    readonly expectedVersion: number;
+    readonly updatedAt: string;
+  }): Promise<boolean> => {
+    const rows = await executor.query(
+      `UPDATE firm_settings SET updated_at = $3, version = version + 1
+       WHERE id = $1 AND version = $2
+       RETURNING id`,
+      [input.id, input.expectedVersion, input.updatedAt],
+    );
+    return rows.length > 0;
+  };
   return {
     firm: {
-      get: async () => {
-        const rows = await executor.query('SELECT * FROM firm_settings LIMIT 1');
-        return rows[0] === undefined ? null : mapFirm(rows[0]);
-      },
+      get: async () => await selectFirm(),
       create: async (input) => {
         const rows = await executor.query(
           `INSERT INTO firm_settings (id, firm_name, timezone, bootstrap_completed_at, created_at, updated_at, version)
@@ -290,7 +345,56 @@ export function createPostgresRepositories(executor: SqlExecutor): Repositories 
             input.dueSoonDays,
           ],
         );
-        return rows[0] === undefined ? null : mapFirm(rows[0]);
+        return rows[0] === undefined ? null : await selectFirm();
+      },
+      getLogo: async () => {
+        // Bytes travel as hex so no driver-specific binary handling is involved.
+        const rows = await executor.query(
+          `SELECT content_type, byte_size, sha256, updated_at, encode(bytes, 'hex') AS bytes_hex
+           FROM firm_logos LIMIT 1`,
+        );
+        const row = rows[0];
+        if (row === undefined) {
+          return null;
+        }
+        return {
+          contentType: logoContentType(row['content_type']),
+          byteSize: integer(row, 'byte_size'),
+          sha256: text(row, 'sha256'),
+          updatedAt: iso(row['updated_at']),
+          bytes: hexToBytes(text(row, 'bytes_hex')),
+        };
+      },
+      setLogo: async (input) => {
+        if (!(await bumpFirmVersion(input))) {
+          return null;
+        }
+        await executor.query(
+          `INSERT INTO firm_logos
+             (firm_settings_id, content_type, byte_size, sha256, bytes, updated_by_user_id, updated_at)
+           VALUES ($1, $2, $3, $4, decode($5, 'hex'), $6, $7)
+           ON CONFLICT (firm_settings_id) DO UPDATE
+             SET content_type = EXCLUDED.content_type, byte_size = EXCLUDED.byte_size,
+                 sha256 = EXCLUDED.sha256, bytes = EXCLUDED.bytes,
+                 updated_by_user_id = EXCLUDED.updated_by_user_id, updated_at = EXCLUDED.updated_at`,
+          [
+            input.id,
+            input.contentType,
+            input.bytes.length,
+            input.sha256,
+            bytesToHex(input.bytes),
+            input.updatedByUserId,
+            input.updatedAt,
+          ],
+        );
+        return await selectFirm();
+      },
+      removeLogo: async (input) => {
+        if (!(await bumpFirmVersion(input))) {
+          return null;
+        }
+        await executor.query('DELETE FROM firm_logos WHERE firm_settings_id = $1', [input.id]);
+        return await selectFirm();
       },
     },
     users: {
