@@ -347,23 +347,83 @@ describe('resumable upload (TD-406)', () => {
     },
   );
 
-  it('stores objects under the stable client-code/year/case/document layout', async () => {
+  it('stores objects under the browsable client-code/year/case-code layout (TD-411)', async () => {
     const w = await world();
     const client = await createClient(w, 'consultant');
     const taxCase = await openCase(w, client);
-    const { document } = await upload(w, { clientId: client['id'], caseId: taxCase['id'] });
-    const clientLevel = await upload(w, {
-      clientId: client['id'],
-      fileName: 'cnic.png',
-      contentType: 'image/png',
-    });
+    await upload(w, { clientId: client['id'], caseId: taxCase['id'] });
+    await upload(w, { clientId: client['id'], fileName: 'cnic.png', contentType: 'image/png' });
     const paths = [...w.harness.storage.items.values()].map((entry) => entry.path).sort();
     expect(paths).toEqual(
       [
-        `clients/${client['clientCode'] as string}/2026/${taxCase['id'] as string}/${document['id'] as string}/statement.pdf`,
-        `clients/${client['clientCode'] as string}/general/client-documents/${clientLevel.document['id'] as string}/cnic.png`,
+        `clients/${client['clientCode'] as string}/2026/${taxCase['caseCode'] as string}/statement.pdf`,
+        `clients/${client['clientCode'] as string}/general/cnic.png`,
       ].sort(),
     );
+  });
+
+  it('keeps both files when the same name is uploaded twice to one case (TD-411)', async () => {
+    const w = await world();
+    const client = await createClient(w, 'consultant');
+    const taxCase = await openCase(w, client);
+    const first = await upload(w, { clientId: client['id'], caseId: taxCase['id'], size: 1000 });
+    const second = await upload(w, { clientId: client['id'], caseId: taxCase['id'], size: 1500 });
+    expect(first.document['fileName']).toBe('statement.pdf');
+    expect(second.document['fileName']).toBe('statement.pdf');
+
+    // Storage kept both under distinct names in the same case folder.
+    const folder = `clients/${client['clientCode'] as string}/2026/${taxCase['caseCode'] as string}`;
+    const paths = [...w.harness.storage.items.values()].map((entry) => entry.path).sort();
+    expect(paths).toEqual([`${folder}/statement 1.pdf`, `${folder}/statement.pdf`]);
+
+    // Each document opens its own file, under the name the user uploaded.
+    for (const { document, content } of [first, second]) {
+      const opened = await w.call(`/api/v1/documents/${document['id'] as string}/content`, {
+        as: 'consultant',
+      });
+      expect(opened.status).toBe(200);
+      expect(opened.bytes).toEqual(content);
+      expect(opened.headers.get('Content-Disposition')).toContain('filename="statement.pdf"');
+    }
+  });
+
+  it('still opens, deletes, restores, and reconciles a document stored under the TD-405 layout', async () => {
+    const w = await world();
+    const client = await createClient(w, 'consultant');
+    const taxCase = await openCase(w, client);
+    const { document, content } = await upload(w, {
+      clientId: client['id'],
+      caseId: taxCase['id'],
+    });
+    const id = document['id'] as string;
+    const record = w.harness.state.documents.get(id)!;
+    // Put the stored object at its old ID-based path: records never use paths.
+    w.harness.storage.setStoredPath(
+      record.externalItemId,
+      `clients/${client['clientCode'] as string}/2026/${taxCase['id'] as string}/${id}/statement.pdf`,
+    );
+
+    const opened = await w.call(`/api/v1/documents/${id}/content`, { as: 'consultant' });
+    expect(opened.status).toBe(200);
+    expect(opened.bytes).toEqual(content);
+    const deleted = await w.call(`/api/v1/documents/${id}`, {
+      as: 'consultant',
+      method: 'DELETE',
+      ifMatch: 1,
+    });
+    expect(deleted.status).toBe(200);
+    const restored = await w.call(`/api/v1/documents/${id}/restore`, {
+      as: 'manager',
+      method: 'POST',
+      ifMatch: 2,
+    });
+    expect(restored.status).toBe(200);
+    const run = await w.call('/api/v1/storage/reconciliation', {
+      as: 'administrator',
+      method: 'POST',
+    });
+    expect(run.data).toMatchObject({ checkedCount: 1, presentCount: 1, movedCount: 0 });
+    expect(w.harness.state.documents.get(id)?.providerState).toBe('present');
   });
 
   it('is idempotent on the request ID when starting an upload', async () => {

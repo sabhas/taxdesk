@@ -114,6 +114,38 @@ adapter has not yet run against a real account outside the TD-005 spike. The
 epic stays `in_progress` until a staging demonstration with a real OneDrive
 connection and Sprint Review acceptance.
 
+## Added after staging feedback
+
+### TD-411 — Browsable OneDrive folder layout — 3 points
+
+**Added 2026-11-22; unscheduled; ship before the first real OneDrive
+connection.** Staff upload documents through TaxDesk but read them directly in
+OneDrive through Microsoft 365. The TD-405 layout puts each file six folders
+deep, behind case-ID and document-ID folders that mean nothing to staff.
+Decisions are recorded in
+[ADR 0011](../../adr/0011-browsable-onedrive-folder-layout.md), which supersedes
+the storage layout in ADR 0006.
+
+**User story:** As staff, I want client documents in readable OneDrive folders
+so that I can find a file without opening folders named with IDs.
+
+- [x] Case documents are stored at `clients/<client code>/<tax year>/<case code>/<file name>` and client-level documents at `clients/<client code>/general/<file name>`. Every segment comes from a code or tax year that never changes; client and service names are not used.
+- [x] The layout is still built only in `storage-layout.ts`. It validates the client code and case code patterns, the tax year, and the file name, and rejects a case code without a tax year or the reverse.
+- [x] Upload sessions use `conflictBehavior: rename`, so uploading a file whose name already exists in the folder succeeds and OneDrive adds a suffix. The document keeps the uploaded file name for display and download, and opens the file by its external item ID.
+- [x] Invoice and receipt PDFs use the same layout: the case folder when the invoice has a case, otherwise the invoice client's `general/` folder (including combined group invoices). A retried PDF upload still records and opens the right file.
+- [x] Documents and PDFs stored under the TD-405 layout still open, download, delete, restore, and reconcile. No migration or move is performed.
+- [x] Tests cover the layout function (case, client-level, invalid inputs), the OneDrive adapter's request (`conflictBehavior: rename`, encoded path), two same-name uploads to one case through the routes with the fake provider, and billing PDF paths for individual and combined invoices.
+- [x] `docs/technical/data-model.md` no longer says the pre-assigned document ID makes the storage path stable.
+- [x] The operator OneDrive guide and the security and data-handling page describe the folder layout, sharing the app folder with staff as view-only, removing the share at offboarding, and that files must still never be moved, renamed, or deleted by hand. The UAT scenarios (a TD-411 group) cover the new layout and same-name uploads, and the search index is rebuilt.
+
+Criteria are checked off on local evidence (`/verify-story`, 2026-11-22, then
+the gaps it found were closed): layout, fake and OneDrive adapter, document
+route (same-name uploads, TD-405-path documents), and billing route (case and
+general PDF folders, combined invoices, a retry into an occupied folder,
+TD-405-path PDFs) tests. Two checks need a real OneDrive account and remain for
+the staging demonstration: sharing the app folder view-only with Microsoft 365
+staff accounts, and restoring a deleted file after its name has been reused.
+
 ## Exit criteria
 
 - No case or billing code imports Microsoft Graph directly.

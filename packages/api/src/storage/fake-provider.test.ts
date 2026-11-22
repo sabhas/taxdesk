@@ -34,7 +34,7 @@ async function kindOf(promise: Promise<unknown>): Promise<string> {
 }
 
 const path = {
-  segments: ['clients', 'CL-00001', 'general', 'client-documents', 'd1'],
+  segments: ['clients', 'CL-00001', 'general'],
   fileName: 'a.pdf',
 };
 
@@ -91,13 +91,40 @@ describe('fake storage provider (port contract)', () => {
     expect(await kindOf(provider.getUploadSession(session))).toBe('not_found');
   });
 
-  it('refuses a second item at the same location and cancelled sessions', async () => {
+  it('renames a second item with a taken name instead of overwriting it (TD-411)', async () => {
     const { provider, grant } = await connect();
-    const session = await provider.createUploadSession(grant.credentials, { path, sizeBytes: 1 });
-    await provider.uploadChunk({ session, offset: 0, totalSize: 1, bytes: new Uint8Array(1) });
-    expect(
-      await kindOf(provider.createUploadSession(grant.credentials, { path, sizeBytes: 1 })),
-    ).toBe('conflict');
+    const upload = async () => {
+      const session = await provider.createUploadSession(grant.credentials, { path, sizeBytes: 1 });
+      const result = await provider.uploadChunk({
+        session,
+        offset: 0,
+        totalSize: 1,
+        bytes: new Uint8Array(1),
+      });
+      if (result.kind !== 'complete') {
+        throw new Error('expected a completed upload');
+      }
+      return result.item;
+    };
+    const first = await upload();
+    const second = await upload();
+    const third = await upload();
+    expect([first.name, second.name, third.name]).toEqual([
+      path.fileName,
+      path.fileName.replace(/\.pdf$/u, ' 1.pdf'),
+      path.fileName.replace(/\.pdf$/u, ' 2.pdf'),
+    ]);
+    expect(new Set([first.externalItemId, second.externalItemId, third.externalItemId]).size).toBe(
+      3,
+    );
+    expect(second.parentId).toBe(first.parentId);
+    // A trashed item frees its name.
+    await provider.trash(grant.credentials, third.externalItemId);
+    expect((await upload()).name).toBe(third.name);
+  });
+
+  it('refuses chunks for cancelled sessions', async () => {
+    const { provider, grant } = await connect();
     const other = await provider.createUploadSession(grant.credentials, {
       path: { ...path, fileName: 'b.pdf' },
       sizeBytes: 1,

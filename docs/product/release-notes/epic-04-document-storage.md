@@ -53,6 +53,14 @@ Draft until staging demonstration and Sprint Review acceptance.
   restores stop with a clear message; administrators get a reconnect link.
   Short provider outages are retried automatically and recover on their own.
 
+- **TD-411 browsable folders** ([ADR 0011](../../adr/0011-browsable-onedrive-folder-layout.md)):
+  files are stored at `clients/<client code>/<tax year>/<case code>/<file name>`,
+  or `clients/<client code>/general/<file name>` without a case, instead of
+  inside case-ID and document-ID folders. Uploading a name that already exists
+  in the folder succeeds, and OneDrive adds a number (`bank-statement 1.pdf`).
+  Staff may read the app folder in OneDrive through a view-only share. Earlier
+  files stay where they are and keep working.
+
 ## Data changes
 
 - Migration `0007_document_storage.sql` adds `storage_connections`,
@@ -78,3 +86,8 @@ Draft until staging demonstration and Sprint Review acceptance.
    restore, and run reconciliation with synthetic files only.
 5. Revoke the app's consent in the Microsoft account and confirm that TaxDesk
    reports "reconnect required" and that reconnecting restores access.
+6. TD-411: share the app folder view-only with a test staff account, upload two
+   files with the same name to one case, and confirm both appear under
+   `clients/<client code>/<tax year>/<case code>/` with the second numbered.
+   Delete one, upload a new file with its name, then try to restore the first,
+   and record what Microsoft returns.

@@ -43,6 +43,53 @@
             </li>
           </ul>
 
+          <h2 id="layout">Folder layout</h2>
+          <p>
+            OneDrive shows the app folder as <span class="path">Apps → &lt;app name&gt;</span>,
+            for example <span class="path">Apps → TaxDesk staging</span>. Inside it, every file is
+            filed by client code, tax year, and case code:
+          </p>
+          <pre><code>clients/CL-00001/2025/TC-00042/salary-certificate.pdf    a case document
+clients/CL-00001/2025/TC-00042/INV-00012.pdf             invoice or receipt for that case
+clients/CL-00001/general/cnic-copy.pdf                   a document with no case</code></pre>
+          <ul>
+            <li>
+              Folders use codes, never names, so renaming a client never leaves a stale folder.
+              Find the codes on the client and case pages in TaxDesk.
+            </li>
+            <li>
+              Invoices without a case, including combined group invoices, are in the client's
+              <span class="path">general</span> folder (for a combined invoice, the group head's).
+            </li>
+            <li>
+              If a file with the same name is already in the folder, OneDrive saves the new one with
+              a number, for example <code>bank-statement 1.pdf</code>. TaxDesk still shows the
+              name that was uploaded.
+            </li>
+            <li>
+              Files uploaded before this layout (TD-411) stay in their older folders, one level
+              per case ID and document ID. They keep working in TaxDesk.
+            </li>
+          </ul>
+
+          <h2 id="share">Share the folder with staff</h2>
+          <p>
+            Staff upload through TaxDesk but may read files directly in OneDrive. The storage
+            account owner shares the app folder with them.
+          </p>
+          <ol class="steps">
+            <li>Sign in to OneDrive as the storage account and open <span class="path">Apps</span>.</li>
+            <li>Share the TaxDesk app folder with each staff member with <strong>view</strong> access only, never edit access.</li>
+            <li>When someone leaves, remove their share on the same day you deactivate them in TaxDesk.</li>
+          </ol>
+          <div class="callout warn">
+            <p>
+              Reading a file in OneDrive skips TaxDesk's checks. Anyone with the share can see
+              every client's documents, whatever their role or assignments, and those reads are
+              not in TaxDesk's audit history. Share only with staff who need it.
+            </p>
+          </div>
+
           <h2 id="register">1. Register a Microsoft app (once per environment)</h2>
           <ol class="steps">
             <li>
@@ -166,8 +213,9 @@ pnpm exec wrangler secret put ONEDRIVE_CLIENT_SECRET --config packages/api/wrang
             <li>Use a firm-owned Microsoft account, not someone's personal one, and protect it with MFA.</li>
             <li>Use a different account for staging and production.</li>
             <li>
-              Never move, rename, or delete files in the TaxDesk app folder by hand.
-              Reconciliation would flag them as missing or moved.
+              Reading files in the app folder is fine. Never move, rename, or delete them there:
+              reconciliation would flag them as missing or moved. Upload, edit, and delete in
+              TaxDesk.
             </li>
             <li>
               The OneDrive recycle bin is what makes <em>restore</em> possible. Once Microsoft

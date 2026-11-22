@@ -60,6 +60,13 @@ export interface FakeStorageProvider extends DocumentStorageProvider {
   removeExternally(externalItemId: string): void;
   /** Moves an item to another parent outside TaxDesk. */
   moveExternally(externalItemId: string, newParentId: string): void;
+  /** Puts a file at `path` outside TaxDesk, as an earlier attempt or a person would. */
+  addExternally(path: string, bytes: Uint8Array): ProviderItem;
+  /**
+   * Records an item at another path with its ID and parent unchanged, as a
+   * file stored under an earlier layout (TD-405) would be.
+   */
+  setStoredPath(externalItemId: string, path: string): void;
   /** Empties the trash so trashed items are no longer recoverable. */
   purgeTrash(): void;
   /** Bytes of a stored item (tests compare downloads). */
@@ -142,6 +149,21 @@ export function createFakeStorageProvider(
 
   const parentIdFor = (path: string): string => `folder:${path}`;
 
+  /** First of `name.ext`, `name 1.ext`, `name 2.ext`, ... not taken in the folder. */
+  const freeName = (parentPath: string, fileName: string): string => {
+    const taken = new Set(
+      [...items.values()].filter((stored) => !stored.trashed).map((stored) => stored.path),
+    );
+    const dot = fileName.lastIndexOf('.');
+    const stem = dot > 0 ? fileName.slice(0, dot) : fileName;
+    const extension = dot > 0 ? fileName.slice(dot) : '';
+    let candidate = fileName;
+    for (let suffix = 1; taken.has(`${parentPath}/${candidate}`); suffix += 1) {
+      candidate = `${stem} ${String(suffix)}${extension}`;
+    }
+    return candidate;
+  };
+
   const provider: FakeStorageProvider = {
     providerType: 'fake',
     items,
@@ -197,11 +219,6 @@ export function createFakeStorageProvider(
       count('createUploadSession');
       authorize(credentials);
       const path = [...input.path.segments, input.path.fileName].join('/');
-      for (const stored of items.values()) {
-        if (stored.path === path && !stored.trashed) {
-          throw new StorageProviderError('conflict', 'An item already exists at this location.');
-        }
-      }
       const handle = `https://fake-storage.test/upload/${nextId('session')}`;
       const expiresAt = new Date(clock().getTime() + 24 * 3600 * 1000).toISOString();
       sessions.set(handle, {
@@ -245,11 +262,14 @@ export function createFakeStorageProvider(
       }
       const externalItemId = nextId('item');
       const parentPath = session.path.slice(0, session.path.lastIndexOf('/'));
+      // Like OneDrive's `conflictBehavior: rename`, resolved when the upload
+      // commits: a taken name becomes `name 1.ext`, `name 2.ext`, ...
+      const name = freeName(parentPath, session.fileName);
       const item: ProviderItem = {
         externalItemId,
         driveId: DRIVE_ID,
         parentId: parentIdFor(parentPath),
-        name: session.fileName,
+        name,
         sizeBytes: session.sizeBytes,
         etag: `"${externalItemId}-1"`,
         trashed: false,
@@ -257,7 +277,7 @@ export function createFakeStorageProvider(
       items.set(externalItemId, {
         item,
         bytes: session.received,
-        path: session.path,
+        path: `${parentPath}/${name}`,
         trashed: false,
       });
       sessions.delete(input.session.handle);
@@ -358,6 +378,27 @@ export function createFakeStorageProvider(
       const stored = items.get(externalItemId);
       if (stored !== undefined) {
         stored.item = { ...stored.item, parentId: newParentId };
+      }
+    },
+    addExternally(path, bytes) {
+      const externalItemId = nextId('item');
+      const slash = path.lastIndexOf('/');
+      const item: ProviderItem = {
+        externalItemId,
+        driveId: DRIVE_ID,
+        parentId: parentIdFor(path.slice(0, slash)),
+        name: path.slice(slash + 1),
+        sizeBytes: bytes.length,
+        etag: `"${externalItemId}-1"`,
+        trashed: false,
+      };
+      items.set(externalItemId, { item, bytes, path, trashed: false });
+      return item;
+    },
+    setStoredPath(externalItemId, path) {
+      const stored = items.get(externalItemId);
+      if (stored !== undefined) {
+        stored.path = path;
       }
     },
     purgeTrash() {
