@@ -75,6 +75,18 @@ export interface RecoveryCodeRecord {
   readonly createdAt: string;
 }
 
+export interface FirmLogoRecord {
+  readonly contentType: 'image/png' | 'image/jpeg';
+  readonly byteSize: number;
+  readonly sha256: string;
+  readonly updatedAt: string;
+}
+
+/** The logo with its image bytes, for serving it and printing it on PDFs. */
+export interface FirmLogoImage extends FirmLogoRecord {
+  readonly bytes: Uint8Array;
+}
+
 export interface FirmRecord {
   readonly id: string;
   readonly firmName: string;
@@ -84,6 +96,8 @@ export interface FirmRecord {
   readonly receiptPrefix: string;
   readonly documentMaxUploadBytes: number;
   readonly dueSoonDays: number;
+  /** The current logo's description, or `null`; the bytes load separately. */
+  readonly logo: FirmLogoRecord | null;
   readonly bootstrapCompletedAt: string | null;
   readonly createdAt: string;
   readonly updatedAt: string;

@@ -22,8 +22,16 @@ export interface PdfTableRow {
   readonly emphasis?: boolean;
 }
 
+/** The firm logo (TD-512), drawn top-left above the header lines. */
+export interface PdfLogo {
+  readonly contentType: 'image/png' | 'image/jpeg';
+  readonly bytes: Uint8Array;
+}
+
 export interface PdfLayout {
   readonly metadata: PdfMetadata;
+  /** Absent when the firm has no logo; the header is then unchanged. */
+  readonly logo?: PdfLogo;
   /** Lines above the table, in order. */
   readonly header: readonly PdfTextLine[];
   readonly columns: readonly { readonly title: string; readonly align: 'left' | 'right' }[];

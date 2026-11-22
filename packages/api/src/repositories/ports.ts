@@ -2,6 +2,7 @@ import type {
   ActivationPurpose,
   ActivationTokenRecord,
   AuditEventRecord,
+  FirmLogoImage,
   FirmRecord,
   LoginAttemptRecord,
   LoginChallengeRecord,
@@ -104,6 +105,23 @@ export interface FirmRepository {
     readonly receiptPrefix: string;
     readonly documentMaxUploadBytes: number;
     readonly dueSoonDays: number;
+    readonly expectedVersion: number;
+    readonly updatedAt: string;
+  }): Promise<FirmRecord | null>;
+  getLogo(): Promise<FirmLogoImage | null>;
+  /** Stores or replaces the logo and bumps the settings version; `null` on a stale version. */
+  setLogo(input: {
+    readonly id: string;
+    readonly contentType: FirmLogoImage['contentType'];
+    readonly bytes: Uint8Array;
+    readonly sha256: string;
+    readonly updatedByUserId: string;
+    readonly expectedVersion: number;
+    readonly updatedAt: string;
+  }): Promise<FirmRecord | null>;
+  /** Deletes the logo and bumps the settings version; `null` on a stale version. */
+  removeLogo(input: {
+    readonly id: string;
     readonly expectedVersion: number;
     readonly updatedAt: string;
   }): Promise<FirmRecord | null>;

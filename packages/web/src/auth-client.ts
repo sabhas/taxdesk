@@ -163,3 +163,26 @@ export async function updateFirmSettings(
     sessionScoped: true,
   });
 }
+
+/** The current logo image; the digest in the URL makes a cached copy safe to reuse. */
+export function firmLogoUrl(sha256: string): string {
+  return `/api/v1/firm/logo?v=${encodeURIComponent(sha256)}`;
+}
+
+/** Uploads or replaces the firm logo (TD-512). The server checks the image itself. */
+export async function uploadFirmLogo(image: Blob, version: number): Promise<FirmSettings> {
+  return await apiRequest('/api/v1/firm/logo', FirmSettingsSchema, {
+    method: 'PUT',
+    rawBody: image,
+    ifMatch: version,
+    sessionScoped: true,
+  });
+}
+
+export async function removeFirmLogo(version: number): Promise<FirmSettings> {
+  return await apiRequest('/api/v1/firm/logo', FirmSettingsSchema, {
+    method: 'DELETE',
+    ifMatch: version,
+    sessionScoped: true,
+  });
+}

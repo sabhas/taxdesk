@@ -28,3 +28,4 @@ When implementation begins, create separate ADRs for decisions that change cost,
 | [0009](0009-data-import-and-independent-backups.md) | Retry-safe CSV import and independent encrypted backups | proposed |
 | [0010](0010-client-groups-and-combined-invoices.md) | Client groups and combined group invoices | proposed |
 | [0011](0011-browsable-onedrive-folder-layout.md) | Browsable OneDrive folder layout | proposed |
+| [0012](0012-invoice-branding-and-sharing.md) | Firm logo on billing PDFs and sharing invoices from the device | proposed |

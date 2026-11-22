@@ -454,6 +454,7 @@ describe('firm settings (TD-605)', () => {
     receiptPrefix: 'RCP',
     documentMaxUploadBytes: 250 * 1024 * 1024,
     dueSoonDays: 7,
+    logo: null,
     createdAt: NOW,
     updatedAt: NOW,
     version: 1,
@@ -504,5 +505,172 @@ describe('firm settings (TD-605)', () => {
     const days = await screen.findByLabelText('Dashboard due-soon window (days)');
     expect(days).toBeDisabled();
     expect(screen.queryByRole('button', { name: 'Save settings' })).toBeNull();
+  });
+});
+
+describe('firm logo (TD-512)', () => {
+  const SHA = 'a'.repeat(64);
+  const base = {
+    id: '0198a000-0000-7000-8000-0000000000f1',
+    firmName: 'Synthetic Firm',
+    timezone: 'Asia/Karachi',
+    currency: 'PKR',
+    invoicePrefix: 'INV',
+    receiptPrefix: 'RCP',
+    documentMaxUploadBytes: 250 * 1024 * 1024,
+    dueSoonDays: 7,
+    logo: null,
+    createdAt: NOW,
+    updatedAt: NOW,
+    version: 3,
+  };
+  const withLogo = {
+    ...base,
+    version: 4,
+    logo: { contentType: 'image/png', byteSize: 2048, sha256: SHA, updatedAt: NOW },
+  };
+  const png = () =>
+    new File([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], 'logo.png', { type: 'image/png' });
+
+  it('uploads a logo with the settings version and shows the preview', async () => {
+    const requests: RequestInit[] = [];
+    mockApi('administrator', (url, init) => {
+      if (url === '/api/v1/firm/settings') return json(base);
+      if (url === '/api/v1/firm/logo' && init.method === 'PUT') {
+        requests.push(init);
+        return json(withLogo);
+      }
+      return undefined;
+    });
+    const rendered = visit('/firm-settings');
+    const input = await screen.findByLabelText('Logo image');
+    expect(screen.getByText('No logo uploaded. PDFs show the firm name only.')).toBeTruthy();
+    await expectNoSeriousViolations(rendered.container);
+    expect(screen.getByRole('button', { name: 'Upload logo' })).toBeDisabled();
+
+    fireEvent.change(input, { target: { files: [png()] } });
+    fireEvent.click(screen.getByRole('button', { name: 'Upload logo' }));
+    expect(await screen.findByText(/Logo saved/u)).toBeTruthy();
+    const headers = requests[0]?.headers as Record<string, string>;
+    expect(headers['If-Match']).toBe('"3"');
+    expect(headers['X-Request-Id']).toBeTruthy();
+    expect(requests[0]?.body).toBeInstanceOf(File);
+    const preview = screen.getByRole('img', { name: 'Current firm logo' });
+    expect(preview.getAttribute('src')).toBe(`/api/v1/firm/logo?v=${SHA}`);
+    expect(screen.getByRole('button', { name: 'Replace logo' })).toBeTruthy();
+    await expectNoSeriousViolations(rendered.container);
+  });
+
+  it('shows the upload as busy and locks the controls until it finishes', async () => {
+    mockApi('administrator', (url) => (url === '/api/v1/firm/settings' ? json(base) : undefined));
+    const delegate = globalThis.fetch;
+    let release: ((response: Response) => void) | undefined;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: string, init: RequestInit = {}) =>
+        input === '/api/v1/firm/logo' && init.method === 'PUT'
+          ? new Promise<Response>((resolve) => {
+              release = resolve;
+            })
+          : delegate(input, init),
+      ),
+    );
+    visit('/firm-settings');
+    const input = await screen.findByLabelText('Logo image');
+    fireEvent.change(input, { target: { files: [png()] } });
+    fireEvent.click(screen.getByRole('button', { name: 'Upload logo' }));
+    const busy = await screen.findByRole('button', { name: 'Uploading…' });
+    expect(busy).toBeDisabled();
+    expect(busy).toHaveAttribute('aria-busy', 'true');
+    expect(input).toBeDisabled();
+    release?.(json(withLogo));
+    expect(await screen.findByText(/Logo saved/u)).toBeTruthy();
+    expect(screen.getByLabelText('Replace with')).not.toBeDisabled();
+  });
+
+  it('rejects the wrong type or size before uploading and shows server image errors', async () => {
+    const urls = mockApi('administrator', (url, init) => {
+      if (url === '/api/v1/firm/settings') return json(base);
+      if (url === '/api/v1/firm/logo' && init.method === 'PUT') {
+        return new Response(
+          JSON.stringify({
+            type: 'https://taxdesk.app/problems/validation_failed',
+            title: 'Bad Request',
+            status: 400,
+            code: 'VALIDATION_FAILED',
+            detail: 'This image could not be read. Save it again as PNG or JPEG and retry.',
+            requestId: 'req-logo',
+            errors: [
+              {
+                field: 'logo',
+                message: 'This image could not be read. Save it again as PNG or JPEG and retry.',
+              },
+            ],
+          }),
+          { status: 400, headers: { 'Content-Type': 'application/problem+json' } },
+        );
+      }
+      return undefined;
+    });
+    visit('/firm-settings');
+    const input = await screen.findByLabelText('Logo image');
+    fireEvent.change(input, {
+      target: { files: [new File(['GIF89a'], 'logo.gif', { type: 'image/gif' })] },
+    });
+    expect(screen.getByText('Use a PNG or JPEG image.')).toBeTruthy();
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByRole('button', { name: 'Upload logo' })).toBeDisabled();
+    fireEvent.change(input, {
+      target: {
+        files: [new File([new Uint8Array(512 * 1024 + 1)], 'big.png', { type: 'image/png' })],
+      },
+    });
+    expect(screen.getByText('Use a logo of at most 512 KiB.')).toBeTruthy();
+    expect(urls.some((entry) => entry.startsWith('PUT'))).toBe(false);
+
+    fireEvent.change(input, { target: { files: [png()] } });
+    fireEvent.click(screen.getByRole('button', { name: 'Upload logo' }));
+    expect(await screen.findByText(/could not be read/u)).toBeTruthy();
+  });
+
+  it('explains a stale version and removes the logo after confirmation', async () => {
+    let stale = true;
+    mockApi('administrator', (url, init) => {
+      if (url === '/api/v1/firm/settings') return json(withLogo);
+      if (url === '/api/v1/firm/logo' && init.method === 'DELETE') {
+        if (stale) {
+          stale = false;
+          return problem(
+            412,
+            'PRECONDITION_FAILED',
+            'Firm settings changed since you loaded them.',
+          );
+        }
+        return json({ ...base, version: 6 });
+      }
+      return undefined;
+    });
+    visit('/firm-settings');
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove logo' }));
+    const dialog = await screen.findByRole('alertdialog', { name: 'Remove the firm logo?' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Remove logo' }));
+    expect(await screen.findByRole('heading', { name: 'Settings changed' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove logo' }));
+    const again = await screen.findByRole('alertdialog', { name: 'Remove the firm logo?' });
+    fireEvent.click(within(again).getByRole('button', { name: 'Remove logo' }));
+    expect(await screen.findByText(/Logo removed/u)).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.queryByRole('img', { name: 'Current firm logo' })).toBeNull();
+    });
+  });
+
+  it('shows the logo without upload controls to roles that cannot manage settings', async () => {
+    mockApi('billing', (url) => (url === '/api/v1/firm/settings' ? json(withLogo) : undefined));
+    visit('/firm-settings');
+    expect(await screen.findByRole('img', { name: 'Current firm logo' })).toBeTruthy();
+    expect(screen.getByText('Your role can view but not change the firm logo.')).toBeTruthy();
+    expect(screen.queryByLabelText(/Logo image|Replace with/u)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Remove logo' })).toBeNull();
   });
 });

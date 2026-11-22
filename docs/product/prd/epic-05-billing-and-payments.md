@@ -139,6 +139,45 @@ group head `clientId`; draft lines carry `clientId` and `caseId`;
 the duplicate-billing warning. See the data model and the Billing training
 guide.
 
+### TD-512 — Firm logo on invoices and receipts — 3 points
+
+**Added 2026-11-22 after staging feedback; unscheduled.** The firm's
+representative asked for the firm's logo on invoices, set by administrators.
+
+**User story:** As an administrator, I want to upload the firm's logo so that
+every invoice and receipt PDF carries the firm's branding.
+
+- [x] Users with `firm.settings.manage` can upload, replace, and remove one firm logo from Firm settings. Other roles cannot change it, and the server enforces this.
+- [x] Only PNG or JPEG up to 512 KiB is accepted. The server checks the file signature and that the image decodes, not the declared type or extension, and rejects anything else with a clear Problem Details error.
+- [x] The logo is stored in the database alongside firm settings, never in client document storage. Each change uses `If-Match` and a request ID, and appends one audited `firm.logo_updated` or `firm.logo_removed` event that records the type, size, and a SHA-256 digest but never the image bytes.
+- [x] Invoice and receipt PDFs generated after a change show the logo top-left, scaled to fit a fixed header box with its aspect ratio kept. Without a logo, the header is unchanged. PDFs already generated are never regenerated or altered.
+- [x] The settings screen previews the current logo, shows the accepted types and size, and covers loading, invalid-file, stale-version, and permission-denied states with keyboard and screen-reader access.
+- [x] The staff training guide, in-app help, and UAT scenarios describe the firm logo.
+
+**Implementation notes (verified locally with `/verify-story`, 2026-11-22; staging demonstration pending):**
+migration `0013_firm_logo.sql` adds `firm_logos`. `PUT` and `DELETE /api/v1/firm/logo`
+take `If-Match` on the firm settings version; `GET /api/v1/firm/logo` serves
+the image and `FirmSettings.logo` describes it. The type comes from the file
+signature, and PNG and JPEG are decoded in full before saving. See ADR 0012,
+the data model, and the Administration training guide.
+
+### TD-513 — Share an invoice from the app — 3 points
+
+**Added 2026-11-22 after staging feedback; unscheduled.** The firm's
+representative asked to send invoices to clients without leaving TaxDesk.
+TaxDesk sends nothing itself: it hands the PDF to the staff member's device or
+to WhatsApp, so no public link, email provider, or new secret is involved.
+
+**User story:** As billing staff, I want to share an invoice with the client
+from the invoice screen so that I do not have to download and re-attach it.
+
+- [ ] Finalized invoices whose PDF is ready show a Share action to every user who can download that invoice. Draft and void invoices, and invoices whose PDF is still pending, cannot be shared and say why.
+- [ ] Where the browser can share files, Share opens the device share sheet with the invoice PDF attached and a short message giving the invoice number, total, outstanding amount, due date, and firm name. The message never includes a CNIC or NTN.
+- [ ] Where the browser cannot share files, Share offers "Send on WhatsApp": it downloads the PDF and opens WhatsApp with the same message addressed to the client's primary contact phone, or with no recipient when the client has no phone. The screen tells staff to attach the downloaded PDF.
+- [ ] Each completed share appends one audited `billing.invoice_shared` event with the channel and request ID. A cancelled share sheet records nothing. The server rechecks invoice visibility and state before recording.
+- [ ] The action covers busy, cancelled, failed-download, and permission-denied states with keyboard and screen-reader access.
+- [ ] The staff training guide, in-app help, and UAT scenarios describe sharing an invoice.
+
 ## Exit criteria
 
 - Final invoices, payments, and reversals are append-only.

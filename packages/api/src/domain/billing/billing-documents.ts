@@ -19,7 +19,12 @@ import {
   paymentNotFound,
   type InvoiceTarget,
 } from './billing-access.js';
-import { buildInvoiceLayout, buildReceiptLayout, type PdfLayout } from './pdf/layout.js';
+import {
+  buildInvoiceLayout,
+  buildReceiptLayout,
+  type PdfLayout,
+  type PdfLogo,
+} from './pdf/layout.js';
 import type { PdfRenderer } from './pdf/renderer.js';
 import type { BillingDocumentRecord, InvoiceRecord, PaymentRecord } from './types.js';
 
@@ -45,6 +50,10 @@ export interface BillingPdfDownload {
 const INVOICE_ENTITY = 'invoice';
 const PAYMENT_ENTITY = 'payment';
 const DEFAULT_FIRM_NAME = 'TaxDesk';
+
+function withLogo(logo: PdfLogo | null, layout: PdfLayout): PdfLayout {
+  return logo === null ? layout : { ...layout, logo };
+}
 
 /**
  * Invoice and receipt PDFs (TD-504, TD-507). Generation is decoupled from the
@@ -125,31 +134,35 @@ export class BillingDocumentService {
     try {
       const items = await this.repositories.invoices.listItems(invoice.id);
       const firm = await this.repositories.firm.get();
-      const layout = buildInvoiceLayout({
-        firmName: firm?.firmName ?? DEFAULT_FIRM_NAME,
-        invoiceNumber,
-        currency: invoice.currency,
-        issueDate: invoice.issueDate ?? '',
-        dueDate: invoice.dueDate,
-        finalizedAt,
-        client: { clientCode: invoice.clientCode, displayName: invoice.clientDisplayName },
-        caseCode: invoice.caseCode,
-        billingMode: invoice.billingMode,
-        // Combined lines print the client name snapshotted at finalization.
-        items: items.map((item) => ({
-          description: item.description,
-          quantity: item.quantity,
-          unitAmountMinor: item.unitAmountMinor,
-          lineTotalMinor: item.lineTotalMinor,
-          clientId: item.clientId,
-          clientName: item.clientNameSnapshot ?? item.clientDisplayName,
-          caseCode: item.caseCode,
-        })),
-        subtotalMinor: invoice.subtotalMinor,
-        discountMinor: invoice.discountMinor,
-        totalMinor: invoice.totalMinor,
-        notes: invoice.notes,
-      });
+      const logo = await this.firmLogo();
+      const layout = withLogo(
+        logo,
+        buildInvoiceLayout({
+          firmName: firm?.firmName ?? DEFAULT_FIRM_NAME,
+          invoiceNumber,
+          currency: invoice.currency,
+          issueDate: invoice.issueDate ?? '',
+          dueDate: invoice.dueDate,
+          finalizedAt,
+          client: { clientCode: invoice.clientCode, displayName: invoice.clientDisplayName },
+          caseCode: invoice.caseCode,
+          billingMode: invoice.billingMode,
+          // Combined lines print the client name snapshotted at finalization.
+          items: items.map((item) => ({
+            description: item.description,
+            quantity: item.quantity,
+            unitAmountMinor: item.unitAmountMinor,
+            lineTotalMinor: item.lineTotalMinor,
+            clientId: item.clientId,
+            clientName: item.clientNameSnapshot ?? item.clientDisplayName,
+            caseCode: item.caseCode,
+          })),
+          subtotalMinor: invoice.subtotalMinor,
+          discountMinor: invoice.discountMinor,
+          totalMinor: invoice.totalMinor,
+          notes: invoice.notes,
+        }),
+      );
       const stored = await this.store({
         layout,
         fileName: `${invoiceNumber}.pdf`,
@@ -201,20 +214,24 @@ export class BillingDocumentService {
     }
     try {
       const firm = await this.repositories.firm.get();
-      const layout = buildReceiptLayout({
-        firmName: firm?.firmName ?? DEFAULT_FIRM_NAME,
-        receiptNumber: payment.receiptNumber,
-        invoiceNumber: invoice.invoiceNumber ?? '',
-        currency: invoice.currency,
-        recordedAt: payment.createdAt,
-        receivedOn: payment.receivedOn,
-        method: payment.method,
-        reference: payment.reference,
-        amountMinor: payment.amountMinor,
-        invoiceTotalMinor: invoice.totalMinor,
-        client: { clientCode: invoice.clientCode, displayName: invoice.clientDisplayName },
-        caseCode: invoice.caseCode,
-      });
+      const logo = await this.firmLogo();
+      const layout = withLogo(
+        logo,
+        buildReceiptLayout({
+          firmName: firm?.firmName ?? DEFAULT_FIRM_NAME,
+          receiptNumber: payment.receiptNumber,
+          invoiceNumber: invoice.invoiceNumber ?? '',
+          currency: invoice.currency,
+          recordedAt: payment.createdAt,
+          receivedOn: payment.receivedOn,
+          method: payment.method,
+          reference: payment.reference,
+          amountMinor: payment.amountMinor,
+          invoiceTotalMinor: invoice.totalMinor,
+          client: { clientCode: invoice.clientCode, displayName: invoice.clientDisplayName },
+          caseCode: invoice.caseCode,
+        }),
+      );
       const stored = await this.store({
         layout,
         fileName: `${payment.receiptNumber}.pdf`,
@@ -239,6 +256,12 @@ export class BillingDocumentService {
       }
       return { state: 'failed', created: false };
     }
+  }
+
+  /** The firm logo at the moment the PDF is generated (TD-512); `null` without one. */
+  private async firmLogo(): Promise<PdfLogo | null> {
+    const logo = await this.repositories.firm.getLogo();
+    return logo === null ? null : { contentType: logo.contentType, bytes: logo.bytes };
   }
 
   /** Renders and uploads one PDF as a single upload-session chunk. */

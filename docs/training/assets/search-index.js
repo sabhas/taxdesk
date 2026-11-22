@@ -403,7 +403,7 @@ window.TAXDESK_GUIDE_INDEX = [
   "title": "Administration",
   "url": "staff/administration.html",
   "track": "Staff",
-  "keywords": "Managing people, firm settings, document storage, and the audit trail. Only administrators see these pages; everyone else can view firm settings. a.khan Asia/Karachi INV INV-00001 RCP billing.* auth.* •••••-••••567-1 firm.bootstrapped auth.login_failed user.recovery_* client.created case.created billing.invoice_finalized import.row_decided import.committed import.exceptions_exported",
+  "keywords": "Managing people, firm settings, document storage, and the audit trail. Only administrators see these pages; everyone else can view firm settings. a.khan Asia/Karachi INV INV-00001 RCP firm.logo_updated firm.logo_removed billing.* auth.* •••••-••••567-1 firm.bootstrapped auth.login_failed user.recovery_* client.created case.created billing.invoice_finalized import.row_decided import.committed import.exceptions_exported",
   "sections": [
    [
     "users",
@@ -420,6 +420,10 @@ window.TAXDESK_GUIDE_INDEX = [
    [
     "firm-settings",
     "Firm settings"
+   ],
+   [
+    "firm-logo",
+    "Firm logo"
    ],
    [
     "storage",

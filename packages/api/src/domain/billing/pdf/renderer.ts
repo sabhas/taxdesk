@@ -29,6 +29,8 @@ export function toWinAnsi(text: string): string {
 const PAGE = { width: 595.28, height: 841.89, margin: 48 } as const;
 const COLORS = { ink: rgb(0.1, 0.1, 0.12), muted: rgb(0.4, 0.42, 0.46), rule: rgb(0.8, 0.8, 0.82) };
 const FOOTER_ROOM = 70;
+/** The logo is scaled down, never up, to fit this box with its aspect ratio kept. */
+export const LOGO_BOX = { width: 180, height: 64 } as const;
 
 class Cursor {
   page: PDFPage;
@@ -111,6 +113,22 @@ export function createPdfRenderer(): PdfRenderer {
         }
       };
 
+      if (layout.logo !== undefined) {
+        const image =
+          layout.logo.contentType === 'image/png'
+            ? await document.embedPng(layout.logo.bytes)
+            : await document.embedJpg(layout.logo.bytes);
+        const scale = Math.min(1, LOGO_BOX.width / image.width, LOGO_BOX.height / image.height);
+        const width = image.width * scale;
+        const height = image.height * scale;
+        cursor.page.drawImage(image, {
+          x: PAGE.margin,
+          y: cursor.y - height,
+          width,
+          height,
+        });
+        cursor.y -= height + 14;
+      }
       for (const line of layout.header) {
         drawLine(line);
       }

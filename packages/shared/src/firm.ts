@@ -64,6 +64,37 @@ const DueSoonDaysSchema = z
   .min(FIRM_SETTING_LIMITS.dueSoonDaysMin, 'Use at least 1 day.')
   .max(FIRM_SETTING_LIMITS.dueSoonDaysMax, 'Use at most 60 days.');
 
+/**
+ * The firm logo printed on invoice and receipt PDFs (TD-512). `pdf-lib` can
+ * embed only PNG and JPEG, so those are the only accepted types.
+ */
+export const FIRM_LOGO_LIMITS = {
+  maxBytes: 512 * 1024,
+  /**
+   * Largest side in pixels. A small, highly compressed PNG can expand to a
+   * huge bitmap when decoded, so dimensions are checked before decoding.
+   */
+  maxSidePixels: 2000,
+  contentTypes: ['image/png', 'image/jpeg'],
+} as const;
+
+export const FirmLogoContentTypeSchema = z.enum(FIRM_LOGO_LIMITS.contentTypes);
+
+export type FirmLogoContentType = z.infer<typeof FirmLogoContentTypeSchema>;
+
+/** What the API says about the current logo. The image itself is served separately. */
+export const FirmLogoSchema = z
+  .object({
+    contentType: FirmLogoContentTypeSchema,
+    byteSize: z.number().int().positive().max(FIRM_LOGO_LIMITS.maxBytes),
+    /** Hex SHA-256 of the image bytes; changes whenever the logo does. */
+    sha256: z.string().regex(/^[0-9a-f]{64}$/u),
+    updatedAt: z.iso.datetime(),
+  })
+  .strict();
+
+export type FirmLogo = z.infer<typeof FirmLogoSchema>;
+
 export const FirmSettingsSchema = z
   .object({
     id: UuidV7Schema,
@@ -75,6 +106,8 @@ export const FirmSettingsSchema = z
     documentMaxUploadBytes: DocumentMaxUploadBytesSchema,
     /** Cases due within this many days count as "due soon" everywhere. */
     dueSoonDays: DueSoonDaysSchema,
+    /** `null` when no logo has been uploaded. */
+    logo: FirmLogoSchema.nullable(),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),
     version: z.number().int().positive(),
