@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   InvoiceDraftCreateRequestSchema,
+  WhatsAppPhoneSchema,
+  buildInvoiceShareMessage,
+  formatShareDate,
   InvoiceItemInputSchema,
   InvoiceDraftUpdateRequestSchema,
   RecordPaymentRequestSchema,
@@ -174,5 +177,51 @@ describe('combined invoice helpers (TD-511)', () => {
       'Income tax return (tax year 2026)',
     );
     expect(caseLineDescription('x'.repeat(400), 2026)).toHaveLength(300);
+  });
+});
+
+describe('invoice share message (TD-513)', () => {
+  const base = {
+    firmName: 'Synthetic Tax Firm',
+    clientName: 'Example Traders',
+    invoiceNumber: 'INV-00012',
+    currency: 'PKR',
+    totalMinor: 2_500_000,
+    outstandingMinor: 1_000_000,
+    dueDate: '2026-11-30',
+  };
+
+  it('states the number, total, outstanding amount, due date, and firm', () => {
+    expect(buildInvoiceShareMessage(base)).toBe(
+      [
+        'Dear Example Traders,',
+        '',
+        'Please find attached invoice INV-00012 from Synthetic Tax Firm.',
+        'Total: PKR 25,000.00',
+        'Outstanding: PKR 10,000.00',
+        'Due date: 30 Nov 2026',
+        '',
+        'Thank you,',
+        'Synthetic Tax Firm',
+      ].join('\n'),
+    );
+  });
+
+  it('marks a settled invoice and omits a missing due date', () => {
+    const message = buildInvoiceShareMessage({ ...base, outstandingMinor: 0, dueDate: null });
+    expect(message).toContain('Outstanding: PKR 0.00 (paid in full)');
+    expect(message).not.toContain('Due date');
+  });
+
+  it('formats dates without depending on the device locale', () => {
+    expect(formatShareDate('2026-01-05')).toBe('5 Jan 2026');
+    expect(formatShareDate('not-a-date')).toBe('not-a-date');
+  });
+
+  it('accepts only wa.me phone digits', () => {
+    expect(WhatsAppPhoneSchema.safeParse('923001234567').success).toBe(true);
+    for (const bad of ['+923001234567', '03001234567', '12', '9230012345678901']) {
+      expect(WhatsAppPhoneSchema.safeParse(bad).success, bad).toBe(false);
+    }
   });
 });

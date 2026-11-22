@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useId, useState } from 'react';
 import { Link, useParams } from 'react-router';
-import { Download, LoaderCircle, RotateCcw } from 'lucide-react';
+import { Download, LoaderCircle, RotateCcw, Share2 } from 'lucide-react';
 import { groupLinesByClient, type Invoice, type InvoiceItem, type Payment } from '@taxdesk/shared';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -42,6 +42,7 @@ import {
   VoidInvoiceDialog,
 } from './BillingDialogs.js';
 import { InvoiceDraftEditor } from './InvoiceDraftEditor.js';
+import { ShareInvoiceDialog } from './ShareInvoiceDialog.js';
 import {
   INVOICE_STATUS_BADGE,
   INVOICE_STATUS_LABELS,
@@ -54,7 +55,21 @@ import {
   money,
 } from './billing-format.js';
 
-type Dialog = 'finalize' | 'payment' | 'void' | null;
+type Dialog = 'finalize' | 'payment' | 'void' | 'share' | null;
+
+/** Why an invoice cannot be shared yet, or `null` when it can (TD-513). */
+function shareBlocker(invoice: Invoice): string | null {
+  if (invoice.status === 'draft') {
+    return 'Drafts cannot be shared. Finalize the invoice to download or share it.';
+  }
+  if (invoice.status === 'void') {
+    return 'Void invoices cannot be shared.';
+  }
+  if (invoice.pdfState !== 'ready') {
+    return 'Share becomes available once the invoice PDF is stored.';
+  }
+  return null;
+}
 
 /** One invoice: the draft editor, or the frozen record with payments and PDFs. */
 export function InvoiceDetailPage() {
@@ -154,6 +169,8 @@ export function InvoiceDetailPage() {
   const pdfFailed = invoice.pdfState === 'failed' || invoice.pdfState === 'pending';
   const canVoid = canManage && !isVoid && invoice.paidMinor === 0;
   const combined = invoice.billingMode === 'combined';
+  const notShareable = shareBlocker(invoice);
+  const canShare = notShareable === null && invoice.invoiceNumber !== null;
 
   return (
     <section aria-labelledby={headingId}>
@@ -201,6 +218,19 @@ export function InvoiceDetailPage() {
                 Download PDF
               </a>
             )}
+            {canShare && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setSuccess(null);
+                  setDialog('share');
+                }}
+              >
+                <Share2 aria-hidden="true" />
+                Share
+              </Button>
+            )}
             {canManage && invoice.status === 'finalized' && invoice.outstandingMinor > 0 && (
               <Button
                 type="button"
@@ -244,6 +274,7 @@ export function InvoiceDetailPage() {
       {isDraft && !canManage && (
         <InfoNotice>This invoice is a draft. Your role can view it but not change it.</InfoNotice>
       )}
+      {isDraft && <p className="mb-4 text-sm text-muted-foreground">{notShareable}</p>}
 
       {isDraft && canManage ? (
         <InvoiceDraftEditor
@@ -356,6 +387,9 @@ export function InvoiceDetailPage() {
                 <span className="text-muted-foreground">
                   The invoice is saved. Document storage was unavailable, so the PDF was not stored.
                 </span>
+              )}
+              {notShareable !== null && (
+                <span className="text-muted-foreground">{notShareable}</span>
               )}
               {canManage && pdfFailed && (
                 <Button
@@ -509,6 +543,24 @@ export function InvoiceDetailPage() {
           setSuccess('Payment reversed. The balance was recalculated.');
         }}
       />
+      {invoice.invoiceNumber !== null && (
+        <ShareInvoiceDialog
+          invoiceId={invoice.id}
+          invoiceNumber={invoice.invoiceNumber}
+          open={dialog === 'share'}
+          onOpenChange={(open) => {
+            setDialog(open ? 'share' : null);
+          }}
+          onShared={(message) => {
+            setNotice(null);
+            setSuccess(message);
+          }}
+          onNotRecorded={(failure) => {
+            setSuccess(null);
+            setNotice(failure);
+          }}
+        />
+      )}
       <VoidInvoiceDialog
         invoice={invoice}
         open={dialog === 'void'}

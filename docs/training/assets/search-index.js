@@ -443,7 +443,7 @@ window.TAXDESK_GUIDE_INDEX = [
   "title": "Invoices and payments",
   "url": "staff/billing.html",
   "track": "Staff",
-  "keywords": "Bill for case work, take payments, and correct mistakes, all without ever editing financial history. Amounts are in PKR. INV-00001 INV-00002 RCP-00001",
+  "keywords": "Bill for case work, take payments, and correct mistakes, all without ever editing financial history. Amounts are in PKR. INV-00001 INV-00002 billing.invoice_shared RCP-00001",
   "sections": [
    [
     "lifecycle",
@@ -460,6 +460,10 @@ window.TAXDESK_GUIDE_INDEX = [
    [
     "finalize",
     "Finalize"
+   ],
+   [
+    "share",
+    "Share an invoice with the client"
    ],
    [
     "payments",

@@ -171,12 +171,20 @@ to WhatsApp, so no public link, email provider, or new secret is involved.
 **User story:** As billing staff, I want to share an invoice with the client
 from the invoice screen so that I do not have to download and re-attach it.
 
-- [ ] Finalized invoices whose PDF is ready show a Share action to every user who can download that invoice. Draft and void invoices, and invoices whose PDF is still pending, cannot be shared and say why.
-- [ ] Where the browser can share files, Share opens the device share sheet with the invoice PDF attached and a short message giving the invoice number, total, outstanding amount, due date, and firm name. The message never includes a CNIC or NTN.
-- [ ] Where the browser cannot share files, Share offers "Send on WhatsApp": it downloads the PDF and opens WhatsApp with the same message addressed to the client's primary contact phone, or with no recipient when the client has no phone. The screen tells staff to attach the downloaded PDF.
-- [ ] Each completed share appends one audited `billing.invoice_shared` event with the channel and request ID. A cancelled share sheet records nothing. The server rechecks invoice visibility and state before recording.
-- [ ] The action covers busy, cancelled, failed-download, and permission-denied states with keyboard and screen-reader access.
-- [ ] The staff training guide, in-app help, and UAT scenarios describe sharing an invoice.
+- [x] Finalized invoices whose PDF is ready show a Share action to every user who can download that invoice. Draft and void invoices, and invoices whose PDF is still pending, cannot be shared and say why.
+- [x] Where the browser can share files, Share opens the device share sheet with the invoice PDF attached and a short message giving the invoice number, total, outstanding amount, due date, and firm name. The message never includes a CNIC or NTN.
+- [x] Where the browser cannot share files, Share offers "Send on WhatsApp": it downloads the PDF and opens WhatsApp with the same message addressed to the client's primary contact phone, or with no recipient when the client has no phone. The screen tells staff to attach the downloaded PDF.
+- [x] Each completed share appends one audited `billing.invoice_shared` event with the channel and request ID. A cancelled share sheet records nothing. The server rechecks invoice visibility and state before recording.
+- [x] The action covers busy, cancelled, failed-download, and permission-denied states with keyboard and screen-reader access.
+- [x] The staff training guide, in-app help, and UAT scenarios describe sharing an invoice.
+
+**Implementation notes (verified locally with `/verify-story`, 2026-11-22; staging demonstration pending):**
+no migration. `GET /api/v1/invoices/{id}/share` returns the server-built
+message, PDF file name, and WhatsApp phone digits (the primary contact's,
+otherwise the first contact with a phone). `POST /api/v1/invoices/{id}/shares`
+records `billing.invoice_shared` with the channel. Both use the invoice
+download policy. See ADR 0012 and the Billing training guide.
+
 
 ## Exit criteria
 

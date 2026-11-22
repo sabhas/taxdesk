@@ -22,6 +22,7 @@ import { StorageConnectionService } from './domain/storage/storage-connection-se
 import { DocumentService } from './domain/documents/document-service.js';
 import { BillingService } from './domain/billing/billing-service.js';
 import { BillingDocumentService } from './domain/billing/billing-documents.js';
+import { InvoiceShareService } from './domain/billing/invoice-sharing.js';
 import { AuditExplorerService } from './domain/reports/audit-explorer-service.js';
 import { ReportService } from './domain/reports/report-service.js';
 import { ImportService } from './domain/imports/import-service.js';
@@ -57,6 +58,7 @@ export interface AppDependencies {
   readonly documentService: DocumentService;
   readonly billingService: BillingService;
   readonly billingDocumentService: BillingDocumentService;
+  readonly invoiceShareService: InvoiceShareService;
   readonly reportService: ReportService;
   readonly auditExplorerService: AuditExplorerService;
   readonly importService: ImportService;
@@ -257,6 +259,7 @@ export function composeDependencies(options: ComposeDependenciesOptions): AppDep
       renderer: options.pdfRenderer ?? createPdfRenderer(),
       clock,
     }),
+    invoiceShareService: new InvoiceShareService({ repositories, clock }),
     clock,
     close: options.close ?? (() => Promise.resolve()),
   };

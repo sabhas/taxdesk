@@ -4,6 +4,8 @@ import {
   BillableCaseListSchema,
   BillableCasesQuerySchema,
   BillingPdfResultSchema,
+  InvoiceShareContextSchema,
+  InvoiceShareRequestSchema,
   GroupBillingTotalsQuerySchema,
   GroupBillingTotalsSchema,
   InvoiceDraftCreateRequestSchema,
@@ -281,6 +283,27 @@ billingRoutes.get('/invoices/:invoiceId/pdf', read(), async (c) => {
       requestId: c.get('requestId'),
     });
   return pdfResponse(c, fileName, download);
+});
+
+// Sharing (TD-513): the device shares; the server supplies the message and records it.
+billingRoutes.get('/invoices/:invoiceId/share', read(), async (c) => {
+  const context = await c.get('dependencies').invoiceShareService.context({
+    actor: c.get('actor'),
+    invoiceId: invoiceId(c),
+  });
+  c.header('Cache-Control', 'private, no-store');
+  return c.json(InvoiceShareContextSchema.parse(context));
+});
+
+billingRoutes.post('/invoices/:invoiceId/shares', read(), async (c) => {
+  const request = await parseJsonBody(c, InvoiceShareRequestSchema);
+  await c.get('dependencies').invoiceShareService.record({
+    actor: c.get('actor'),
+    invoiceId: invoiceId(c),
+    channel: request.channel,
+    requestId: c.get('requestId'),
+  });
+  return c.body(null, 204);
 });
 
 billingRoutes.post('/payments/:paymentId/receipt-pdf', manage(), async (c) => {

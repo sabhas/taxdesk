@@ -115,6 +115,7 @@ export const AUDIT_ACTIONS = {
   invoicePdfGenerated: 'billing.invoice_pdf_generated',
   invoicePdfFailed: 'billing.invoice_pdf_failed',
   invoicePdfDownloaded: 'billing.invoice_pdf_downloaded',
+  invoiceShared: 'billing.invoice_shared',
   paymentRecorded: 'billing.payment_recorded',
   paymentReversed: 'billing.payment_reversed',
   receiptPdfGenerated: 'billing.receipt_pdf_generated',
